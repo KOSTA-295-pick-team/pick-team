@@ -6,7 +6,6 @@ import jakarta.persistence.PreRemove;
 import lombok.Getter;
 import org.hibernate.annotations.SoftDelete;
 
-
 import java.time.LocalDateTime;
 
 /**
@@ -25,7 +24,13 @@ public abstract class BaseSoftDeleteByAnnotation extends BaseTimeEntity {
 
     @PreRemove
     public void onSoftDelete() {
-        this.deletedAt = LocalDateTime.now(); // Hibernate가 해주지 않음!
+        this.deletedAt = LocalDateTime.now(); // Hibernate가 해주지 않는다.
+    }
+
+    /** isDeleted 컬럼의 값을 수동 관리 필요할 경우를 위한 수동설정 메소드 (Hibernate가 관리해주지 않을 경우) */
+    public void markDeleted() {
+        this.isDeleted = true;
+        this.deletedAt = LocalDateTime.now();
     }
 
     public void restore() {

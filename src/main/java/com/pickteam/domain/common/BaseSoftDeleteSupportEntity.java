@@ -7,8 +7,9 @@ import lombok.Getter;
 import java.time.LocalDateTime;
 
 /**
- * Soft-Delete를 수동 관리하는 코드
+ * Soft-Delete를 수동 관리하는 코드 (Deprecated)
  */
+
 @Getter
 @MappedSuperclass
 public abstract class BaseSoftDeleteSupportEntity extends BaseTimeEntity {

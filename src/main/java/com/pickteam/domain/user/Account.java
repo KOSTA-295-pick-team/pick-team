@@ -1,10 +1,18 @@
 package com.pickteam.domain.user;
 
 import com.pickteam.domain.board.Comment;
+import com.pickteam.domain.board.Post;
 import com.pickteam.domain.chat.ChatMember;
+import com.pickteam.domain.chat.ChatMessage;
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
 import com.pickteam.domain.common.BaseTimeEntity;
 import com.pickteam.domain.enums.UserRole;
+import com.pickteam.domain.kanban.KanbanTaskComment;
+import com.pickteam.domain.kanban.KanbanTaskMember;
+import com.pickteam.domain.notification.NotificationLog;
+import com.pickteam.domain.team.TeamMember;
+import com.pickteam.domain.videochat.VideoMember;
+import com.pickteam.domain.workspace.WorkspaceMember;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -51,10 +59,37 @@ public class Account extends BaseSoftDeleteByAnnotation {
 
     private String dislikeWorkstyle;
 
-    @OneToMany(mappedBy = "account", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    // 사용자가 탈퇴해도 관련 정보가 삭제되면 안 된다. cascade 걸지 않고 OnetoMany로 연결만(조회용)
+    @OneToMany(mappedBy = "account")
     private List<Comment> comments = new ArrayList<>();
-
-    @OneToMany(mappedBy = "account", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @OneToMany(mappedBy = "account")
     private List<ChatMember> chatMembers = new ArrayList<>();
+    @OneToMany(mappedBy = "account")
+    private List<ChatMessage> chatMessages = new ArrayList<>();
+    @OneToMany(mappedBy = "account")
+    private List<Post> posts = new ArrayList<>();
+    @OneToMany(mappedBy = "account")
+    private List<KanbanTaskComment> kanbanTaskComments = new ArrayList<>();
+    @OneToMany(mappedBy = "account")
+    private List<KanbanTaskMember> kanbanTaskMembers = new ArrayList<>();
+    @OneToMany(mappedBy = "account")
+    private List<NotificationLog> notificationLogs = new ArrayList<>();
+    @OneToMany(mappedBy = "account")
+    private List<TeamMember> teamMembers = new ArrayList<>();
+    @OneToMany(mappedBy = "account")
+    private List<VideoMember> videoMembers = new ArrayList<>();
+    @OneToMany(mappedBy = "account")
+    private List<WorkspaceMember> workspaceMembers = new ArrayList<>();
+    @OneToMany(mappedBy = "account")
+    private List<UserHashtagList> userHashtagLists = new ArrayList<>();
+
+    //워크스페이스에서 soft-delete되면 soft-delete 정보가 자식에게 전파되어야 한다
+    //hard-delete되면 안 된다
+    @Override
+    public void onSoftDelete() {
+        super.onSoftDelete();
+        teamMembers.forEach(TeamMember::markDeleted);
+        workspaceMembers.forEach(WorkspaceMember::markDeleted);
+    }
 
 }

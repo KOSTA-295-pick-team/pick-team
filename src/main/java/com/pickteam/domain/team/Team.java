@@ -36,4 +36,13 @@ public class Team extends BaseSoftDeleteByAnnotation {
     @OneToMany(mappedBy = "team", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<TeamMember> teamMembers = new ArrayList<>();
 
+    //soft-delete 전파
+    @Override
+    public void onSoftDelete() {
+        super.onSoftDelete();
+        boards.forEach(Board::markDeleted);
+        kanbans.forEach(Kanban::markDeleted);
+        teamMembers.forEach(TeamMember::markDeleted);
+    }
+
 }

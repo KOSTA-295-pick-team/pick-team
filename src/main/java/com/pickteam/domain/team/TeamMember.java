@@ -1,5 +1,6 @@
 package com.pickteam.domain.team;
 
+import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
 import com.pickteam.domain.common.BaseTimeEntity;
 import com.pickteam.domain.user.Account;
 import jakarta.persistence.*;
@@ -13,15 +14,12 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TeamMember extends BaseTimeEntity {
-    //현재 멤버에 대한 생성정보만 사용할 것이므로 BaseTimeEntity를 상속받는다.
-    //입-퇴장 로그는 이 테이블에서 Soft-Delete 처리하지 않고, 필요 시 별도의 로그를 통해 관리한다.
+public class TeamMember extends BaseSoftDeleteByAnnotation {
+    //팀 탈퇴(혹은 추방)된 멤버에 대한 정보가 남아있어야 하므로... soft-delete 처리가 되어야 함
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    private LocalDateTime createdAt;
 
     @ManyToOne(optional = false)
     private Team team;

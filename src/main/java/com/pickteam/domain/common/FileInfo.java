@@ -23,9 +23,4 @@ public class FileInfo extends BaseSoftDeleteByAnnotation {
 
     private Long size;
 
-    private LocalDateTime createdAt;
-
-    private LocalDateTime deletedAt;
-
-    private Boolean isDeleted;
 }

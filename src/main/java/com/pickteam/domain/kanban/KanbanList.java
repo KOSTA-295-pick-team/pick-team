@@ -4,6 +4,9 @@ import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Getter
 @Setter
@@ -20,4 +23,14 @@ public class KanbanList extends BaseSoftDeleteByAnnotation {
 
     @ManyToOne(optional = false)
     private Kanban kanban;
+
+    @OneToMany(mappedBy = "kanbanList", orphanRemoval = true)
+    private List<KanbanTask> tasks = new ArrayList<>();
+
+    @Override
+    public void onSoftDelete() {
+        super.onSoftDelete();
+        tasks.forEach(BaseSoftDeleteByAnnotation::markDeleted);
+    }
+
 }

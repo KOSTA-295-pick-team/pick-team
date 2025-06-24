@@ -19,11 +19,8 @@ public class KanbanTaskComment extends BaseSoftDeleteByAnnotation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Lob
     private String comment;
-
-    private LocalDateTime createdAt;
-
-    private LocalDateTime updatedAt;
 
     @ManyToOne(optional = false)
     private KanbanTask kanbanTask;

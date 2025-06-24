@@ -6,6 +6,9 @@ import com.pickteam.domain.workspace.Workspace;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Getter
 @Setter
@@ -23,4 +26,14 @@ public class Kanban extends BaseSoftDeleteByAnnotation {
 
     @ManyToOne(optional = false)
     private Workspace workspace;
+
+    @OneToMany(mappedBy = "kanban", orphanRemoval = true)
+    private List<KanbanList> kanbanLists = new ArrayList<>();
+
+    @Override
+    public void onSoftDelete() {
+        super.onSoftDelete();
+        kanbanLists.forEach(BaseSoftDeleteByAnnotation::markDeleted);
+    }
 }
+

@@ -1,5 +1,6 @@
 package com.pickteam.domain.notification;
 
+import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
 import com.pickteam.domain.common.BaseTimeEntity;
 import com.pickteam.domain.user.Account;
 import jakarta.persistence.*;
@@ -11,8 +12,10 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class NotificationLog extends BaseTimeEntity {
-    //알람은 soft-delete가 필요없는 정보다. 유저가 확인하면 날아가도 무방하다.
+public class NotificationLog extends BaseSoftDeleteByAnnotation {
+    //하드삭제 -> 소프트삭제로 설계변경. 유저가 확인하면 삭제되어도 무방하지만 운영상 관리 필요성 생길 수 있음
+    //즉시 삭제되지 않고 soft-delete 처리한 뒤 날짜기반으로 배치 삭제해도 무방
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

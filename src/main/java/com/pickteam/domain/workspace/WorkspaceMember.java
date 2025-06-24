@@ -1,5 +1,6 @@
 package com.pickteam.domain.workspace;
 
+import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
 import com.pickteam.domain.common.BaseTimeEntity;
 import com.pickteam.domain.user.Account;
 import jakarta.persistence.*;
@@ -13,9 +14,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class WorkspaceMember extends BaseTimeEntity {
-    //현재 멤버에 대한 생성정보만 사용할 것이므로 BaseTimeEntity를 상속받는다.
-    //입-퇴장 로그는 이 테이블에서 Soft-Delete 처리하지 않고, 필요 시 별도의 로그를 통해 관리한다. {
+public class WorkspaceMember extends BaseSoftDeleteByAnnotation {
+    //유저가 탈퇴하거나 추방되어도 관련 정보가 삭제되면 안된다. soft-delete 처리한다.
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

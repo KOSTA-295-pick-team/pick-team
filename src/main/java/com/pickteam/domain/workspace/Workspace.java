@@ -1,9 +1,13 @@
 package com.pickteam.domain.workspace;
 
+import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.common.BaseTimeEntity;
 import com.pickteam.domain.user.Account;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -11,9 +15,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Workspace extends BaseTimeEntity {
-    //현재 멤버에 대한 생성정보만 사용할 것이므로 BaseTimeEntity를 상속받는다.
-    //입-퇴장 로그는 이 테이블에서 Soft-Delete 처리하지 않고, 필요 시 별도의 로그를 통해 관리한다.
+public class Workspace extends BaseSoftDeleteSupportEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,4 +30,9 @@ public class Workspace extends BaseTimeEntity {
 
     @ManyToOne(optional = false)
     private Account account;
+
+    @OneToMany(mappedBy = "workspace")
+    private List<WorkspaceMember> members = new ArrayList<>();
+
+
 }

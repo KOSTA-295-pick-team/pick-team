@@ -24,13 +24,8 @@ public class KanbanList extends BaseSoftDeleteByAnnotation {
     @ManyToOne(optional = false)
     private Kanban kanban;
 
-    @OneToMany(mappedBy = "kanbanList", orphanRemoval = true)
+    @OneToMany(mappedBy = "kanbanList")
     private List<KanbanTask> tasks = new ArrayList<>();
 
-    @Override
-    public void onSoftDelete() {
-        super.onSoftDelete();
-        tasks.forEach(BaseSoftDeleteByAnnotation::markDeleted);
-    }
 
 }

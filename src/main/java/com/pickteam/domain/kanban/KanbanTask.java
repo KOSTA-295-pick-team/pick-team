@@ -30,21 +30,13 @@ public class KanbanTask extends BaseSoftDeleteByAnnotation {
     @ManyToOne(optional = false)
     private KanbanList kanbanList;
 
-    @OneToMany(mappedBy = "kanbanTask", orphanRemoval = true)
+    @OneToMany(mappedBy = "kanbanTask")
     private List<KanbanTaskAttach> attachments = new ArrayList<>();
 
-    @OneToMany(mappedBy = "kanbanTask", orphanRemoval = true)
+    @OneToMany(mappedBy = "kanbanTask")
     private List<KanbanTaskComment> comments = new ArrayList<>();
 
-    @OneToMany(mappedBy = "kanbanTask", orphanRemoval = true)
+    @OneToMany(mappedBy = "kanbanTask")
     private List<KanbanTaskMember> members = new ArrayList<>();
-
-    @Override
-    public void markDeleted() {
-        super.markDeleted();
-        attachments.forEach(KanbanTaskAttach::markDeleted);
-        comments.forEach(KanbanTaskComment::markDeleted);
-        // members는 soft-delete 안 하기로 했으므로 제외
-    }
 
 }

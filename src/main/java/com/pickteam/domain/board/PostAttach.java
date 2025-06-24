@@ -13,7 +13,6 @@ import lombok.*;
 @Builder
 public class PostAttach extends BaseSoftDeleteByAnnotation {
 
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -23,7 +22,7 @@ public class PostAttach extends BaseSoftDeleteByAnnotation {
     private Post post;
 
     // 첨부파일은 파일 정보와 1:1 매핑된다.
-    @OneToOne(cascade = CascadeType.REMOVE, orphanRemoval = true, optional = false)
+    @OneToOne(optional = false)
     @JoinColumn(name = "file_info_id", nullable = false)
     private FileInfo fileInfo;
 

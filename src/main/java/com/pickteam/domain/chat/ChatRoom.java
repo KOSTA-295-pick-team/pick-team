@@ -37,13 +37,5 @@ public class ChatRoom extends BaseSoftDeleteByAnnotation {
     @OneToMany(mappedBy = "chatRoom", orphanRemoval = true)
     private List<ChatMember> chatMembers = new ArrayList<>();
 
-    @Override
-    public void onSoftDelete() {
-        super.onSoftDelete();
-        chatMessages.forEach(BaseSoftDeleteByAnnotation::markDeleted);
-
-    }
-
-
 
 }

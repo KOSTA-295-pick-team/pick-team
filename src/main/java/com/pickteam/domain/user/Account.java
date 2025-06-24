@@ -83,13 +83,5 @@ public class Account extends BaseSoftDeleteByAnnotation {
     @OneToMany(mappedBy = "account")
     private List<UserHashtagList> userHashtagLists = new ArrayList<>();
 
-    //워크스페이스에서 soft-delete되면 soft-delete 정보가 자식에게 전파되어야 한다
-    //hard-delete되면 안 된다
-    @Override
-    public void onSoftDelete() {
-        super.onSoftDelete();
-        teamMembers.forEach(TeamMember::markDeleted);
-        workspaceMembers.forEach(WorkspaceMember::markDeleted);
-    }
 
 }

@@ -28,21 +28,12 @@ public class Team extends BaseSoftDeleteByAnnotation {
     @ManyToOne(optional = false)
     private Workspace workspace;
 
-    // Team이 Hard-Delete로 사라지면 해당 팀에 귀속된 다음 값들도 함께 사라져야 한다.
-    @OneToMany(mappedBy = "team", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @OneToMany(mappedBy = "team")
     private List<Board> boards = new ArrayList<>();
-    @OneToMany(mappedBy = "team", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @OneToMany(mappedBy = "team")
     private List<Kanban> kanbans = new ArrayList<>();
-    @OneToMany(mappedBy = "team", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @OneToMany(mappedBy = "team")
     private List<TeamMember> teamMembers = new ArrayList<>();
 
-    //soft-delete 전파
-    @Override
-    public void onSoftDelete() {
-        super.onSoftDelete();
-        boards.forEach(Board::markDeleted);
-        kanbans.forEach(Kanban::markDeleted);
-        teamMembers.forEach(TeamMember::markDeleted);
-    }
 
 }

@@ -1,6 +1,7 @@
 package com.pickteam.domain.board;
 
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
+import com.pickteam.domain.user.Account;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -25,7 +26,10 @@ public class Post extends BaseSoftDeleteByAnnotation {
 
     private String title;
 
-    private String author;
+    //작성자 id
+    @ManyToOne(optional=false)
+    private Account account;
+
 
     @Lob
     private String content;

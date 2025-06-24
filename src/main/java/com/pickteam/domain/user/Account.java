@@ -31,10 +31,11 @@ public class Account extends BaseSoftDeleteByAnnotation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String email;
 
     @Column(nullable = false)
+    // 실제 저장 시에는 암호화된 값이 저장되어야 함
     private String password;
 
     @Column(nullable = false)

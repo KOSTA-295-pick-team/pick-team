@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class FileInfo {
+public class FileInfo extends BaseSoftDeleteByAnnotation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

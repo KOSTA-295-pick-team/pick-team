@@ -48,10 +48,13 @@ public class Account extends BaseSoftDeleteByAnnotation {
     @Column(nullable = false)
     private UserRole role;
 
+    @Column(length = 4)
     private String mbti;
 
+    @Column(columnDefinition = "TEXT")
     private String disposition;
 
+    @Column(columnDefinition = "TEXT")
     private String introduction;
 
     private String portfolio;
@@ -59,6 +62,16 @@ public class Account extends BaseSoftDeleteByAnnotation {
     private String preferWorkstyle;
 
     private String dislikeWorkstyle;
+
+    // mvc 버전에서 추가된 필드들
+    @Column(columnDefinition = "TEXT")
+    private String likes;
+
+    @Column(columnDefinition = "TEXT")
+    private String dislikes;
+
+    @Column(name = "profile_image")
+    private String profileImage;
 
     // 사용자가 탈퇴해도 관련 정보가 삭제되면 안 된다. cascade 걸지 않고 OnetoMany로 연결만(조회용)
     @OneToMany(mappedBy = "account")
@@ -83,6 +96,5 @@ public class Account extends BaseSoftDeleteByAnnotation {
     private List<WorkspaceMember> workspaceMembers = new ArrayList<>();
     @OneToMany(mappedBy = "account")
     private List<UserHashtagList> userHashtagLists = new ArrayList<>();
-
 
 }

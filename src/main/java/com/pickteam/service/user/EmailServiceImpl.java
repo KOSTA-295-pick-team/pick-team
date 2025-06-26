@@ -2,6 +2,7 @@ package com.pickteam.service.user;
 
 import com.pickteam.domain.user.EmailVerification;
 import com.pickteam.exception.EmailSendException;
+import com.pickteam.constants.EmailErrorMessages;
 import com.pickteam.repository.user.EmailVerificationRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -54,18 +55,20 @@ public class EmailServiceImpl implements EmailService {
      */
     @Override
     public void sendVerificationEmail(String email, String verificationCode) {
+        log.info("인증 메일 발송 시작: {}", email);
+
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setFrom(fromEmail, fromName);
             helper.setTo(email);
-            helper.setSubject("Pick Team 이메일 인증");
+            helper.setSubject(EmailErrorMessages.EMAIL_SUBJECT);
             helper.setText(createVerificationEmailContent(verificationCode), true);
             mailSender.send(message);
             log.info("인증 메일 발송 완료: {}", email);
         } catch (MessagingException | UnsupportedEncodingException e) {
             log.error("인증 메일 발송 실패: {}", email, e);
-            throw new EmailSendException("이메일 발송에 실패했습니다.", e);
+            throw new EmailSendException(EmailErrorMessages.EMAIL_SEND_FAILED, e);
         }
     }
 
@@ -79,7 +82,9 @@ public class EmailServiceImpl implements EmailService {
     @Override
     public String generateVerificationCode() {
         Random random = new Random();
-        return String.format("%06d", random.nextInt(1000000));
+        String code = String.format("%06d", random.nextInt(1000000));
+        log.debug("인증 코드 생성 완료");
+        return code;
     }
 
     /**
@@ -92,6 +97,8 @@ public class EmailServiceImpl implements EmailService {
      */
     @Override
     public void storeVerificationCode(String email, String code) {
+        log.info("인증 코드 저장 시작: {}", email);
+
         // 기존 미인증 코드 삭제
         emailVerificationRepository.deleteByEmail(email);
 
@@ -119,21 +126,26 @@ public class EmailServiceImpl implements EmailService {
      */
     @Override
     public boolean verifyCode(String email, String code) {
+        log.info("이메일 인증 시도: {}", email);
+
         return emailVerificationRepository
                 .findByEmailAndVerificationCodeAndIsVerifiedFalse(email, code)
                 .map(verification -> {
                     if (verification.isExpired()) {
-                        log.warn("만료된 인증 코드 사용 시도: {}", email);
+                        log.warn("{}에 대한 {}", EmailErrorMessages.VERIFICATION_CODE_EXPIRED, email);
                         return false;
                     }
 
                     // 인증 성공 처리
                     verification.setIsVerified(true);
                     emailVerificationRepository.save(verification);
-                    log.info("이메일 인증 성공: {}", email);
+                    log.info("{}: {}", EmailErrorMessages.EMAIL_VERIFICATION_SUCCESS, email);
                     return true;
                 })
-                .orElse(false);
+                .orElseGet(() -> {
+                    log.warn("잘못된 인증 코드 사용 시도: {}", email);
+                    return false;
+                });
     }
 
     /**
@@ -146,10 +158,13 @@ public class EmailServiceImpl implements EmailService {
      */
     @Override
     public boolean isEmailVerified(String email) {
-        return emailVerificationRepository
+        boolean isVerified = emailVerificationRepository
                 .findTopByEmailOrderByCreatedAtDesc(email)
                 .map(EmailVerification::getIsVerified)
                 .orElse(false); // 인증 기록이 없으면 미인증으로 처리
+
+        log.debug("이메일 인증 상태 확인: {} -> {}", email, isVerified);
+        return isVerified;
     }
 
     /**
@@ -176,11 +191,15 @@ public class EmailServiceImpl implements EmailService {
      */
     private String createVerificationEmailContent(String code) {
         return String.format(
-                "<h2>Pick Team 이메일 인증</h2>" +
-                        "<p>안녕하세요! Pick Team 서비스 이용을 위해 이메일 인증을 완료해주세요.</p>" +
+                "<h2>%s</h2>" +
+                        "<p>%s</p>" +
                         "<h3>인증 코드: <strong>%s</strong></h3>" +
-                        "<p>위 인증 코드를 입력하여 이메일 인증을 완료해주세요.</p>" +
-                        "<p>인증 코드는 5분간 유효합니다.</p>",
-                code);
+                        "<p>%s</p>" +
+                        "<p>%s</p>",
+                EmailErrorMessages.EMAIL_HEADER,
+                EmailErrorMessages.EMAIL_GREETING,
+                code,
+                EmailErrorMessages.EMAIL_CODE_INSTRUCTION,
+                EmailErrorMessages.EMAIL_EXPIRY_INFO);
     }
 }

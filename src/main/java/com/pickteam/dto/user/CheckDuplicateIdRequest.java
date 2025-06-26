@@ -1,5 +1,7 @@
 package com.pickteam.dto.user;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
@@ -10,5 +12,7 @@ import lombok.Data;
 @Data
 public class CheckDuplicateIdRequest {
     /** 중복 검사할 이메일 주소 */
+    @NotBlank(message = "이메일은 필수입니다")
+    @Email(message = "올바른 이메일 형식이 아닙니다")
     private String email;
 }

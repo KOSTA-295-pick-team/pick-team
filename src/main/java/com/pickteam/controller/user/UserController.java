@@ -25,9 +25,9 @@ public class UserController {
     }
 
     // ID 중복검사
-    @GetMapping("/check-id")
-    public ResponseEntity<ApiResponse<Boolean>> checkDuplicateId(@RequestParam String email) {
-        boolean isDuplicate = userService.checkDuplicateId(email);
+    @PostMapping("/check-id")
+    public ResponseEntity<ApiResponse<Boolean>> checkDuplicateId(@Valid @RequestBody CheckDuplicateIdRequest request) {
+        boolean isDuplicate = userService.checkDuplicateId(request.getEmail());
         return ResponseEntity.ok(ApiResponse.success(!isDuplicate));
     }
 

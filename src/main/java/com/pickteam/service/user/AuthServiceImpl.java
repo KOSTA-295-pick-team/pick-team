@@ -7,6 +7,7 @@ import com.pickteam.dto.security.RefreshTokenRequest;
 import com.pickteam.exception.UserNotFoundException;
 import com.pickteam.exception.InvalidTokenException;
 import com.pickteam.exception.AuthenticationException;
+import com.pickteam.constants.AuthErrorMessages;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.user.RefreshTokenRepository;
 import com.pickteam.domain.user.Account;
@@ -18,6 +19,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import java.time.LocalDateTime;
 
 /**
@@ -27,6 +29,7 @@ import java.time.LocalDateTime;
  * - 리프레시 토큰을 통한 토큰 갱신
  * - Spring Security와 연동한 현재 사용자 정보 조회
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -52,13 +55,16 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     public JwtAuthenticationResponse authenticate(UserLoginRequest request) {
+        log.info("사용자 로그인 시도: {}", request.getEmail());
+
         // 1. 사용자 조회
         Account account = accountRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
-                .orElseThrow(() -> new AuthenticationException("이메일 또는 비밀번호가 올바르지 않습니다."));
+                .orElseThrow(() -> new AuthenticationException(AuthErrorMessages.INVALID_CREDENTIALS));
 
         // 2. 비밀번호 검증
         if (!matchesPassword(request.getPassword(), account.getPassword())) {
-            throw new AuthenticationException("이메일 또는 비밀번호가 올바르지 않습니다.");
+            log.warn("로그인 실패 - 비밀번호 불일치: {}", request.getEmail());
+            throw new AuthenticationException(AuthErrorMessages.INVALID_CREDENTIALS);
         }
 
         // 3. Access/Refresh 토큰 발급
@@ -70,6 +76,8 @@ public class AuthServiceImpl implements AuthService {
 
         // 5. 사용자 정보 DTO 변환
         UserProfileResponse userProfile = mapToUserProfile(account);
+
+        log.info("사용자 로그인 완료: {}", request.getEmail());
 
         // 6. 응답 반환
         return new JwtAuthenticationResponse(
@@ -127,17 +135,19 @@ public class AuthServiceImpl implements AuthService {
      * 
      * @param userId 사용자 ID
      * @return 생성된 Refresh Token
+     * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
      */
     @Override
     public String generateRefreshToken(Long userId) {
         Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserNotFoundException(AuthErrorMessages.USER_NOT_FOUND));
 
         String refreshToken = jwtTokenProvider.generateRefreshToken(userId);
 
         // 기존 토큰 삭제 후 새 토큰 저장
         createAndSaveRefreshToken(account, refreshToken);
 
+        log.info("리프레시 토큰 생성 완료: userId={}", userId);
         return refreshToken;
     }
 
@@ -166,28 +176,30 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     public JwtAuthenticationResponse refreshToken(RefreshTokenRequest request) {
+        log.info("토큰 갱신 시도");
+
         // 1. DB에서 Refresh Token 조회 및 검증
         String refreshTokenValue = request.getRefreshToken();
         RefreshToken refreshToken = refreshTokenRepository.findByToken(refreshTokenValue)
-                .orElseThrow(() -> new InvalidTokenException("유효하지 않은 리프레시 토큰입니다."));
+                .orElseThrow(() -> new InvalidTokenException(AuthErrorMessages.INVALID_REFRESH_TOKEN));
 
         // 2. 토큰 만료 확인
         if (refreshToken.isExpired()) {
             refreshTokenRepository.delete(refreshToken);
-            throw new InvalidTokenException("만료된 리프레시 토큰입니다.");
+            throw new InvalidTokenException(AuthErrorMessages.EXPIRED_REFRESH_TOKEN);
         }
 
         // 3. JWT 토큰 자체 유효성 검증
         if (!jwtTokenProvider.validateToken(refreshTokenValue)) {
             refreshTokenRepository.delete(refreshToken);
-            throw new InvalidTokenException("유효하지 않은 리프레시 토큰입니다.");
+            throw new InvalidTokenException(AuthErrorMessages.INVALID_REFRESH_TOKEN);
         }
 
         // 4. 사용자 정보 조회
         Account account = refreshToken.getAccount();
         if (account == null || account.getDeletedAt() != null) {
             refreshTokenRepository.delete(refreshToken);
-            throw new UserNotFoundException("사용자를 찾을 수 없습니다.");
+            throw new UserNotFoundException(AuthErrorMessages.USER_NOT_FOUND);
         }
 
         // 5. 새 Access/Refresh 토큰 발급
@@ -199,6 +211,8 @@ public class AuthServiceImpl implements AuthService {
 
         // 7. 사용자 정보 DTO 변환
         UserProfileResponse userProfile = mapToUserProfile(account);
+
+        log.info("토큰 갱신 완료: userId={}", account.getId());
 
         // 8. 응답 반환
         return new JwtAuthenticationResponse(

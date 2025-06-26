@@ -76,7 +76,8 @@ public class ValidationServiceImpl implements ValidationService {
 
     /**
      * 나이 유효성 검사
-     * - 서비스 이용 가능 연령: 14세 이상 100세 이하
+     * - 음수 방지: 0세 이상
+     * - 현실적 상한선: 150세 이하
      * - null 값 체크 포함
      * 
      * @param age 검증할 나이
@@ -84,7 +85,7 @@ public class ValidationServiceImpl implements ValidationService {
      */
     @Override
     public boolean isValidAge(Integer age) {
-        return age != null && age >= 14 && age <= 100;
+        return age != null && age >= 0 && age <= 150;
     }
 
     /**

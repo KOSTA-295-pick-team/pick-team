@@ -50,7 +50,7 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("이름 형식이 올바르지 않습니다.");
         }
         if (!validationService.isValidAge(request.getAge())) {
-            throw new RuntimeException("나이는 14세 이상 100세 이하여야 합니다.");
+            throw new RuntimeException("나이는 0세 이상 150세 이하여야 합니다.");
         }
         if (request.getMbti() != null && !validationService.isValidMbti(request.getMbti())) {
             throw new RuntimeException("MBTI 형식이 올바르지 않습니다.");

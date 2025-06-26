@@ -79,7 +79,7 @@ public class UserController {
 
     // 내 프로필 수정
     @PutMapping("/me")
-    public ResponseEntity<ApiResponse<Void>> updateMyProfile(@RequestBody UserProfileUpdateRequest request) {
+    public ResponseEntity<ApiResponse<Void>> updateMyProfile(@Valid @RequestBody UserProfileUpdateRequest request) {
         // TODO: 현재 로그인된 사용자 ID 가져오기
         Long currentUserId = 1L; // 임시
         userService.updateMyProfile(currentUserId, request);

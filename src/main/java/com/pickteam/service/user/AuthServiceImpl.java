@@ -14,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
 import java.time.LocalDateTime;
 
@@ -32,6 +33,10 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final com.pickteam.security.JwtTokenProvider jwtTokenProvider;
+
+    /** 리프레시 토큰 만료 기간 */
+    @Value("${app.jwt.refresh-token.expiration-days}")
+    private long refreshTokenExpirationDays;
 
     /**
      * 사용자 로그인 인증 처리
@@ -249,7 +254,7 @@ public class AuthServiceImpl implements AuthService {
     /**
      * Refresh Token 생성 및 저장 (중복 로직 제거)
      * - 기존 토큰 삭제 후 새 토큰 생성
-     * - 7일 만료시간 설정
+     * - 설정 가능한 만료시간 설정
      * - MySQL DB에 영구 저장
      * 
      * @param account 토큰을 생성할 사용자 계정
@@ -261,7 +266,7 @@ public class AuthServiceImpl implements AuthService {
         RefreshToken refreshTokenEntity = RefreshToken.builder()
                 .account(account)
                 .token(token)
-                .expiresAt(LocalDateTime.now().plusDays(7))
+                .expiresAt(LocalDateTime.now().plusDays(refreshTokenExpirationDays))
                 .build();
         return refreshTokenRepository.save(refreshTokenEntity);
     }

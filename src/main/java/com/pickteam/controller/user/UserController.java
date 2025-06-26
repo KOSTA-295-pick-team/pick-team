@@ -4,6 +4,7 @@ import com.pickteam.dto.user.*;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.dto.ApiResponse;
 import com.pickteam.service.user.UserService;
+import com.pickteam.service.user.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final AuthService authService;
 
     // 회원가입
     @PostMapping("/register")
@@ -71,8 +73,11 @@ public class UserController {
     // 내 프로필 조회
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getMyProfile() {
-        // TODO: 현재 로그인된 사용자 ID 가져오기 (세션/JWT에서)
-        Long currentUserId = 1L; // 임시
+        // 실제 구현: SecurityContext에서 사용자 ID 추출
+        Long currentUserId = authService.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("인증되지 않은 사용자입니다.");
+        }
         UserProfileResponse profile = userService.getMyProfile(currentUserId);
         return ResponseEntity.ok(ApiResponse.success(profile));
     }
@@ -80,8 +85,11 @@ public class UserController {
     // 내 프로필 수정
     @PutMapping("/me")
     public ResponseEntity<ApiResponse<Void>> updateMyProfile(@Valid @RequestBody UserProfileUpdateRequest request) {
-        // TODO: 현재 로그인된 사용자 ID 가져오기
-        Long currentUserId = 1L; // 임시
+        // 실제 구현: SecurityContext에서 사용자 ID 추출
+        Long currentUserId = authService.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("인증되지 않은 사용자입니다.");
+        }
         userService.updateMyProfile(currentUserId, request);
         return ResponseEntity.ok(ApiResponse.success("프로필이 수정되었습니다.", null));
     }
@@ -103,8 +111,11 @@ public class UserController {
     // 추천 팀원 리스트 조회
     @GetMapping("/recommend")
     public ResponseEntity<ApiResponse<List<UserProfileResponse>>> getRecommendedTeamMembers() {
-        // TODO: 현재 로그인된 사용자 ID 가져오기
-        Long currentUserId = 1L; // 임시
+        // 실제 구현: SecurityContext에서 사용자 ID 추출
+        Long currentUserId = authService.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("인증되지 않은 사용자입니다.");
+        }
         List<UserProfileResponse> recommendedMembers = userService.getRecommendedTeamMembers(currentUserId);
         return ResponseEntity.ok(ApiResponse.success(recommendedMembers));
     }
@@ -112,8 +123,11 @@ public class UserController {
     // 비밀번호 변경
     @PutMapping("/password")
     public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
-        // TODO: 현재 로그인된 사용자 ID 가져오기
-        Long currentUserId = 1L; // 임시
+        // 실제 구현: SecurityContext에서 사용자 ID 추출
+        Long currentUserId = authService.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("인증되지 않은 사용자입니다.");
+        }
         userService.changePassword(currentUserId, request);
         return ResponseEntity.ok(ApiResponse.success("비밀번호가 변경되었습니다.", null));
     }
@@ -121,8 +135,11 @@ public class UserController {
     // 계정 삭제
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> deleteAccount() {
-        // TODO: 현재 로그인된 사용자 ID 가져오기
-        Long currentUserId = 1L; // 임시
+        // 실제 구현: SecurityContext에서 사용자 ID 추출
+        Long currentUserId = authService.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("인증되지 않은 사용자입니다.");
+        }
         userService.deleteAccount(currentUserId);
         return ResponseEntity.ok(ApiResponse.success("계정이 삭제되었습니다.", null));
     }

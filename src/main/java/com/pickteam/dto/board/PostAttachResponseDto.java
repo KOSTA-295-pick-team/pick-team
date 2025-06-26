@@ -1,24 +1,29 @@
 package com.pickteam.dto.board;
 
 import com.pickteam.domain.board.PostAttach;
+import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 @Getter
-@Setter
+@Builder
 public class PostAttachResponseDto {
-
     private Long id;
-    private String originalName;
-    private String hashedName;
+    private String originalFileName;
+    private String hashedFileName;
     private Long fileSize;
+    private LocalDateTime createdAt;
+    private String downloadUrl;
 
-    public static PostAttachResponseDto from(PostAttach attach) {
-        PostAttachResponseDto dto = new PostAttachResponseDto();
-        dto.setId(attach.getId());
-        dto.setOriginalName(attach.getFileInfo().getNameOrigin());
-        dto.setHashedName(attach.getFileInfo().getNameHashed());
-        dto.setFileSize(attach.getFileInfo().getSize());
-        return dto;
+    public static PostAttachResponseDto from(PostAttach postAttach) {
+        return PostAttachResponseDto.builder()
+                .id(postAttach.getId())
+                .originalFileName(postAttach.getFileInfo().getNameOrigin())
+                .hashedFileName(postAttach.getFileInfo().getNameHashed())
+                .fileSize(postAttach.getFileInfo().getSize())
+                .createdAt(postAttach.getCreatedAt())
+                .downloadUrl("/api/files/" + postAttach.getFileInfo().getId() + "/download")
+                .build();
     }
 }

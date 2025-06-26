@@ -1,0 +1,14 @@
+https://drive.google.com/drive/folders/1N_wOGctTRZVdXTE6DV8Cq6ixXFsCm67W
+
+슬랙 : 수업시간 활용
+과제 : 메일로 - 과제는 항상 위에 주석으로 주제, 작성자 이름 작성
+
+제출 : 8253jang@daum.net 메일 전송
+   제출양식 :  ex0213_본인이름.zip   ->   class 아니고 java만 압축해서 
+   12시까지 ....
+
+
+오늘
+1. Student.java를 완성
+2. 동호레이아웃 모형을 출력 (가변형 배열을 사용) 
+   - 값은 엑셀처럼 넣었지만 출력은 각 열을 출력(값을 우선적으로 할당해줘야한다!!)

@@ -12,6 +12,10 @@ import com.pickteam.repository.workspace.WorkspaceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 @Component
 @RequiredArgsConstructor
@@ -22,12 +26,19 @@ public class DataLoader implements CommandLineRunner {
     private final TeamRepository teamRepository;
     private final BoardRepository boardRepository;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @Override
+    @Transactional
     public void run(String... args) throws Exception {
         // 데이터가 이미 있으면 생성하지 않음
         if (accountRepository.count() > 0) {
+            System.out.println("데이터가 이미 존재합니다. DataLoader를 건너뜁니다.");
             return;
         }
+
+        System.out.println("=== DataLoader 시작 ===");
 
         // 1. 사용자 생성
         Account admin = Account.builder()
@@ -72,9 +83,12 @@ public class DataLoader implements CommandLineRunner {
                 .dislikeWorkstyle("무질서한 환경")
                 .build();
 
-        accountRepository.save(admin);
-        accountRepository.save(user1);
-        accountRepository.save(user2);
+        admin = accountRepository.save(admin);
+        user1 = accountRepository.save(user1);
+        user2 = accountRepository.save(user2);
+
+        entityManager.flush();
+        System.out.println("사용자 생성 완료");
 
         // 2. 워크스페이스 생성
         Workspace workspace = Workspace.builder()
@@ -84,7 +98,9 @@ public class DataLoader implements CommandLineRunner {
                 .account(admin)
                 .build();
 
-        workspaceRepository.save(workspace);
+        workspace = workspaceRepository.save(workspace);
+        entityManager.flush();
+        System.out.println("워크스페이스 생성 완료 - ID: " + workspace.getId());
 
         // 3. 팀 생성
         Team team = Team.builder()
@@ -92,9 +108,11 @@ public class DataLoader implements CommandLineRunner {
                 .workspace(workspace)
                 .build();
 
-        teamRepository.save(team);
+        team = teamRepository.save(team);
+        entityManager.flush();
+        System.out.println("팀 생성 완료 - ID: " + team.getId());
 
-        // 4. 게시판 생성
+        // 4. 게시판 생성 - @SoftDelete 어노테이션이 자동으로 isDeleted = false 설정
         Board board1 = Board.builder()
                 .team(team)
                 .build();
@@ -103,13 +121,37 @@ public class DataLoader implements CommandLineRunner {
                 .team(team)
                 .build();
 
-        boardRepository.save(board1);
-        boardRepository.save(board2);
+        // @SoftDelete 어노테이션으로 자동 설정되므로 수동 설정 불필요
+        board1 = boardRepository.save(board1);
+        board2 = boardRepository.save(board2);
+        entityManager.flush();
 
-        System.out.println("초기 데이터가 생성되었습니다.");
-        System.out.println("사용자 ID: 1(관리자), 2(홍길동), 3(김철수)");
-        System.out.println("워크스페이스 ID: 1");
-        System.out.println("팀 ID: 1");
-        System.out.println("게시판 ID: 1, 2");
+        System.out.println("게시판 생성 완료 - ID: " + board1.getId() + ", " + board2.getId());
+
+        // 영속성 컨텍스트 클리어 후 재조회
+        entityManager.clear();
+
+        // 저장된 Board 검증
+        Board verifyBoard1 = boardRepository.findById(board1.getId()).orElse(null);
+        Board verifyBoard2 = boardRepository.findById(board2.getId()).orElse(null);
+
+        System.out.println("=== DataLoader 완료 ===");
+        System.out.println("사용자 ID: " + admin.getId() + "(관리자), " + user1.getId() + "(홍길동), " + user2.getId() + "(김철수)");
+        System.out.println("워크스페이스 ID: " + workspace.getId());
+        System.out.println("팀 ID: " + team.getId());
+        System.out.println("게시판 ID: " + board1.getId() + ", " + board2.getId());
+
+        // 검증 결과 출력
+        if (verifyBoard1 != null) {
+            System.out.println("Board 1 검증 성공 - ID: " + verifyBoard1.getId() + ", isDeleted: " + verifyBoard1.getIsDeleted());
+        } else {
+            System.err.println("Board 1 검증 실패!");
+        }
+
+        if (verifyBoard2 != null) {
+            System.out.println("Board 2 검증 성공 - ID: " + verifyBoard2.getId() + ", isDeleted: " + verifyBoard2.getIsDeleted());
+        } else {
+            System.err.println("Board 2 검증 실패!");
+        }
     }
 }

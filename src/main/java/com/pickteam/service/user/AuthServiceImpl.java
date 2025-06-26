@@ -4,6 +4,7 @@ import com.pickteam.dto.user.UserLoginRequest;
 import com.pickteam.dto.user.UserProfileResponse;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.dto.security.RefreshTokenRequest;
+import com.pickteam.exception.UserNotFoundException;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.user.RefreshTokenRepository;
 import com.pickteam.domain.user.Account;
@@ -46,7 +47,7 @@ public class AuthServiceImpl implements AuthService {
     public JwtAuthenticationResponse authenticate(UserLoginRequest request) {
         // 1. 사용자 조회
         Account account = accountRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("이메일 또는 비밀번호가 올바르지 않습니다."));
+                .orElseThrow(() -> new UserNotFoundException("이메일 또는 비밀번호가 올바르지 않습니다."));
 
         // 2. 비밀번호 검증
         if (!matchesPassword(request.getPassword(), account.getPassword())) {
@@ -58,13 +59,7 @@ public class AuthServiceImpl implements AuthService {
         String refreshToken = jwtTokenProvider.generateRefreshToken(account.getId());
 
         // 4. Refresh Token DB 저장 (기존 토큰 삭제 후 새 토큰 저장)
-        refreshTokenRepository.deleteByAccount(account);
-        RefreshToken refreshTokenEntity = RefreshToken.builder()
-                .account(account)
-                .token(refreshToken)
-                .expiresAt(LocalDateTime.now().plusDays(7)) // 7일 후 만료
-                .build();
-        refreshTokenRepository.save(refreshTokenEntity);
+        createAndSaveRefreshToken(account, refreshToken);
 
         // 5. 사용자 정보 DTO 변환
         UserProfileResponse userProfile = new UserProfileResponse();
@@ -140,18 +135,12 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public String generateRefreshToken(Long userId) {
         Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
 
         String refreshToken = jwtTokenProvider.generateRefreshToken(userId);
 
         // 기존 토큰 삭제 후 새 토큰 저장
-        refreshTokenRepository.deleteByAccount(account);
-        RefreshToken refreshTokenEntity = RefreshToken.builder()
-                .account(account)
-                .token(refreshToken)
-                .expiresAt(LocalDateTime.now().plusDays(7)) // 7일 후 만료
-                .build();
-        refreshTokenRepository.save(refreshTokenEntity);
+        createAndSaveRefreshToken(account, refreshToken);
 
         return refreshToken;
     }
@@ -201,7 +190,7 @@ public class AuthServiceImpl implements AuthService {
         Account account = refreshToken.getAccount();
         if (account == null || account.getDeletedAt() != null) {
             refreshTokenRepository.delete(refreshToken);
-            throw new RuntimeException("사용자를 찾을 수 없습니다.");
+            throw new UserNotFoundException("사용자를 찾을 수 없습니다.");
         }
 
         // 5. 새 Access/Refresh 토큰 발급
@@ -209,13 +198,7 @@ public class AuthServiceImpl implements AuthService {
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(account.getId());
 
         // 6. 기존 토큰 삭제 후 새 토큰 저장
-        refreshTokenRepository.deleteByAccount(account);
-        RefreshToken newRefreshTokenEntity = RefreshToken.builder()
-                .account(account)
-                .token(newRefreshToken)
-                .expiresAt(LocalDateTime.now().plusDays(7)) // 7일 후 만료
-                .build();
-        refreshTokenRepository.save(newRefreshTokenEntity);
+        createAndSaveRefreshToken(account, newRefreshToken);
 
         // 7. 사용자 정보 DTO 변환
         UserProfileResponse userProfile = new UserProfileResponse();
@@ -261,5 +244,25 @@ public class AuthServiceImpl implements AuthService {
         }
 
         return null;
+    }
+
+    /**
+     * Refresh Token 생성 및 저장 (중복 로직 제거)
+     * - 기존 토큰 삭제 후 새 토큰 생성
+     * - 7일 만료시간 설정
+     * - MySQL DB에 영구 저장
+     * 
+     * @param account 토큰을 생성할 사용자 계정
+     * @param token   저장할 토큰 문자열
+     * @return 저장된 RefreshToken 엔티티
+     */
+    private RefreshToken createAndSaveRefreshToken(Account account, String token) {
+        refreshTokenRepository.deleteByAccount(account);
+        RefreshToken refreshTokenEntity = RefreshToken.builder()
+                .account(account)
+                .token(token)
+                .expiresAt(LocalDateTime.now().plusDays(7))
+                .build();
+        return refreshTokenRepository.save(refreshTokenEntity);
     }
 }

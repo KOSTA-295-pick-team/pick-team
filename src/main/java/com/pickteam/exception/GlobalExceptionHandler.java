@@ -81,6 +81,21 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 인증되지 않은 사용자 접근 예외 처리
+     * 
+     * @param ex UnauthorizedException
+     * @return 인증 실패 응답
+     */
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnauthorizedException(UnauthorizedException ex) {
+        log.warn("인증되지 않은 접근 시도가 감지되었습니다");
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("인증이 필요합니다."));
+    }
+
+    /**
      * 일반적인 RuntimeException 처리
      * 
      * @param ex RuntimeException

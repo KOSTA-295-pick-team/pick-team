@@ -103,13 +103,13 @@ public class JwtTokenProvider {
                     .parseSignedClaims(token);
             return true;
         } catch (MalformedJwtException e) {
-            log.error("Invalid JWT token: {}", e.getMessage());
+            log.warn("잘못된 형식의 JWT 토큰이 감지되었습니다");
         } catch (ExpiredJwtException e) {
-            log.error("JWT token is expired: {}", e.getMessage());
+            log.warn("만료된 JWT 토큰이 감지되었습니다");
         } catch (UnsupportedJwtException e) {
-            log.error("JWT token is unsupported: {}", e.getMessage());
+            log.warn("지원하지 않는 JWT 토큰이 감지되었습니다");
         } catch (IllegalArgumentException e) {
-            log.error("JWT claims string is empty: {}", e.getMessage());
+            log.warn("비어있는 JWT 토큰이 감지되었습니다");
         }
         return false;
     }

@@ -5,6 +5,7 @@ import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.dto.ApiResponse;
 import com.pickteam.service.user.UserService;
 import com.pickteam.service.user.AuthService;
+import com.pickteam.exception.UnauthorizedException;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -76,7 +77,7 @@ public class UserController {
         // 실제 구현: SecurityContext에서 사용자 ID 추출
         Long currentUserId = authService.getCurrentUserId();
         if (currentUserId == null) {
-            throw new RuntimeException("인증되지 않은 사용자입니다.");
+            throw new UnauthorizedException("인증이 필요합니다.");
         }
         UserProfileResponse profile = userService.getMyProfile(currentUserId);
         return ResponseEntity.ok(ApiResponse.success(profile));
@@ -88,7 +89,7 @@ public class UserController {
         // 실제 구현: SecurityContext에서 사용자 ID 추출
         Long currentUserId = authService.getCurrentUserId();
         if (currentUserId == null) {
-            throw new RuntimeException("인증되지 않은 사용자입니다.");
+            throw new UnauthorizedException("인증이 필요합니다.");
         }
         userService.updateMyProfile(currentUserId, request);
         return ResponseEntity.ok(ApiResponse.success("프로필이 수정되었습니다.", null));
@@ -114,7 +115,7 @@ public class UserController {
         // 실제 구현: SecurityContext에서 사용자 ID 추출
         Long currentUserId = authService.getCurrentUserId();
         if (currentUserId == null) {
-            throw new RuntimeException("인증되지 않은 사용자입니다.");
+            throw new UnauthorizedException("인증이 필요합니다.");
         }
         List<UserProfileResponse> recommendedMembers = userService.getRecommendedTeamMembers(currentUserId);
         return ResponseEntity.ok(ApiResponse.success(recommendedMembers));
@@ -126,7 +127,7 @@ public class UserController {
         // 실제 구현: SecurityContext에서 사용자 ID 추출
         Long currentUserId = authService.getCurrentUserId();
         if (currentUserId == null) {
-            throw new RuntimeException("인증되지 않은 사용자입니다.");
+            throw new UnauthorizedException("인증이 필요합니다.");
         }
         userService.changePassword(currentUserId, request);
         return ResponseEntity.ok(ApiResponse.success("비밀번호가 변경되었습니다.", null));
@@ -138,7 +139,7 @@ public class UserController {
         // 실제 구현: SecurityContext에서 사용자 ID 추출
         Long currentUserId = authService.getCurrentUserId();
         if (currentUserId == null) {
-            throw new RuntimeException("인증되지 않은 사용자입니다.");
+            throw new UnauthorizedException("인증이 필요합니다.");
         }
         userService.deleteAccount(currentUserId);
         return ResponseEntity.ok(ApiResponse.success("계정이 삭제되었습니다.", null));

@@ -1,10 +1,14 @@
 package com.pickteam.service.user;
 
 import com.pickteam.dto.user.UserLoginRequest;
+import com.pickteam.dto.user.UserProfileResponse;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.dto.security.RefreshTokenRequest;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.domain.user.Account;
+import com.pickteam.security.UserPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
@@ -16,8 +20,6 @@ public class AuthServiceImpl implements AuthService {
     private final AccountRepository accountRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final com.pickteam.security.JwtTokenProvider jwtTokenProvider;
-    private final com.pickteam.security.CustomUserDetailsService userDetailsService;
-    private final com.pickteam.repository.user.RefreshTokenRepository refreshTokenRepository;
 
     // refreshToken 임시 저장 (실서비스는 Redis/DB 권장)
     private final java.util.Map<Long, String> refreshTokenStore = new java.util.concurrent.ConcurrentHashMap<>();
@@ -129,7 +131,17 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public Long getCurrentUserId() {
-        // TODO: Spring Security Context에서 현재 사용자 ID 가져오기
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof UserPrincipal) {
+            return ((UserPrincipal) principal).getId();
+        }
+
         return null;
     }
 }

@@ -13,7 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -32,16 +32,25 @@ public class PostService {
     public PostResponseDto readPost(Long postId) {
         Post post = postRepository.findByIdWithDetails(postId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+
+        // 지연 로딩으로 컬렉션 초기화 (null 체크 포함)
+        if (post.getAttachments() != null) {
+            post.getAttachments().size();
+        }
+        if (post.getComments() != null) {
+            post.getComments().size();
+        }
+
         return PostResponseDto.from(post);
     }
 
     @Transactional
     public PostResponseDto createPost(PostCreateDto dto, Long accountId) {
         Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. accountId: " + accountId));
 
         Board board = boardRepository.findById(dto.getBoardId())
-                .orElseThrow(() -> new IllegalArgumentException("게시판을 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("게시판을 찾을 수 없습니다. boardId: " + dto.getBoardId()));
 
         Integer nextPostNo = postRepository.findMaxPostNoByBoardId(dto.getBoardId()) + 1;
 
@@ -51,9 +60,13 @@ public class PostService {
                 .content(dto.getContent())
                 .account(account)
                 .board(board)
+                .attachments(new ArrayList<>())  // 명시적으로 빈 리스트 초기화
+                .comments(new ArrayList<>())     // 명시적으로 빈 리스트 초기화
                 .build();
 
         Post savedPost = postRepository.save(post);
+
+        // 저장된 객체를 바로 DTO로 변환 (재조회 불필요)
         return PostResponseDto.from(savedPost);
     }
 

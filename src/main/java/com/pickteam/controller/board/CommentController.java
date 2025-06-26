@@ -6,6 +6,7 @@ import com.pickteam.service.board.CommentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -20,7 +21,7 @@ public class CommentController {
 
     private final CommentService commentService;
 
-    // 댓글 쓰기
+    // 댓글 생성
     @PostMapping
     public ResponseEntity<CommentResponseDto> createComment(
             @PathVariable Long postId,
@@ -28,15 +29,18 @@ public class CommentController {
             @RequestParam Long accountId) {
 
         CommentResponseDto comment = commentService.createComment(postId, dto, accountId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(comment);
+        return ResponseEntity.ok(comment);
     }
 
-    // 댓글 조회
+
+    // 댓글 목록 조회
     @GetMapping
     public ResponseEntity<Page<CommentResponseDto>> getComments(
             @PathVariable Long postId,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
 
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").ascending());
         Page<CommentResponseDto> comments = commentService.getComments(postId, pageable);
         return ResponseEntity.ok(comments);
     }

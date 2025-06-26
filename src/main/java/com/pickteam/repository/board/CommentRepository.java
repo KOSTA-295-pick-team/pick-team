@@ -13,13 +13,13 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     @Query("SELECT c FROM Comment c " +
             "JOIN FETCH c.account " +
-            "WHERE c.post.id = :postId AND c.isDeleted = false " +
+            "WHERE c.post.id = :postId " +
             "ORDER BY c.createdAt ASC")
     Page<Comment> findByPostIdWithAuthor(@Param("postId") Long postId, Pageable pageable);
 
     @Query("SELECT c FROM Comment c " +
             "JOIN FETCH c.account " +
             "JOIN FETCH c.post " +
-            "WHERE c.id = :commentId AND c.isDeleted = false")
+            "WHERE c.id = :commentId")
     Optional<Comment> findByIdWithDetails(@Param("commentId") Long commentId);
 }

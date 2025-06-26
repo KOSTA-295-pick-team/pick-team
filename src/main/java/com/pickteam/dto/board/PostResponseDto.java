@@ -5,7 +5,9 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Getter
@@ -35,10 +37,17 @@ public class PostResponseDto {
         dto.setBoardId(post.getBoard().getId());
         dto.setCreatedAt(post.getCreatedAt());
         dto.setUpdatedAt(post.getUpdatedAt());
-        dto.setAttachments(post.getAttachments().stream()
+        // Optional과 Stream을 활용한 null 안전 처리
+        dto.setAttachments(Optional.ofNullable(post.getAttachments())
+                .orElse(Collections.emptyList())
+                .stream()
                 .map(PostAttachResponseDto::from)
                 .collect(Collectors.toList()));
-        dto.setCommentCount(post.getComments().size());
+
+        dto.setCommentCount(Optional.ofNullable(post.getComments())
+                .map(List::size)
+                .orElse(0));
+
         return dto;
     }
 }

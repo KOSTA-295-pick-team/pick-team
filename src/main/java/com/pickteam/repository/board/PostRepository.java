@@ -9,7 +9,6 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
-// PostRepositoryCustom 는 executor 대신에 사용
 public interface PostRepository extends JpaRepository<Post, Long>, PostRepositoryCustom {
 
     @Query("SELECT p FROM Post p " +
@@ -19,11 +18,10 @@ public interface PostRepository extends JpaRepository<Post, Long>, PostRepositor
             "ORDER BY p.createdAt DESC")
     Page<Post> findByBoardIdWithAuthor(@Param("boardId") Long boardId, Pageable pageable);
 
+    // 기본 정보만 조회 (컬렉션 제외)
     @Query("SELECT p FROM Post p " +
             "JOIN FETCH p.account " +
             "JOIN FETCH p.board " +
-            "LEFT JOIN FETCH p.attachments pa " +
-            "LEFT JOIN FETCH pa.fileInfo " +
             "WHERE p.id = :postId")
     Optional<Post> findByIdWithDetails(@Param("postId") Long postId);
 

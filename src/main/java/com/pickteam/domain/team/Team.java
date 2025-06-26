@@ -4,7 +4,6 @@ import com.pickteam.domain.board.Board;
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
 import com.pickteam.domain.kanban.Kanban;
 import com.pickteam.domain.workspace.Workspace;
-import com.pickteam.domain.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 

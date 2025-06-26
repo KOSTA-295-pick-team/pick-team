@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Card, Button, BellIcon } from '../components';
 import { Notification } from '../types';
 
-const mockNotifications: Notification[] = [
+const notifications: Notification[] = [
   { id: '1', message: '새로운 팀 공지사항이 등록되었습니다: "주간 회의 일정 안내"', timestamp: new Date(Date.now() - 3600000), read: false, link: '/team/team-alpha-123' },
   { id: '2', message: '박해커님이 채팅방에서 당신을 언급했습니다.', timestamp: new Date(Date.now() - 7200000), read: false, link: '/team/team-alpha-123' },
   { id: '3', message: '캘린더에 "프로젝트 마감일" 일정이 추가되었습니다.', timestamp: new Date(Date.now() - 86400000 * 2), read: true, link: '/team/team-alpha-123' },
@@ -12,7 +12,7 @@ const mockNotifications: Notification[] = [
 ];
 
 export const NotificationsPage: React.FC = () => {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [notificationList, setNotificationList] = useState<Notification[]>(notifications);
   const [kakaoAlertEnabled, setKakaoAlertEnabled] = useState(false);
 
   const markAsRead = (id: string) => {

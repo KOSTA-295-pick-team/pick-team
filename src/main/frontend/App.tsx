@@ -10,6 +10,7 @@ import { NotificationsPage } from './pages/NotificationsPage';
 import { HomePage } from './pages/HomePage';
 import { ChatPage } from './pages/ChatPage';
 import { VideoConferencePage } from './pages/VideoConferencePage';
+import EmptyWorkspacePage from './pages/EmptyWorkspacePage';
 import { 
     UserIcon, UsersIcon, BellIcon, LogoutIcon, CogIcon, PlusCircleIcon,
     ChatBubbleIcon, VideoCameraIcon, CalendarDaysIcon, Modal, Input, Button, ItemListSelector,
@@ -44,7 +45,7 @@ const GlobalHeader: React.FC = () => {
   return (
     <header className="bg-primary text-white shadow-md h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8 fixed top-0 left-0 right-0 z-50">
       <Link to={`/ws/${currentWorkspace?.id || 'ws_default'}`} className="text-xl font-bold">
-        팀플메이트
+        PickTeam
       </Link>
       <div className="flex items-center space-x-4">
         {/* 팀 구성 버튼 삭제됨 */}
@@ -594,9 +595,10 @@ const WorkspaceSettingsModal: React.FC<{isOpen: boolean, onClose: () => void}> =
     if (!currentWorkspace || !currentUser) return null;
 
     const handleCopyLink = () => {
-        const inviteCode = currentWorkspace.inviteCode || 'loading...';
-        navigator.clipboard.writeText(inviteCode)
-            .then(() => alert('초대 코드가 복사되었습니다!'))
+        const baseUrl = window.location.origin;
+        const inviteUrl = `${baseUrl}/${currentWorkspace.inviteCode}`;
+        navigator.clipboard.writeText(inviteUrl)
+            .then(() => alert('초대 링크가 복사되었습니다!'))
             .catch(() => alert('복사에 실패했습니다.'));
     };
     
@@ -718,15 +720,15 @@ const WorkspaceSettingsModal: React.FC<{isOpen: boolean, onClose: () => void}> =
 
             {activeTab === 'invite' && (
                 <div className="space-y-4">
-                    <p className="text-sm text-neutral-600">워크스페이스에 팀원을 초대하세요. 아래 초대 코드를 공유해주세요.</p>
+                    <p className="text-sm text-neutral-600">워크스페이스에 팀원을 초대하세요. 아래 초대 링크를 공유해주세요.</p>
                     <Input 
-                        label="초대 코드"
-                        value={currentWorkspace.inviteCode || 'loading...'} 
+                        label="초대 링크"
+                        value={`${window.location.origin}/${currentWorkspace.inviteCode || 'loading...'}`} 
                         readOnly 
                         Icon={LinkIcon}
                     />
                     <div className="flex space-x-2">
-                        <Button onClick={handleCopyLink} className="flex-1" disabled={loading}>코드 복사</Button>
+                        <Button onClick={handleCopyLink} className="flex-1" disabled={loading}>링크 복사</Button>
                         <Button variant="outline" onClick={handleGenerateNewInviteCode} className="flex-1" disabled={loading}>
                             {loading ? '생성 중...' : '새 코드 생성'}
                         </Button>
@@ -842,12 +844,8 @@ const TeamProjectSidebar: React.FC = () => {
   
   const [confirmDeleteInfo, setConfirmDeleteInfo] = useState<{type: 'chat' | 'video', id: string, name: string} | null>(null);
 
-  const initialMockVideoRooms = [
-    { id: 'vid_daily_scrum', name: '데일리 스크럼'},
-    { id: 'vid_design_review', name: '디자인 리뷰'},
-    { id: 'vid_client_meeting', name: '클라이언트 미팅'},
-  ];
-  const [mockVideoRooms, setMockVideoRooms] = useState(initialMockVideoRooms);
+  const initialVideoRooms: { id: string; name: string }[] = [];
+  const [videoRooms, setVideoRooms] = useState(initialVideoRooms);
 
 
   if (!currentWorkspace || !currentUser) return null;
@@ -893,7 +891,7 @@ const TeamProjectSidebar: React.FC = () => {
         deleteChatRoom(confirmDeleteInfo.id);
         alert(`'${confirmDeleteInfo.name}' 채팅방이 삭제(퇴장)되었습니다. (목업)`);
       } else if (confirmDeleteInfo.type === 'video') {
-        setMockVideoRooms(prev => prev.filter(room => room.id !== confirmDeleteInfo.id));
+        setVideoRooms(prev => prev.filter(room => room.id !== confirmDeleteInfo.id));
         alert(`'${confirmDeleteInfo.name}' 화상회의 채널이 삭제되었습니다. (목업)`);
       }
     }
@@ -1004,7 +1002,7 @@ const TeamProjectSidebar: React.FC = () => {
         <div className="flex justify-between items-center px-2 mb-0.5">
           <h3 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">화상회의 채널</h3>
         </div>
-        {mockVideoRooms.map(room => (
+        {videoRooms.map(room => (
             <div key={room.id} className="flex items-center group">
                 <button
                     onClick={() => selectVideoRoom(room.name)}
@@ -1088,12 +1086,13 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           
-          <Route element={<ProtectedRoute />}> 
+          <Route element={<ProtectedRoute />}>
+            <Route path="/empty-workspace" element={<EmptyWorkspacePage />} />
             <Route path="/ws/:workspaceId" element={<HomePage />} />
             <Route path="/ws/:workspaceId/team/:teamProjectId" element={<TeamSpacePage />} />
             <Route path="/ws/:workspaceId/chat/:roomId" element={<ChatPage />} />
             <Route path="/ws/:workspaceId/video/live" element={<VideoConferencePage />} />
-
+            
             <Route path="/my-page" element={<MyPage />} />
             <Route path="/my-page/profile-edit" element={<ProfileEditPage />} />
             <Route path="/my-page/account-settings" element={<AccountSettingsPage />} />
@@ -1109,7 +1108,11 @@ function App() {
             
             <Route path="/" element={<NavigateToInitialView />} />
           </Route>
-          <Route path="*" element={<Navigate to="/" />} /> 
+          
+          {/* 초대코드 직접 접속 라우트 - 가장 마지막에 배치하여 다른 라우트와 충돌 방지 */}
+          <Route path="/:inviteCode" element={<InviteCodeHandler />} />
+          
+          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </HashRouter>
     </AuthProvider>
@@ -1128,10 +1131,143 @@ const NavigateToInitialView: React.FC = () => {
         return <div className="p-4">워크스페이스 정보를 불러오는 중...</div>;
     }
     
-    // 워크스페이스가 로드되었지만 비어있는 경우 기본 워크스페이스 사용
-    const defaultWorkspaceId = currentUser?.currentWorkspaceId || workspaces[0]?.id || 'ws_default';
+    // 워크스페이스가 없으면 EmptyWorkspacePage로 이동
+    if (!workspaces || workspaces.length === 0) {
+        return <Navigate to="/empty-workspace" replace />;
+    }
+    
+    // 워크스페이스가 있으면 기본 워크스페이스로 이동
+    const defaultWorkspaceId = currentUser?.currentWorkspaceId || workspaces[0]?.id;
     return <Navigate to={`/ws/${defaultWorkspaceId}`} replace />;
 };
 
+// 초대코드로 직접 접속 처리하는 컴포넌트
+const InviteCodeHandler: React.FC = () => {
+  const { inviteCode } = useParams<{ inviteCode: string }>();
+  const { joinWorkspace, setCurrentWorkspace, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [password, setPassword] = useState('');
+  const [needsPassword, setNeedsPassword] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // 로그인이 안 되어 있으면 로그인 페이지로 이동하면서 초대코드 저장
+      navigate(`/login?inviteCode=${inviteCode}`, { replace: true });
+      return;
+    }
+
+    if (inviteCode) {
+      handleAutoJoin();
+    }
+  }, [inviteCode, isAuthenticated]);
+
+  const handleAutoJoin = async () => {
+    if (!inviteCode) return;
+    
+    setLoading(true);
+    setError('');
+
+    try {
+      const workspace = await joinWorkspace({
+        inviteCode: inviteCode,
+        password: password || undefined
+      });
+
+      if (workspace) {
+        setCurrentWorkspace(workspace);
+        navigate(`/ws/${workspace.id}`, { replace: true });
+      } else {
+        setError('워크스페이스 참여에 실패했습니다.');
+      }
+    } catch (err: any) {
+      console.error('Auto join error:', err);
+      if (err.message?.includes('비밀번호')) {
+        setNeedsPassword(true);
+        setError('이 워크스페이스는 비밀번호가 필요합니다.');
+      } else {
+        setError('워크스페이스 참여 중 오류가 발생했습니다.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordSubmit = () => {
+    if (password.trim()) {
+      handleAutoJoin();
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-lg font-medium text-neutral-700">워크스페이스 참여 중...</p>
+          <p className="text-sm text-neutral-500 mt-2">초대코드: {inviteCode}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (needsPassword) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+          <h2 className="text-2xl font-bold text-center mb-6">워크스페이스 참여</h2>
+          <p className="text-sm text-neutral-600 mb-4">
+            이 워크스페이스는 비밀번호로 보호되어 있습니다.
+          </p>
+          <Input
+            label="비밀번호"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="워크스페이스 비밀번호를 입력하세요"
+            Icon={LockClosedIcon}
+            onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+          />
+          {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+          <div className="flex space-x-2 mt-6">
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate('/')} 
+              className="flex-1"
+            >
+              취소
+            </Button>
+            <Button 
+              onClick={handlePasswordSubmit} 
+              disabled={!password.trim() || loading}
+              className="flex-1"
+            >
+              참여하기
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !needsPassword) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
+          <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-neutral-900 mb-4">참여 실패</h2>
+          <p className="text-sm text-neutral-600 mb-4">{error}</p>
+          <p className="text-xs text-neutral-500 mb-6">초대코드: {inviteCode}</p>
+          <Button onClick={() => navigate('/')} className="w-full">
+            홈으로 돌아가기
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+};
 
 export default App;

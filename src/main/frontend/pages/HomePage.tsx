@@ -8,11 +8,7 @@ import { TeamProject, User, Workspace } from '../types'; // Updated type import
 // const MOCK_TEAM_PROJECTS_ALL: TeamProject[] = [];
 // const MOCK_WORKSPACES_ALL: Workspace[] = [];
 
-const mockSuggestedUsers: User[] = [
-    { id: 'user_park', name: '박해커', email: 'park@example.com', mbti: 'ISTP', tags: ['#개발', '#문제해결'], profilePictureUrl: 'https://picsum.photos/seed/userB/100/100' },
-    { id: 'user_lee', name: '이디자인', email: 'lee@example.com', mbti: 'ISFP', tags: ['#디자인', '#UIUX'], profilePictureUrl: 'https://picsum.photos/seed/userC/100/100' },
-    { id: 'user_choi', name: '최기획', email: 'choi@example.com', mbti: 'ENFJ', tags: ['#기획', '#PM'], profilePictureUrl: 'https://picsum.photos/seed/userD/100/100' },
-];
+// 목업 팀원 데이터 제거 - 실제 API에서 워크스페이스 팀원 목록을 가져와야 함
 
 
 export const HomePage: React.FC = () => {
@@ -55,7 +51,7 @@ export const HomePage: React.FC = () => {
       <Card>
         <h1 className="text-2xl font-bold text-neutral-800">안녕하세요, {currentUser.name || '사용자'}님!</h1>
         <p className="text-neutral-600 mt-1">{currentWorkspace.name} 워크스페이스입니다.</p>
-        <p className="text-neutral-600 mt-2">오늘도 팀플메이트와 함께 성공적인 프로젝트를 만들어보세요.</p>
+                        <p className="text-neutral-600 mt-2">오늘도 PickTeam과 함께 성공적인 프로젝트를 만들어보세요.</p>
       </Card>
 
       {/* My Teams Section */}
@@ -99,13 +95,19 @@ export const HomePage: React.FC = () => {
         </div>
       </Card>
 
-      <Card title="함께할 팀원 찾아보기 (워크스페이스 내 추천)">
-         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockSuggestedUsers.filter(u => u.id !== currentUser.id).slice(0,3).map(user => (
-                <ProfileSummaryCard key={user.id} user={user} />
-            ))}
+      <Card title="워크스페이스 팀원 알아보기">
+         <div className="text-center py-8">
+            <p className="text-neutral-600 mb-6">
+               현재 워크스페이스에 참여한 팀원들의 프로필을 확인해보세요.
+            </p>
+            <Button 
+               variant="primary" 
+               size="lg"
+               onClick={() => alert('워크스페이스 팀원 목록 조회 기능 (개발 예정)')}
+            >
+               팀원 프로필 조회하기
+            </Button>
          </div>
-         {mockSuggestedUsers.length === 0 && <p className="text-neutral-500 py-4 text-center">추천할 팀원이 없습니다.</p>}
       </Card>
     </div>
   );

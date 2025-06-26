@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
@@ -254,7 +253,7 @@ export const AccountSettingsPage: React.FC = () => {
       setError('새 비밀번호는 6자 이상이어야 합니다.');
       return;
     }
-    // Mock password change
+    // Demo password change
     console.log('Password change attempt:', { currentPassword, newPassword });
     setSuccess('비밀번호가 성공적으로 변경되었습니다.');
     setCurrentPassword('');

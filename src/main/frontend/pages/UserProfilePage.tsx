@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, Button } from '../components';
 import { User } from '../types';
 
-// Mock data source - in a real app, this would be fetched from a backend
-const mockUsers: User[] = [
+// Demo data source - in a real app, this would be fetched from a backend
+const demoUsers: User[] = [
   { id: '1', email: 'user1@example.com', name: '김철수', age: 25, mbti: 'ENFP', tags: ['#아이디어뱅크', '#활발함', '#커뮤니케이션중요'], bio: '새로운 기술 배우는 것을 좋아합니다. 함께 성장할 팀원을 찾아요!', portfolioLink: 'https://github.com/user1', preferredStyle: '자유로운 분위기, 적극적인 의견 교환', avoidedStyle: '수직적인 관계, 소통 부재', profilePictureUrl: 'https://picsum.photos/seed/user1/200/200' },
   { id: '2', email: 'user2@example.com', name: '이영희', age: 28, mbti: 'ISTJ', tags: ['#계획적', '#꼼꼼함', '#책임감강함'], bio: '체계적인 프로젝트 진행을 선호합니다. 마감 기한 준수!', preferredStyle: '명확한 역할 분담, 체계적인 진행', avoidedStyle: '즉흥적인 변경, 불확실한 목표', profilePictureUrl: 'https://picsum.photos/seed/user2/200/200' },
   { id: '3', email: 'user3@example.com', name: '박민준', age: 22, mbti: 'ESFP', tags: ['#분위기메이커', '#친화력갑', '#긍정적'], bio: '즐겁게 일하는 것이 최고! 팀에 활력을 불어넣겠습니다.', preferredStyle: '유쾌한 분위기, 팀워크 중시', avoidedStyle: '지나치게 엄숙한 분위기', profilePictureUrl: 'https://picsum.photos/seed/user3/200/200' },
@@ -21,7 +20,7 @@ export const UserProfileViewPage: React.FC = () => {
     setLoading(true);
     // Simulate API call
     setTimeout(() => {
-      const foundUser = mockUsers.find(u => u.id === userId);
+      const foundUser = demoUsers.find(u => u.id === userId);
       setUser(foundUser || null);
       setLoading(false);
     }, 500);

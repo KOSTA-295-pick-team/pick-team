@@ -38,11 +38,11 @@ export const VideoConferencePage: React.FC = () => {
   
   useEffect(() => {
     if (currentUser) {
-        // Mock participants: current user + 2 others from allUsersForChat
-        const otherMockParticipants = allUsersForChat
+        // Demo participants: current user + 2 others from allUsersForChat
+        const otherDemoParticipants = allUsersForChat
             .filter(u => u.id !== currentUser.id)
             .slice(0, 2); // Take up to 2 other users
-        setParticipants([currentUser, ...otherMockParticipants]);
+        setParticipants([currentUser, ...otherDemoParticipants]);
     } else {
         setParticipants([]); // Clear participants if no user
     }
@@ -101,7 +101,7 @@ export const VideoConferencePage: React.FC = () => {
             <div className="w-full md:w-1/4 pl-0 md:pl-3 mt-4 md:mt-0 md:border-l md:border-neutral-300 flex flex-col h-auto md:h-full transition-all duration-300">
                 <h4 className="text-sm font-semibold mb-2 text-neutral-700">회의 중 채팅</h4>
                 <div className="flex-grow bg-neutral-50 border border-neutral-200 rounded p-2 overflow-y-auto text-xs space-y-2 mb-2 min-h-[150px] md:min-h-0">
-                    {/* Mock chat messages */}
+                    {/* Demo chat messages */}
                     <p><strong>참가자1:</strong> 안녕하세요!</p>
                     <p><strong>참가자2:</strong> 화면 공유 가능할까요?</p>
                     <p><strong>{currentUser.name}:</strong> 네 잠시만요.</p>

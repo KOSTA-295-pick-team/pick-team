@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Input, Card, Modal, ItemListSelector, ProfileSummaryCard, PlusCircleIcon, TrashIcon } from '../components';
@@ -6,8 +5,8 @@ import { User, Team, Poll, VoteOption, TeamProject } from '../types';
 import { useAuth } from '../AuthContext';
 
 
-// Mock data
-const mockAvailableUsers: User[] = [
+// Demo data
+const demoAvailableUsers: User[] = [
   { id: '1', name: '김코딩', email: 'kim@example.com', mbti: 'ENTP', tags: ['#리더십', '#기획'], profilePictureUrl: 'https://picsum.photos/seed/userA/100/100' },
   { id: '2', name: '박해커', email: 'park@example.com', mbti: 'ISTP', tags: ['#개발', '#문제해결'], profilePictureUrl: 'https://picsum.photos/seed/userB/100/100' },
   { id: '3', name: '이디자인', email: 'lee@example.com', mbti: 'ISFP', tags: ['#디자인', '#UIUX'], profilePictureUrl: 'https://picsum.photos/seed/userC/100/100' },
@@ -138,7 +137,7 @@ export const AutoTeamPage: React.FC<AutoTeamPageProps> = ({ mode }) => {
           <div className="mb-4">
             <label className="block text-sm font-medium text-neutral-700 mb-1">참가자 선택:</label>
             <ItemListSelector
-              items={mockAvailableUsers}
+              items={demoAvailableUsers}
               selectedItems={participants}
               onSelectItem={handleUserSelect}
               renderItem={renderUserItem}
@@ -313,7 +312,7 @@ export const VoteTeamPage: React.FC = () => {
 // AdminTeamPage
 export const AdminTeamPage: React.FC = () => {
   const { currentWorkspace } = useAuth();
-  const [users, setUsers] = useState<User[]>(mockAvailableUsers);
+  const [users, setUsers] = useState<User[]>(demoAvailableUsers);
   
   const initialTeams: Team[] = currentWorkspace ? [
     { id: 'admin-team-1', workspaceId: currentWorkspace.id, name: '알파 팀', members: [], announcements: [] },

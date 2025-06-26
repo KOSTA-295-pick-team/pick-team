@@ -6,8 +6,8 @@ import { ChatMessage as ChatMessageType, User as UserType } from '../types';
 import { Card, Input, Button, TextArea } from '../components';
 import { PaperClipIcon, ArrowUpCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 
-// Mock messages - in a real app, fetch from backend or context based on roomId
-const MOCK_ALL_CHAT_MESSAGES: ChatMessageType[] = [
+// Chat messages - in a real app, fetch from backend or context based on roomId
+const ALL_CHAT_MESSAGES: ChatMessageType[] = [
     // DM with user_kim
     { id: 'dm_msg1_a', roomId: 'chat_dm_user_kim', userId:'user_kim', userName:'김코딩', text: '안녕하세요! DM입니다. 잘 지내시죠?', timestamp: new Date(Date.now() - 3600000) },
     { id: 'dm_msg1_b', roomId: 'chat_dm_user_kim', userId:'user@example.com', userName:'테스트 사용자', text: '네, 안녕하세요! 잘 지냅니다. 프로젝트는 어떻게 돼가나요?', timestamp: new Date(Date.now() - 3540000) },
@@ -42,8 +42,8 @@ export const ChatPage: React.FC = () => {
     }
     if (roomId) {
       setCurrentChatRoomById(roomId);
-      // Filter mock messages for the current room
-      const roomMessages = MOCK_ALL_CHAT_MESSAGES.filter(msg => msg.roomId === roomId);
+        // Filter messages for the current room
+  const roomMessages = ALL_CHAT_MESSAGES.filter(msg => msg.roomId === roomId);
       setMessages(roomMessages.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()));
     } else {
         // If no roomId, perhaps navigate to a default view or show an error
@@ -78,8 +78,8 @@ export const ChatPage: React.FC = () => {
             type: attachedFile.type.startsWith('image/') ? 'image' : 'file',
         };
       }
-      // Add to MOCK_ALL_CHAT_MESSAGES for persistence in mock
-      MOCK_ALL_CHAT_MESSAGES.push(msg); 
+          // Add to ALL_CHAT_MESSAGES for persistence
+    ALL_CHAT_MESSAGES.push(msg); 
       setMessages(prev => [...prev, msg]);
       setNewMessage('');
       setAttachedFile(null);

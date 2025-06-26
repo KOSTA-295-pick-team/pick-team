@@ -3,6 +3,7 @@ package com.pickteam.dto.user;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
+import lombok.ToString;
 
 /**
  * 로그인 요청 DTO
@@ -17,6 +18,7 @@ public class UserLoginRequest {
     private String email;
 
     /** 사용자 비밀번호 (평문으로 전송, 서버에서 암호화된 값과 비교) */
+    @ToString.Exclude
     @NotBlank(message = "비밀번호는 필수입니다")
     private String password;
 }

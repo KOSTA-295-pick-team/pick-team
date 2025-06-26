@@ -2,6 +2,7 @@ package com.pickteam.dto.user;
 
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import lombok.ToString;
 
 /**
  * 회원가입 요청 DTO
@@ -16,6 +17,7 @@ public class UserRegisterRequest {
     private String email;
 
     /** 비밀번호 (암호화되어 저장) */
+    @ToString.Exclude
     @NotBlank(message = "비밀번호는 필수입니다")
     @Size(min = 8, max = 50, message = "비밀번호는 8자 이상 50자 이하여야 합니다")
     private String password;

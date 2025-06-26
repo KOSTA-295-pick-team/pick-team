@@ -2,6 +2,7 @@ package com.pickteam.dto.user;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
+import lombok.ToString;
 
 /**
  * 비밀번호 유효성 검사 요청 DTO
@@ -12,6 +13,7 @@ import lombok.Data;
 @Data
 public class ValidatePasswordRequest {
     /** 유효성 검사할 비밀번호 */
+    @ToString.Exclude
     @NotBlank(message = "비밀번호는 필수입니다")
     private String password;
 }

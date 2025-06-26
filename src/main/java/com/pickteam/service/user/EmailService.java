@@ -8,7 +8,7 @@ public interface EmailService {
     // 인증 코드 생성
     String generateVerificationCode();
 
-    // 인증 코드 저장 (임시 저장소)
+    // 인증 코드 저장 (MySQL DB 저장)
     void storeVerificationCode(String email, String code);
 
     // 인증 코드 검증

@@ -4,6 +4,7 @@ import com.pickteam.dto.user.*;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.dto.ApiResponse;
 import com.pickteam.service.user.UserService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,7 @@ public class UserController {
 
     // 회원가입
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<Void>> registerUser(@RequestBody UserRegisterRequest request) {
+    public ResponseEntity<ApiResponse<Void>> registerUser(@Valid @RequestBody UserRegisterRequest request) {
         userService.registerUser(request);
         return ResponseEntity.ok(ApiResponse.success("회원가입이 완료되었습니다.", null));
     }
@@ -32,28 +33,30 @@ public class UserController {
 
     // 비밀번호 유효성 검사
     @PostMapping("/validate-password")
-    public ResponseEntity<ApiResponse<Boolean>> validatePassword(@RequestBody ValidatePasswordRequest request) {
+    public ResponseEntity<ApiResponse<Boolean>> validatePassword(@Valid @RequestBody ValidatePasswordRequest request) {
         boolean isValid = userService.validatePassword(request.getPassword());
         return ResponseEntity.ok(ApiResponse.success(isValid));
     }
 
     // 메일 인증 요청
     @PostMapping("/email/request")
-    public ResponseEntity<ApiResponse<Void>> requestEmailVerification(@RequestBody EmailVerificationRequest request) {
+    public ResponseEntity<ApiResponse<Void>> requestEmailVerification(
+            @Valid @RequestBody EmailVerificationRequest request) {
         userService.requestEmailVerification(request.getEmail());
         return ResponseEntity.ok(ApiResponse.success("인증 메일이 발송되었습니다.", null));
     }
 
     // 메일 인증 확인
     @PostMapping("/email/verify")
-    public ResponseEntity<ApiResponse<Boolean>> verifyEmail(@RequestBody EmailVerificationConfirmRequest request) {
+    public ResponseEntity<ApiResponse<Boolean>> verifyEmail(
+            @Valid @RequestBody EmailVerificationConfirmRequest request) {
         boolean isVerified = userService.verifyEmail(request.getEmail(), request.getVerificationCode());
         return ResponseEntity.ok(ApiResponse.success(isVerified));
     }
 
     // 로그인
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> login(@RequestBody UserLoginRequest request) {
+    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> login(@Valid @RequestBody UserLoginRequest request) {
         JwtAuthenticationResponse response = userService.login(request);
         return ResponseEntity.ok(ApiResponse.success("로그인 성공", response));
     }

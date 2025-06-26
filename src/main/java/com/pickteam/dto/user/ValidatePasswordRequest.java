@@ -1,5 +1,6 @@
 package com.pickteam.dto.user;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
@@ -11,5 +12,6 @@ import lombok.Data;
 @Data
 public class ValidatePasswordRequest {
     /** 유효성 검사할 비밀번호 */
+    @NotBlank(message = "비밀번호는 필수입니다")
     private String password;
 }

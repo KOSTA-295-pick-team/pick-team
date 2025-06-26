@@ -4,6 +4,7 @@ import com.pickteam.dto.user.*;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.enums.UserRole;
+import com.pickteam.exception.EmailNotVerifiedException;
 import com.pickteam.repository.user.AccountRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,12 +56,17 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("MBTI 형식이 올바르지 않습니다.");
         }
 
-        // 2. 중복 검사
+        // 2. 이메일 인증 확인
+        if (!emailService.isEmailVerified(request.getEmail())) {
+            throw new EmailNotVerifiedException("이메일 인증이 완료되지 않았습니다.");
+        }
+
+        // 3. 중복 검사
         if (accountRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("이미 사용 중인 이메일입니다.");
         }
 
-        // 3. 계정 생성
+        // 4. 계정 생성
         Account account = Account.builder()
                 .email(request.getEmail())
                 .password(authService.encryptPassword(request.getPassword()))

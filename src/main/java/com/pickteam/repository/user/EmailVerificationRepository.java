@@ -36,6 +36,15 @@ public interface EmailVerificationRepository extends JpaRepository<EmailVerifica
     Optional<EmailVerification> findByEmailAndIsVerifiedFalse(String email);
 
     /**
+     * 특정 이메일의 최신 인증 정보 조회
+     * - 인증 완료 여부 확인용
+     * 
+     * @param email 조회할 이메일 주소
+     * @return 해당하는 EmailVerification 엔티티 (Optional)
+     */
+    Optional<EmailVerification> findTopByEmailOrderByCreatedAtDesc(String email);
+
+    /**
      * 만료된 인증 코드 삭제
      * - 배치 작업이나 정리 작업에서 사용
      * 

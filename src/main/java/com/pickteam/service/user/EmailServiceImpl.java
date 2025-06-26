@@ -125,6 +125,22 @@ public class EmailServiceImpl implements EmailService {
     }
 
     /**
+     * 이메일 인증 완료 여부 확인
+     * - 해당 이메일 주소의 인증 완료 상태를 조회
+     * - 회원가입 시 이메일 인증 검증에 사용
+     * 
+     * @param email 인증 상태를 확인할 이메일 주소
+     * @return 인증이 완료된 경우 true, 미완료 시 false
+     */
+    @Override
+    public boolean isEmailVerified(String email) {
+        return emailVerificationRepository
+                .findTopByEmailOrderByCreatedAtDesc(email)
+                .map(EmailVerification::getIsVerified)
+                .orElse(false); // 인증 기록이 없으면 미인증으로 처리
+    }
+
+    /**
      * 비밀번호 재설정 이메일 발송
      * - 비밀번호 찾기 기능을 위한 이메일 발송
      * - 현재 미구현 상태 (TODO: 구현 예정)

@@ -14,6 +14,9 @@ public interface EmailService {
     // 인증 코드 검증
     boolean verifyCode(String email, String code);
 
+    // 이메일 인증 완료 여부 확인
+    boolean isEmailVerified(String email);
+
     // 비밀번호 재설정 메일 발송
     void sendPasswordResetEmail(String email, String resetToken);
 }

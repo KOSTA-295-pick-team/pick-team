@@ -5,10 +5,16 @@ import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.enums.UserRole;
 import com.pickteam.exception.EmailNotVerifiedException;
+import com.pickteam.exception.UserNotFoundException;
+import com.pickteam.exception.ValidationException;
+import com.pickteam.exception.DuplicateEmailException;
+import com.pickteam.exception.AuthenticationException;
+import com.pickteam.constants.UserErrorMessages;
 import com.pickteam.repository.user.AccountRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,6 +24,7 @@ import java.util.stream.Collectors;
  * - 이메일 인증, 비밀번호 검증, MBTI 기반 팀원 추천 기능
  * - 계정 소프트 삭제 및 보안 강화된 사용자 관리
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -35,35 +42,39 @@ public class UserServiceImpl implements UserService {
      * - 비밀번호 암호화 및 기본 역할(USER) 설정
      * 
      * @param request 회원가입 요청 정보
-     * @throws RuntimeException 유효성 검사 실패 또는 중복 이메일 시
+     * @throws ValidationException       유효성 검사 실패 시
+     * @throws EmailNotVerifiedException 이메일 인증 미완료 시
+     * @throws DuplicateEmailException   이메일 중복 시
      */
     @Override
     public void registerUser(UserRegisterRequest request) {
+        log.info("사용자 등록 시작: {}", request.getEmail());
+
         // 1. 유효성 검사
         if (!validationService.isValidEmail(request.getEmail())) {
-            throw new RuntimeException("이메일 형식이 올바르지 않습니다.");
+            throw new ValidationException(UserErrorMessages.INVALID_EMAIL);
         }
         if (!validationService.isValidPassword(request.getPassword())) {
-            throw new RuntimeException("비밀번호 형식이 올바르지 않습니다.");
+            throw new ValidationException(UserErrorMessages.INVALID_PASSWORD);
         }
         if (!validationService.isValidName(request.getName())) {
-            throw new RuntimeException("이름 형식이 올바르지 않습니다.");
+            throw new ValidationException(UserErrorMessages.INVALID_NAME);
         }
         if (!validationService.isValidAge(request.getAge())) {
-            throw new RuntimeException("나이는 0세 이상 150세 이하여야 합니다.");
+            throw new ValidationException(UserErrorMessages.INVALID_AGE_REGISTER);
         }
         if (request.getMbti() != null && !validationService.isValidMbti(request.getMbti())) {
-            throw new RuntimeException("MBTI 형식이 올바르지 않습니다.");
+            throw new ValidationException(UserErrorMessages.INVALID_MBTI);
         }
 
         // 2. 이메일 인증 확인
         if (!emailService.isEmailVerified(request.getEmail())) {
-            throw new EmailNotVerifiedException("이메일 인증이 완료되지 않았습니다.");
+            throw new EmailNotVerifiedException(UserErrorMessages.EMAIL_NOT_VERIFIED);
         }
 
         // 3. 중복 검사
         if (accountRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("이미 사용 중인 이메일입니다.");
+            throw new DuplicateEmailException(UserErrorMessages.DUPLICATE_EMAIL);
         }
 
         // 4. 계정 생성
@@ -82,6 +93,7 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         accountRepository.save(account);
+        log.info("사용자 등록 완료: {}", request.getEmail());
     }
 
     /**
@@ -116,19 +128,23 @@ public class UserServiceImpl implements UserService {
      * - 인증 코드를 DB에 저장하고 메일 발송
      * 
      * @param email 인증 메일을 받을 이메일 주소
-     * @throws RuntimeException 이메일 형식 오류 시
+     * @throws ValidationException 이메일 형식 오류 시
      */
     @Override
     public void requestEmailVerification(String email) {
+        log.info("이메일 인증 요청: {}", email);
+
         // 1. 이메일 형식 검사
         if (!validationService.isValidEmail(email)) {
-            throw new RuntimeException("이메일 형식이 올바르지 않습니다.");
+            throw new ValidationException(UserErrorMessages.INVALID_EMAIL);
         }
 
         // 2. 인증 코드 생성 및 발송
         String verificationCode = emailService.generateVerificationCode();
         emailService.storeVerificationCode(email, verificationCode);
         emailService.sendVerificationEmail(email, verificationCode);
+
+        log.info("이메일 인증 코드 발송 완료: {}", email);
     }
 
     /**
@@ -167,13 +183,13 @@ public class UserServiceImpl implements UserService {
      * 
      * @param userId 조회할 사용자 ID
      * @return 사용자 프로필 정보
-     * @throws RuntimeException 사용자를 찾을 수 없는 경우
+     * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
      */
     @Override
     @Transactional(readOnly = true)
     public UserProfileResponse getMyProfile(Long userId) {
         Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         return convertToProfileResponse(account);
     }
@@ -186,22 +202,25 @@ public class UserServiceImpl implements UserService {
      * 
      * @param userId  수정할 사용자 ID
      * @param request 프로필 수정 요청 정보
-     * @throws RuntimeException 유효성 검사 실패 또는 사용자 없음
+     * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
+     * @throws ValidationException   유효성 검사 실패 시
      */
     @Override
     public void updateMyProfile(Long userId, UserProfileUpdateRequest request) {
+        log.info("프로필 수정 시작: userId={}", userId);
+
         Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         // 유효성 검사
         if (request.getName() != null && !validationService.isValidName(request.getName())) {
-            throw new RuntimeException("이름 형식이 올바르지 않습니다.");
+            throw new ValidationException(UserErrorMessages.INVALID_NAME);
         }
         if (request.getAge() != null && !validationService.isValidAge(request.getAge())) {
-            throw new RuntimeException("나이는 14세 이상 100세 이하여야 합니다.");
+            throw new ValidationException(UserErrorMessages.INVALID_AGE_UPDATE);
         }
         if (request.getMbti() != null && !validationService.isValidMbti(request.getMbti())) {
-            throw new RuntimeException("MBTI 형식이 올바르지 않습니다.");
+            throw new ValidationException(UserErrorMessages.INVALID_MBTI);
         }
 
         // 프로필 업데이트
@@ -223,6 +242,7 @@ public class UserServiceImpl implements UserService {
             account.setDislikeWorkstyle(request.getDislikeWorkstyle());
 
         accountRepository.save(account);
+        log.info("프로필 수정 완료: userId={}", userId);
     }
 
     /**
@@ -232,13 +252,13 @@ public class UserServiceImpl implements UserService {
      * 
      * @param userId 조회할 사용자 ID
      * @return 사용자 프로필 정보
-     * @throws RuntimeException 사용자를 찾을 수 없는 경우
+     * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
      */
     @Override
     @Transactional(readOnly = true)
     public UserProfileResponse getUserProfile(Long userId) {
         Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         return convertToProfileResponse(account);
     }
@@ -268,19 +288,21 @@ public class UserServiceImpl implements UserService {
      * 
      * @param userId 추천을 요청한 사용자 ID
      * @return 추천 팀원 목록
-     * @throws RuntimeException 사용자를 찾을 수 없는 경우
+     * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
      */
     @Override
     @Transactional(readOnly = true)
     public List<UserProfileResponse> getRecommendedTeamMembers(Long userId) {
         Account currentUser = accountRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         // MBTI와 성향 기반 추천 팀원 조회
         List<Account> recommendedAccounts = accountRepository.findRecommendedTeamMembers(
                 currentUser.getMbti(),
                 currentUser.getDisposition(),
                 userId);
+
+        log.info("팀원 추천 조회 완료: userId={}, 추천 수={}", userId, recommendedAccounts.size());
 
         return recommendedAccounts.stream()
                 .map(this::convertToProfileResponse)
@@ -295,26 +317,32 @@ public class UserServiceImpl implements UserService {
      * 
      * @param userId  비밀번호를 변경할 사용자 ID
      * @param request 비밀번호 변경 요청 정보 (현재/새 비밀번호)
-     * @throws RuntimeException 현재 비밀번호 불일치 또는 새 비밀번호 형식 오류
+     * @throws UserNotFoundException   사용자를 찾을 수 없는 경우
+     * @throws AuthenticationException 현재 비밀번호 불일치 시
+     * @throws ValidationException     새 비밀번호 형식 오류 시
      */
     @Override
     public void changePassword(Long userId, ChangePasswordRequest request) {
+        log.info("비밀번호 변경 시작: userId={}", userId);
+
         Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         // 현재 비밀번호 확인
         if (!authService.matchesPassword(request.getCurrentPassword(), account.getPassword())) {
-            throw new RuntimeException("현재 비밀번호가 올바르지 않습니다.");
+            log.warn("비밀번호 변경 실패 - 현재 비밀번호 불일치: userId={}", userId);
+            throw new AuthenticationException(UserErrorMessages.INVALID_CURRENT_PASSWORD);
         }
 
         // 새 비밀번호 유효성 검사
         if (!validationService.isValidPassword(request.getNewPassword())) {
-            throw new RuntimeException("새 비밀번호 형식이 올바르지 않습니다.");
+            throw new ValidationException(UserErrorMessages.INVALID_NEW_PASSWORD);
         }
 
         // 비밀번호 변경
         account.setPassword(authService.encryptPassword(request.getNewPassword()));
         accountRepository.save(account);
+        log.info("비밀번호 변경 완료: userId={}", userId);
     }
 
     /**
@@ -324,16 +352,19 @@ public class UserServiceImpl implements UserService {
      * - 관련 프로젝트/팀 데이터 보존을 위한 안전한 삭제
      * 
      * @param userId 삭제할 사용자 ID
-     * @throws RuntimeException 사용자를 찾을 수 없는 경우
+     * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
      */
     @Override
     public void deleteAccount(Long userId) {
+        log.info("계정 삭제 시작: userId={}", userId);
+
         Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         // Soft Delete 실행
         account.markDeleted();
         accountRepository.save(account);
+        log.info("계정 삭제 완료: userId={}", userId);
     }
 
     /**

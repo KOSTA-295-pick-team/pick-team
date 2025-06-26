@@ -1,13 +1,13 @@
 package com.pickteam.domain.workspace;
 
 import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
-import com.pickteam.domain.common.BaseTimeEntity;
 import com.pickteam.domain.user.Account;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -26,13 +26,23 @@ public class Workspace extends BaseSoftDeleteSupportEntity {
 
     private String password;
 
+    @Column(unique = true)
     private String url;
+    
+    @Column(name = "icon_url")
+    private String iconUrl;
 
     @ManyToOne(optional = false)
-    private Account account;
+    @JoinColumn(name = "account_id", nullable = false)
+    private Account owner;
 
     @OneToMany(mappedBy = "workspace")
     private List<WorkspaceMember> members = new ArrayList<>();
-
-
+    
+    @PrePersist
+    public void generateInviteCode() {
+        if (this.url == null) {
+            this.url = UUID.randomUUID().toString().substring(0, 8);
+        }
+    }
 }

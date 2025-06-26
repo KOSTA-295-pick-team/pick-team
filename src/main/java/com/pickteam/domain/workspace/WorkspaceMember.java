@@ -1,7 +1,6 @@
 package com.pickteam.domain.workspace;
 
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
-import com.pickteam.domain.common.BaseTimeEntity;
 import com.pickteam.domain.user.Account;
 import jakarta.persistence.*;
 import lombok.*;
@@ -9,6 +8,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(uniqueConstraints = {@UniqueConstraint(columnNames = {"workspace_id", "account_id"})})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -28,4 +28,23 @@ public class WorkspaceMember extends BaseSoftDeleteByAnnotation {
 
     @ManyToOne(optional = false)
     private Account account;
+    
+    // mvc 버전에서 추가된 필드들
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role")
+    @Builder.Default
+    private MemberRole role = MemberRole.MEMBER;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    @Builder.Default
+    private MemberStatus status = MemberStatus.ACTIVE;
+    
+    public enum MemberRole {
+        OWNER, ADMIN, MEMBER
+    }
+    
+    public enum MemberStatus {
+        ACTIVE, BANNED, LEFT
+    }
 }

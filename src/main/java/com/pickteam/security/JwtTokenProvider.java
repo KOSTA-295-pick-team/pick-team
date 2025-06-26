@@ -10,29 +10,40 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.util.Date;
 
+/**
+ * JWT 토큰 제공자
+ * - JWT Access Token과 Refresh Token 생성 및 검증
+ * - 토큰에서 사용자 정보 추출
+ * - 토큰 유효성 검사 및 만료 시간 관리
+ */
 @Component
 @Slf4j
 public class JwtTokenProvider {
 
+    /** JWT 서명에 사용할 비밀키 */
     @Value("${app.jwt.secret:pickteamSecretKeyForJWTTokenGeneration2024!@#}")
     private String jwtSecret;
 
-    @Value("${app.jwt.expiration:3600000}") // 1시간 (밀리초)
+    /** Access Token 만료 시간 (기본: 1시간) */
+    @Value("${app.jwt.expiration:3600000}")
     private long jwtExpirationMs;
 
-    @Value("${app.jwt.refresh-expiration:86400000}") // 24시간 (밀리초)
+    /** Refresh Token 만료 시간 (기본: 24시간) */
+    @Value("${app.jwt.refresh-expiration:86400000}")
     private long refreshExpirationMs;
 
+    /** JWT 서명용 SecretKey 생성 */
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
 
-    // Access Token 생성
+    /** Authentication 객체로부터 Access Token 생성 */
     public String generateAccessToken(Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         return generateAccessToken(userPrincipal.getId(), userPrincipal.getEmail());
     }
 
+    /** 사용자 ID와 이메일로 Access Token 생성 */
     public String generateAccessToken(Long userId, String email) {
         Date expiryDate = new Date(System.currentTimeMillis() + jwtExpirationMs);
 
@@ -45,7 +56,7 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    // Refresh Token 생성
+    /** 사용자 ID로 Refresh Token 생성 */
     public String generateRefreshToken(Long userId) {
         Date expiryDate = new Date(System.currentTimeMillis() + refreshExpirationMs);
 
@@ -57,7 +68,7 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    // 토큰에서 사용자 ID 추출
+    /** 토큰에서 사용자 ID 추출 */
     public Long getUserIdFromToken(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(getSigningKey())
@@ -68,7 +79,7 @@ public class JwtTokenProvider {
         return Long.parseLong(claims.getSubject());
     }
 
-    // 토큰에서 이메일 추출
+    /** 토큰에서 이메일 추출 */
     public String getEmailFromToken(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(getSigningKey())
@@ -79,7 +90,11 @@ public class JwtTokenProvider {
         return claims.get("email", String.class);
     }
 
-    // 토큰 유효성 검사
+    /**
+     * 토큰 유효성 검사
+     * - 토큰 서명, 만료시간, 형식 등을 종합적으로 검증
+     * - 각종 JWT 예외 상황을 로깅하여 디버깅 지원
+     */
     public boolean validateToken(String token) {
         try {
             Jwts.parser()
@@ -99,7 +114,7 @@ public class JwtTokenProvider {
         return false;
     }
 
-    // 토큰 만료시간 확인
+    /** 토큰에서 만료 시간 추출 */
     public Date getExpirationDateFromToken(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(getSigningKey())
@@ -110,10 +125,12 @@ public class JwtTokenProvider {
         return claims.getExpiration();
     }
 
+    /** Access Token 만료 시간 반환 (밀리초) */
     public long getJwtExpirationMs() {
         return jwtExpirationMs;
     }
 
+    /** Refresh Token 만료 시간 반환 (밀리초) */
     public long getRefreshExpirationMs() {
         return refreshExpirationMs;
     }

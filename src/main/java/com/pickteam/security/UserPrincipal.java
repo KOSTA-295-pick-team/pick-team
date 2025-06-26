@@ -11,6 +11,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.Collections;
 
+/**
+ * Spring Security UserDetails 구현체
+ * - Account 엔티티를 Spring Security에서 사용할 수 있도록 변환
+ * - JWT 토큰 생성 및 인증 과정에서 사용자 정보 제공
+ */
 @Getter
 @AllArgsConstructor
 public class UserPrincipal implements UserDetails {
@@ -20,6 +25,7 @@ public class UserPrincipal implements UserDetails {
     private UserRole role;
     private Collection<? extends GrantedAuthority> authorities;
 
+    /** Account 엔티티로부터 UserPrincipal 객체 생성 */
     public static UserPrincipal create(Account account) {
         Collection<GrantedAuthority> authorities = Collections.singletonList(
                 new SimpleGrantedAuthority("ROLE_" + account.getRole().name()));
@@ -32,6 +38,7 @@ public class UserPrincipal implements UserDetails {
                 authorities);
     }
 
+    /** Spring Security에서 사용하는 username (이메일 사용) */
     @Override
     public String getUsername() {
         return email;
@@ -47,21 +54,25 @@ public class UserPrincipal implements UserDetails {
         return authorities;
     }
 
+    /** 계정 만료 여부 (항상 유효) */
     @Override
     public boolean isAccountNonExpired() {
         return true;
     }
 
+    /** 계정 잠금 여부 (항상 잠금 해제) */
     @Override
     public boolean isAccountNonLocked() {
         return true;
     }
 
+    /** 자격 증명 만료 여부 (항상 유효) */
     @Override
     public boolean isCredentialsNonExpired() {
         return true;
     }
 
+    /** 계정 활성화 여부 (항상 활성화) */
     @Override
     public boolean isEnabled() {
         return true;

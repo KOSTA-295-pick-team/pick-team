@@ -10,10 +10,16 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
+/**
+ * JWT 인증 실패 핸들러
+ * - 인증되지 않은 요청에 대한 401 Unauthorized 응답 처리
+ * - 일관된 JSON 형태의 에러 응답 제공
+ */
 @Component
 @Slf4j
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
+    /** 인증 실패 시 호출되는 메서드 */
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
             AuthenticationException authException) throws IOException, ServletException {

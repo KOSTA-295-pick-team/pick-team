@@ -1,6 +1,7 @@
 package com.pickteam.service.user;
 
 import com.pickteam.dto.user.*;
+import com.pickteam.dto.security.JwtAuthenticationResponse;
 
 public interface UserService {
     // 회원가입
@@ -19,7 +20,7 @@ public interface UserService {
     boolean verifyEmail(String email, String verificationCode);
 
     // 로그인
-    UserProfileResponse login(UserLoginRequest request);
+    JwtAuthenticationResponse login(UserLoginRequest request);
 
     // 내 프로필 조회
     UserProfileResponse getMyProfile(Long userId);

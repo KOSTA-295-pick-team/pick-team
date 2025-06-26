@@ -1,6 +1,7 @@
 package com.pickteam.controller.user;
 
 import com.pickteam.dto.user.*;
+import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.dto.ApiResponse;
 import com.pickteam.service.user.UserService;
 import org.springframework.http.ResponseEntity;
@@ -52,9 +53,9 @@ public class UserController {
 
     // 로그인
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<UserProfileResponse>> login(@RequestBody UserLoginRequest request) {
-        UserProfileResponse user = userService.login(request);
-        return ResponseEntity.ok(ApiResponse.success("로그인 성공", user));
+    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> login(@RequestBody UserLoginRequest request) {
+        JwtAuthenticationResponse response = userService.login(request);
+        return ResponseEntity.ok(ApiResponse.success("로그인 성공", response));
     }
 
     // 로그아웃

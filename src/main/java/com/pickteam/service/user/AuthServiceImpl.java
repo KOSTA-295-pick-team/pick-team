@@ -5,6 +5,8 @@ import com.pickteam.dto.user.UserProfileResponse;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.dto.security.RefreshTokenRequest;
 import com.pickteam.exception.UserNotFoundException;
+import com.pickteam.exception.InvalidTokenException;
+import com.pickteam.exception.AuthenticationException;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.user.RefreshTokenRepository;
 import com.pickteam.domain.user.Account;
@@ -46,17 +48,17 @@ public class AuthServiceImpl implements AuthService {
      * 
      * @param request 로그인 요청 정보 (이메일, 비밀번호)
      * @return JWT 토큰과 사용자 정보가 포함된 인증 응답
-     * @throws RuntimeException 인증 실패 시
+     * @throws AuthenticationException 인증 실패 시 (이메일 또는 비밀번호 불일치)
      */
     @Override
     public JwtAuthenticationResponse authenticate(UserLoginRequest request) {
         // 1. 사용자 조회
         Account account = accountRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
-                .orElseThrow(() -> new UserNotFoundException("이메일 또는 비밀번호가 올바르지 않습니다."));
+                .orElseThrow(() -> new AuthenticationException("이메일 또는 비밀번호가 올바르지 않습니다."));
 
         // 2. 비밀번호 검증
         if (!matchesPassword(request.getPassword(), account.getPassword())) {
-            throw new RuntimeException("이메일 또는 비밀번호가 올바르지 않습니다.");
+            throw new AuthenticationException("이메일 또는 비밀번호가 올바르지 않습니다.");
         }
 
         // 3. Access/Refresh 토큰 발급
@@ -67,18 +69,7 @@ public class AuthServiceImpl implements AuthService {
         createAndSaveRefreshToken(account, refreshToken);
 
         // 5. 사용자 정보 DTO 변환
-        UserProfileResponse userProfile = new UserProfileResponse();
-        userProfile.setId(account.getId());
-        userProfile.setEmail(account.getEmail());
-        userProfile.setName(account.getName());
-        userProfile.setAge(account.getAge());
-        userProfile.setRole(account.getRole());
-        userProfile.setMbti(account.getMbti());
-        userProfile.setDisposition(account.getDisposition());
-        userProfile.setIntroduction(account.getIntroduction());
-        userProfile.setPortfolio(account.getPortfolio());
-        userProfile.setPreferWorkstyle(account.getPreferWorkstyle());
-        userProfile.setDislikeWorkstyle(account.getDislikeWorkstyle());
+        UserProfileResponse userProfile = mapToUserProfile(account);
 
         // 6. 응답 반환
         return new JwtAuthenticationResponse(
@@ -170,25 +161,26 @@ public class AuthServiceImpl implements AuthService {
      * 
      * @param request Refresh Token 요청 정보
      * @return 새로운 JWT 토큰과 사용자 정보
-     * @throws RuntimeException Refresh Token 검증 실패 시
+     * @throws InvalidTokenException Refresh Token 검증 실패 시
+     * @throws UserNotFoundException 사용자가 존재하지 않을 시
      */
     @Override
     public JwtAuthenticationResponse refreshToken(RefreshTokenRequest request) {
         // 1. DB에서 Refresh Token 조회 및 검증
         String refreshTokenValue = request.getRefreshToken();
         RefreshToken refreshToken = refreshTokenRepository.findByToken(refreshTokenValue)
-                .orElseThrow(() -> new RuntimeException("유효하지 않은 리프레시 토큰입니다."));
+                .orElseThrow(() -> new InvalidTokenException("유효하지 않은 리프레시 토큰입니다."));
 
         // 2. 토큰 만료 확인
         if (refreshToken.isExpired()) {
             refreshTokenRepository.delete(refreshToken);
-            throw new RuntimeException("만료된 리프레시 토큰입니다.");
+            throw new InvalidTokenException("만료된 리프레시 토큰입니다.");
         }
 
         // 3. JWT 토큰 자체 유효성 검증
         if (!jwtTokenProvider.validateToken(refreshTokenValue)) {
             refreshTokenRepository.delete(refreshToken);
-            throw new RuntimeException("유효하지 않은 리프레시 토큰입니다.");
+            throw new InvalidTokenException("유효하지 않은 리프레시 토큰입니다.");
         }
 
         // 4. 사용자 정보 조회
@@ -206,18 +198,7 @@ public class AuthServiceImpl implements AuthService {
         createAndSaveRefreshToken(account, newRefreshToken);
 
         // 7. 사용자 정보 DTO 변환
-        UserProfileResponse userProfile = new UserProfileResponse();
-        userProfile.setId(account.getId());
-        userProfile.setEmail(account.getEmail());
-        userProfile.setName(account.getName());
-        userProfile.setAge(account.getAge());
-        userProfile.setRole(account.getRole());
-        userProfile.setMbti(account.getMbti());
-        userProfile.setDisposition(account.getDisposition());
-        userProfile.setIntroduction(account.getIntroduction());
-        userProfile.setPortfolio(account.getPortfolio());
-        userProfile.setPreferWorkstyle(account.getPreferWorkstyle());
-        userProfile.setDislikeWorkstyle(account.getDislikeWorkstyle());
+        UserProfileResponse userProfile = mapToUserProfile(account);
 
         // 8. 응답 반환
         return new JwtAuthenticationResponse(
@@ -269,5 +250,29 @@ public class AuthServiceImpl implements AuthService {
                 .expiresAt(LocalDateTime.now().plusDays(refreshTokenExpirationDays))
                 .build();
         return refreshTokenRepository.save(refreshTokenEntity);
+    }
+
+    /**
+     * Account 엔티티를 UserProfileResponse DTO로 변환
+     * - 중복 코드 제거를 위한 매핑 메서드
+     * - 모든 사용자 프로필 정보를 DTO로 변환
+     * 
+     * @param account 변환할 사용자 계정 엔티티
+     * @return 변환된 사용자 프로필 응답 DTO
+     */
+    private UserProfileResponse mapToUserProfile(Account account) {
+        UserProfileResponse userProfile = new UserProfileResponse();
+        userProfile.setId(account.getId());
+        userProfile.setEmail(account.getEmail());
+        userProfile.setName(account.getName());
+        userProfile.setAge(account.getAge());
+        userProfile.setRole(account.getRole());
+        userProfile.setMbti(account.getMbti());
+        userProfile.setDisposition(account.getDisposition());
+        userProfile.setIntroduction(account.getIntroduction());
+        userProfile.setPortfolio(account.getPortfolio());
+        userProfile.setPreferWorkstyle(account.getPreferWorkstyle());
+        userProfile.setDislikeWorkstyle(account.getDislikeWorkstyle());
+        return userProfile;
     }
 }

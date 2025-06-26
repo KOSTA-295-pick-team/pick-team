@@ -111,7 +111,7 @@ public class UserController {
 
     // 비밀번호 변경
     @PutMapping("/password")
-    public ResponseEntity<ApiResponse<Void>> changePassword(@RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         // TODO: 현재 로그인된 사용자 ID 가져오기
         Long currentUserId = 1L; // 임시
         userService.changePassword(currentUserId, request);

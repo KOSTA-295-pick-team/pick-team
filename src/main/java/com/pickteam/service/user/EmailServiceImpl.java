@@ -1,7 +1,9 @@
 package com.pickteam.service.user;
 
 import com.pickteam.domain.user.EmailVerification;
+import com.pickteam.exception.EmailSendException;
 import com.pickteam.repository.user.EmailVerificationRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -10,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import java.io.UnsupportedEncodingException;
 import java.time.LocalDateTime;
 import java.util.Random;
 
@@ -29,6 +32,14 @@ public class EmailServiceImpl implements EmailService {
     private final JavaMailSender mailSender;
     private final EmailVerificationRepository emailVerificationRepository;
 
+    /** 이메일 발신자 주소 */
+    @Value("${app.mail.from}")
+    private String fromEmail;
+
+    /** 이메일 발신자 이름 */
+    @Value("${app.mail.from.name}")
+    private String fromName;
+
     /** 인증 코드 유효 시간 (5분) */
     private static final int VERIFICATION_CODE_EXPIRY_MINUTES = 5;
 
@@ -39,21 +50,22 @@ public class EmailServiceImpl implements EmailService {
      * 
      * @param email            인증 메일을 받을 이메일 주소
      * @param verificationCode 발송할 6자리 인증 코드
-     * @throws RuntimeException 이메일 발송 실패 시
+     * @throws EmailSendException 이메일 발송 실패 시
      */
     @Override
     public void sendVerificationEmail(String email, String verificationCode) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
             helper.setTo(email);
             helper.setSubject("Pick Team 이메일 인증");
             helper.setText(createVerificationEmailContent(verificationCode), true);
             mailSender.send(message);
             log.info("인증 메일 발송 완료: {}", email);
-        } catch (MessagingException e) {
+        } catch (MessagingException | UnsupportedEncodingException e) {
             log.error("인증 메일 발송 실패: {}", email, e);
-            throw new RuntimeException("이메일 발송에 실패했습니다.", e);
+            throw new EmailSendException("이메일 발송에 실패했습니다.", e);
         }
     }
 

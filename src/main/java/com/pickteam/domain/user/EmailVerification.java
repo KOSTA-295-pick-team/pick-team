@@ -12,6 +12,10 @@ import java.time.LocalDateTime;
  * - 인증 완료 상태 추적
  */
 @Entity
+@Table(indexes = {
+        @Index(name = "idx_email_verification_email", columnList = "email"),
+        @Index(name = "idx_email_verification_email_code", columnList = "email, verificationCode")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -25,7 +29,7 @@ public class EmailVerification extends BaseTimeEntity {
     private Long id;
 
     /** 인증 대상 이메일 주소 */
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String email;
 
     /** 이메일로 발송된 인증 코드 (숫자 또는 문자열) */

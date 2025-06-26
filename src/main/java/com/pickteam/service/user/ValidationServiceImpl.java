@@ -140,7 +140,7 @@ public class ValidationServiceImpl implements ValidationService {
             score++;
         if (password.matches(".*[0-9].*"))
             score++;
-        if (password.matches(".*[@#$%^&+=!].*"))
+        if (password.matches(".*[@#$%^&+=].*"))
             score++;
 
         return switch (score) {

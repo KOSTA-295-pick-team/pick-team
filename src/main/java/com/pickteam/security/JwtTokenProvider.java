@@ -21,7 +21,7 @@ import java.util.Date;
 public class JwtTokenProvider {
 
     /** JWT 서명에 사용할 비밀키 */
-    @Value("${app.jwt.secret:pickteamSecretKeyForJWTTokenGeneration2024!@#}")
+    @Value("${app.jwt.secret}")
     private String jwtSecret;
 
     /** Access Token 만료 시간 (기본: 1시간) */

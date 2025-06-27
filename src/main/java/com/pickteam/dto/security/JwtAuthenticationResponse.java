@@ -3,6 +3,9 @@ package com.pickteam.dto.security;
 import com.pickteam.dto.user.UserProfileResponse;
 
 import lombok.Data;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 /**
  * JWT 로그인 성공 응답 DTO
@@ -10,6 +13,9 @@ import lombok.Data;
  * - Access Token과 Refresh Token을 포함
  */
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class JwtAuthenticationResponse {
     /** JWT Access Token - API 요청 시 인증에 사용 */
     private String accessToken;
@@ -18,6 +24,7 @@ public class JwtAuthenticationResponse {
     private String refreshToken;
 
     /** 토큰 타입 - 기본값 "Bearer" */
+    @Builder.Default
     private String tokenType = "Bearer";
 
     /** Access Token 만료 시간 (밀리초) */

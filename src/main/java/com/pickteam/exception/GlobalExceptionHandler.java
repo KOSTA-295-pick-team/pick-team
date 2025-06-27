@@ -1,6 +1,7 @@
 package com.pickteam.exception;
 
 import com.pickteam.dto.ApiResponse;
+import com.pickteam.constants.SessionErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,7 +46,7 @@ public class GlobalExceptionHandler {
 
         log.warn("검증 실패: {}", errors);
 
-        ApiResponse<Map<String, String>> response = new ApiResponse<>(false, "입력값 검증에 실패했습니다.", errors);
+        ApiResponse<Map<String, String>> response = new ApiResponse<>(false, "입력값 검증에 실패했습니다.", null, errors);
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(response);
@@ -89,11 +90,11 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnauthorizedException(UnauthorizedException ex) {
-        log.warn("인증되지 않은 접근 시도가 감지되었습니다");
+        log.warn("인증되지 않은 접근 시도: {}", ex.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("인증이 필요합니다."));
+                .body(ApiResponse.error(SessionErrorCode.SESSION_INVALID, ex.getMessage()));
     }
 
     /**
@@ -108,7 +109,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(ex.getMessage()));
+                .body(ApiResponse.error(SessionErrorCode.LOGIN_FAILED, ex.getMessage()));
     }
 
     /**
@@ -186,4 +187,18 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("예상치 못한 오류가 발생했습니다."));
     }
 
+    /**
+     * 세션 만료 예외 처리
+     * 
+     * @param ex SessionExpiredException
+     * @return 세션 만료 응답
+     */
+    @ExceptionHandler(SessionExpiredException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSessionExpiredException(SessionExpiredException ex) {
+        log.warn("세션 만료: {}", ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(SessionErrorCode.DUPLICATE_LOGIN, ex.getMessage()));
+    }
 }

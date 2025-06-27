@@ -3,6 +3,7 @@ package com.pickteam.service.user;
 import com.pickteam.dto.user.*;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.domain.user.Account;
+import com.pickteam.domain.user.RefreshToken;
 import com.pickteam.domain.enums.UserRole;
 import com.pickteam.exception.EmailNotVerifiedException;
 import com.pickteam.exception.UserNotFoundException;
@@ -11,6 +12,7 @@ import com.pickteam.exception.DuplicateEmailException;
 import com.pickteam.exception.AuthenticationException;
 import com.pickteam.constants.UserErrorMessages;
 import com.pickteam.repository.user.AccountRepository;
+import com.pickteam.repository.user.RefreshTokenRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ import java.util.stream.Collectors;
 public class UserServiceImpl implements UserService {
 
     private final AccountRepository accountRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final AuthService authService;
     private final EmailService emailService;
     private final ValidationService validationService;
@@ -365,6 +368,42 @@ public class UserServiceImpl implements UserService {
         account.markDeleted();
         accountRepository.save(account);
         log.info("계정 삭제 완료: userId={}", userId);
+    }
+
+    /**
+     * 세션 상태 확인
+     * - 현재 사용자의 세션 유효성 및 로그인 정보 제공
+     * - RefreshToken 존재 여부로 세션 유효성 판단
+     * 
+     * @param userId 사용자 ID
+     * @return 세션 상태 정보
+     * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public SessionStatusResponse getSessionStatus(Long userId) {
+        log.debug("세션 상태 확인 요청: userId={}", userId);
+
+        // 사용자 조회
+        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
+
+        // RefreshToken 조회로 세션 유효성 확인
+        List<RefreshToken> refreshTokens = refreshTokenRepository.findByAccount(account);
+        boolean isSessionValid = !refreshTokens.isEmpty();
+
+        // 가장 최근 RefreshToken 정보 사용
+        RefreshToken latestToken = refreshTokens.isEmpty() ? null : refreshTokens.get(0);
+
+        log.debug("세션 상태 확인 완료: userId={}, isValid={}", userId, isSessionValid);
+
+        return SessionStatusResponse.builder()
+                .isValid(isSessionValid)
+                .loginTime(latestToken != null ? latestToken.getCreatedAt() : null)
+                .expiresAt(latestToken != null ? latestToken.getExpiresAt() : null)
+                .userId(userId)
+                .email(account.getEmail())
+                .build();
     }
 
     /**

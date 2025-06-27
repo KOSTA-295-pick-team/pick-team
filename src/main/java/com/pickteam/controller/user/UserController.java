@@ -116,19 +116,68 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGIN_SUCCESS, response));
     }
 
+    // 개선된 로그인 (클라이언트 정보 포함)
+    @PostMapping("/login/enhanced")
+    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> loginWithClientInfo(
+            @Valid @RequestBody UserLoginRequest request,
+            @RequestBody(required = false) SessionInfoRequest sessionInfo,
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
+        log.info("개선된 로그인 시도 - 이메일: {}", request.getEmail());
+
+        // 추가 검증: 비밀번호 최소 길이 체크 (보안 강화)
+        if (request.getPassword() != null && request.getPassword().length() < 8) {
+            log.warn("너무 짧은 비밀번호로 로그인 시도: 이메일={}", request.getEmail());
+            throw new com.pickteam.exception.ValidationException("비밀번호는 최소 8자 이상이어야 합니다.");
+        }
+
+        JwtAuthenticationResponse response = authService.authenticateWithClientInfo(request, sessionInfo, httpRequest);
+        log.info("개선된 로그인 성공 - 이메일: {}", request.getEmail());
+        return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGIN_SUCCESS, response));
+    }
+
     // 로그아웃
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout() {
+    public ResponseEntity<ApiResponse<LogoutResponse>> logout() {
         log.debug("로그아웃 요청 시작");
         // 인증 확인 및 사용자 ID 추출
         Long currentUserId = authService.requireAuthentication();
 
         log.info("로그아웃 진행 - 사용자 ID: {}", currentUserId);
-        // Refresh Token 무효화
-        authService.logout(currentUserId);
-        log.info("로그아웃 완료 - 사용자 ID: {}", currentUserId);
+        // 개선된 로그아웃 처리
+        LogoutResponse logoutResponse = authService.logoutWithDetails(currentUserId);
+        log.info("로그아웃 완료 - 사용자 ID: {}, 무효화된 세션: {}", currentUserId, logoutResponse.getInvalidatedSessions());
 
-        return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGOUT_SUCCESS, null));
+        return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGOUT_SUCCESS, logoutResponse));
+    }
+
+    // 개선된 로그아웃 (클라이언트 정보 포함)
+    @PostMapping("/logout/enhanced")
+    public ResponseEntity<ApiResponse<LogoutResponse>> logoutWithClientInfo(
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
+        log.debug("개선된 로그아웃 요청 시작");
+        // 인증 확인 및 사용자 ID 추출
+        Long currentUserId = authService.requireAuthentication();
+
+        log.info("개선된 로그아웃 진행 - 사용자 ID: {}", currentUserId);
+        // 클라이언트 정보를 포함한 로그아웃 처리
+        LogoutResponse logoutResponse = authService.logoutWithDetails(currentUserId, httpRequest);
+        log.info("개선된 로그아웃 완료 - 사용자 ID: {}, 무효화된 세션: {}", currentUserId, logoutResponse.getInvalidatedSessions());
+
+        return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGOUT_SUCCESS, logoutResponse));
+    }
+
+    // 세션 상태 확인
+    @GetMapping("/session/status")
+    public ResponseEntity<ApiResponse<SessionStatusResponse>> getSessionStatus() {
+        log.debug("세션 상태 확인 요청");
+        // 인증 확인 및 사용자 ID 추출
+        Long currentUserId = authService.requireAuthentication();
+
+        log.debug("세션 상태 확인 - 사용자 ID: {}", currentUserId);
+        SessionStatusResponse sessionStatus = userService.getSessionStatus(currentUserId);
+        log.debug("세션 상태 확인 완료 - 사용자 ID: {}, 세션 유효: {}", currentUserId, sessionStatus.isValid());
+
+        return ResponseEntity.ok(ApiResponse.success("세션 상태 조회 성공", sessionStatus));
     }
 
     // 내 프로필 조회

@@ -43,4 +43,23 @@ public class UserProfileResponse {
 
     /** 기피하는 작업 스타일 (팀 매칭 시 제외) */
     private String dislikeWorkstyle;
+
+    /**
+     * Account 엔티티에서 UserProfileResponse로 변환
+     */
+    public static UserProfileResponse from(com.pickteam.domain.user.Account account) {
+        UserProfileResponse response = new UserProfileResponse();
+        response.setId(account.getId());
+        response.setEmail(account.getEmail());
+        response.setName(account.getName());
+        response.setAge(account.getAge());
+        response.setRole(account.getRole());
+        response.setMbti(account.getMbti());
+        response.setDisposition(account.getDisposition());
+        response.setIntroduction(account.getIntroduction());
+        response.setPortfolio(account.getPortfolio());
+        response.setPreferWorkstyle(account.getPreferWorkstyle());
+        response.setDislikeWorkstyle(account.getDislikeWorkstyle());
+        return response;
+    }
 }

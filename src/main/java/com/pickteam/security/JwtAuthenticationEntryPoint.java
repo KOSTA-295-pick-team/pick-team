@@ -2,6 +2,7 @@ package com.pickteam.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pickteam.dto.ApiResponse;
+import com.pickteam.constants.SessionErrorCode;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -36,8 +37,8 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
-        // 구조화된 에러 응답 생성
-        ApiResponse<Void> errorResponse = ApiResponse.error("Authentication required");
+        // 구조화된 에러 응답 생성 - SessionErrorCode 사용
+        ApiResponse<Void> errorResponse = ApiResponse.error(SessionErrorCode.SESSION_INVALID);
 
         // ObjectMapper를 사용한 안전한 JSON 직렬화
         response.getWriter().write(objectMapper.writeValueAsString(errorResponse));

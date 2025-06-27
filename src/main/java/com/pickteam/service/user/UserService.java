@@ -22,6 +22,9 @@ public interface UserService {
     // 로그인
     JwtAuthenticationResponse login(UserLoginRequest request);
 
+    // 세션 상태 확인
+    SessionStatusResponse getSessionStatus(Long userId);
+
     // 내 프로필 조회
     UserProfileResponse getMyProfile(Long userId);
 

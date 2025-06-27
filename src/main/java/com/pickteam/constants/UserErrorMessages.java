@@ -13,8 +13,8 @@ public class UserErrorMessages {
     public static final String INVALID_PASSWORD = "비밀번호 형식이 올바르지 않습니다.";
     public static final String INVALID_NEW_PASSWORD = "새 비밀번호 형식이 올바르지 않습니다.";
     public static final String INVALID_NAME = "이름 형식이 올바르지 않습니다.";
-    public static final String INVALID_AGE_REGISTER = "나이는 0세 이상 150세 이하여야 합니다.";
-    public static final String INVALID_AGE_UPDATE = "나이는 14세 이상 100세 이하여야 합니다.";
+    public static final String INVALID_AGE_REGISTER = "나이는 0세 이상 225세 이하여야 합니다.";
+    public static final String INVALID_AGE_UPDATE = "나이는 0세 이상 225세 이하여야 합니다.";
     public static final String INVALID_MBTI = "MBTI 형식이 올바르지 않습니다.";
 
     // 중복 및 존재성 관련 메시지

@@ -25,13 +25,13 @@ public class UserRegisterRequest {
 
     /** 사용자 이름 */
     @NotBlank(message = "이름은 필수입니다")
-    @Size(min = 2, max = 10, message = "이름은 2자 이상 10자 이하여야 합니다")
+    @Size(min = 2, max = 50, message = "이름은 2자 이상 50자 이하여야 합니다")
     private String name;
 
     /** 나이 */
     @NotNull(message = "나이는 필수입니다")
     @Min(value = 0, message = "나이는 0 이상이어야 합니다")
-    @Max(value = 150, message = "나이는 150세 이하여야 합니다")
+    @Max(value = 225, message = "나이는 225세 이하여야 합니다")
     private Integer age;
 
     /** MBTI 성격 유형 (선택사항) */

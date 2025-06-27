@@ -2,6 +2,7 @@ package com.pickteam.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pickteam.dto.ApiResponse;
+import com.pickteam.constants.SessionErrorCode;
 import com.pickteam.repository.user.RefreshTokenRepository;
 import com.pickteam.repository.user.AccountRepository;
 import jakarta.servlet.FilterChain;
@@ -104,18 +105,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /**
      * 세션 만료 처리
-     * - 401 상태코드와 함께 세션 만료 메시지 반환
+     * - 401 상태코드와 함께 구체적인 세션 만료 메시지 반환
+     * - SessionErrorCode를 사용한 표준화된 에러 응답
      * 
      * @param response HTTP 응답 객체
      * @throws IOException JSON 응답 작성 중 오류 발생 시
      */
     private void handleSessionExpired(HttpServletResponse response) throws IOException {
-        log.warn("세션이 만료되어 요청을 거부합니다");
+        log.warn("세션이 만료되어 요청을 거부합니다 - 다른 기기에서 로그인됨");
 
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
-        ApiResponse<Void> errorResponse = ApiResponse.error("세션이 만료되었습니다. 다시 로그인해 주세요.");
+        ApiResponse<Void> errorResponse = ApiResponse.error(SessionErrorCode.DUPLICATE_LOGIN);
         response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
     }
 }

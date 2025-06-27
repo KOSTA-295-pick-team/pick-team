@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 public class ApiResponse<T> {
     private boolean success;
     private String message;
-    private String errorCode;  // 에러 코드 추가
+    private String errorCode; // 에러 코드 추가
     private T data;
 
     /**

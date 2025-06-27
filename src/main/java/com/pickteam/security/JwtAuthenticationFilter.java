@@ -1,11 +1,16 @@
 package com.pickteam.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pickteam.dto.ApiResponse;
+import com.pickteam.repository.user.RefreshTokenRepository;
+import com.pickteam.repository.user.AccountRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -30,14 +35,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
     private final UserDetailsService userDetailsService;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final AccountRepository accountRepository;
+    private final ObjectMapper objectMapper;
 
     /**
      * 요청별 JWT 토큰 검증 및 인증 처리
-     * - 토큰 추출 → 유효성 검증 → 사용자 정보 로드 → 인증 객체 생성
+     * - 토큰 추출 → 유효성 검증 → 세션 유효성 검증 → 사용자 정보 로드 → 인증 객체 생성
      */
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-            FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         try {
             String jwt = getJwtFromRequest(request);
@@ -45,6 +53,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
                 Long userId = tokenProvider.getUserIdFromToken(jwt);
                 String email = tokenProvider.getEmailFromToken(jwt);
+
+                // 세션 유효성 추가 검증
+                if (!isSessionValid(userId)) {
+                    handleSessionExpired(response);
+                    return;
+                }
 
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
@@ -68,5 +82,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return bearerToken.substring(7);
         }
         return null;
+    }
+
+    /**
+     * 세션 유효성 검증
+     * - RefreshToken 존재 여부로 세션 유효성 확인
+     * 
+     * @param userId 사용자 ID
+     * @return 세션이 유효하면 true, 그렇지 않으면 false
+     */
+    private boolean isSessionValid(Long userId) {
+        try {
+            return accountRepository.findByIdAndDeletedAtIsNull(userId)
+                    .map(account -> !refreshTokenRepository.findByAccount(account).isEmpty())
+                    .orElse(false);
+        } catch (Exception e) {
+            log.warn("세션 유효성 검증 중 오류 발생: userId={}", userId, e);
+            return false;
+        }
+    }
+
+    /**
+     * 세션 만료 처리
+     * - 401 상태코드와 함께 세션 만료 메시지 반환
+     * 
+     * @param response HTTP 응답 객체
+     * @throws IOException JSON 응답 작성 중 오류 발생 시
+     */
+    private void handleSessionExpired(HttpServletResponse response) throws IOException {
+        log.warn("세션이 만료되어 요청을 거부합니다");
+
+        response.setContentType("application/json;charset=UTF-8");
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+
+        ApiResponse<Void> errorResponse = ApiResponse.error("세션이 만료되었습니다. 다시 로그인해 주세요.");
+        response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
     }
 }

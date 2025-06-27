@@ -117,9 +117,9 @@ public class UserController {
         }
 
         // 추가 검증: 비밀번호 최소 길이 체크 (보안 강화)
-        if (request.getPassword() != null && request.getPassword().length() < 4) {
+        if (request.getPassword() != null && request.getPassword().length() < 8) {
             log.warn("너무 짧은 비밀번호로 로그인 시도: 이메일={}", request.getEmail());
-            throw new com.pickteam.exception.ValidationException("비밀번호가 너무 짧습니다.");
+            throw new com.pickteam.exception.ValidationException("비밀번호는 최소 8자 이상이어야 합니다.");
         }
 
         JwtAuthenticationResponse response = userService.login(request);

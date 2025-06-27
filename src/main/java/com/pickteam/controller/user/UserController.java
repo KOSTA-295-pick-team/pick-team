@@ -574,11 +574,6 @@ public class UserController {
     }
 
     /**
-     * HttpMessageNotReadableException 처리
-     * - 요청 본문이 누락되거나 형식이 잘못된 경우 발생
-     * - JSON 파싱 오류, 필수 Request Body 누락 등
-     * - 400 Bad Request로 응답
-     * /**
      * 기타 모든 예외 처리
      * - 예상하지 못한 예외들에 대한 fallback
      * - 500 Internal Server Error로 응답

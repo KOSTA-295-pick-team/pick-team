@@ -45,9 +45,10 @@ public class GlobalExceptionHandler {
 
         log.warn("검증 실패: {}", errors);
 
+        ApiResponse<Map<String, String>> response = new ApiResponse<>(false, "입력값 검증에 실패했습니다.", errors);
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error("입력값 검증에 실패했습니다."));
+                .body(response);
     }
 
     /**

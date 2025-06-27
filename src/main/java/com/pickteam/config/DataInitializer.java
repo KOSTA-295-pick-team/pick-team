@@ -1,7 +1,7 @@
 package com.pickteam.config;
 
 import com.pickteam.domain.user.Account;
-import com.pickteam.repository.account.AccountRepository;
+import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.domain.enums.UserRole;
 
 import lombok.RequiredArgsConstructor;

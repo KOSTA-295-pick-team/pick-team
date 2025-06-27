@@ -17,7 +17,7 @@ public interface WorkspaceRepository extends JpaRepository<Workspace, Long> {
     @Query("SELECT w FROM Workspace w JOIN w.members wm WHERE wm.account.id = :accountId AND w.isDeleted = false AND wm.status = 'ACTIVE'")
     List<Workspace> findByAccountId(@Param("accountId") Long accountId);
     
-    List<Workspace> findByOwnerIdAndIsDeletedFalse(Long ownerId);
+    List<Workspace> findByAccountIdAndIsDeletedFalse(Long accountId);
     
     Optional<Workspace> findByIdAndIsDeletedFalse(Long id);
 } 

@@ -5,7 +5,7 @@ import com.pickteam.dto.workspace.*;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.workspace.Workspace;
 import com.pickteam.domain.workspace.WorkspaceMember;
-import com.pickteam.repository.account.AccountRepository;
+import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.workspace.WorkspaceMemberRepository;
 import com.pickteam.repository.workspace.WorkspaceRepository;
 
@@ -33,13 +33,13 @@ public class WorkspaceService {
      */
     @Transactional
     public WorkspaceResponse createWorkspace(Long accountId, WorkspaceCreateRequest request) {
-        Account owner = accountRepository.findById(accountId)
+        Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
         
         Workspace workspace = Workspace.builder()
                 .name(request.getName())
                 .iconUrl(request.getIconUrl())
-                .owner(owner)
+                .account(account)
                 .password(request.getPassword() != null ? passwordEncoder.encode(request.getPassword()) : null)
                 .url(generateInviteCode())
                 .build();
@@ -49,7 +49,7 @@ public class WorkspaceService {
         // 생성자를 OWNER로 멤버에 추가
         WorkspaceMember ownerMember = WorkspaceMember.builder()
                 .workspace(workspace)
-                .account(owner)
+                .account(account)
                 .role(WorkspaceMember.MemberRole.OWNER)
                 .status(WorkspaceMember.MemberStatus.ACTIVE)
                 .build();
@@ -261,7 +261,7 @@ public class WorkspaceService {
                 .orElseThrow(() -> new RuntimeException("워크스페이스를 찾을 수 없습니다."));
         
         // 소유자 권한 확인
-        if (!workspace.getOwner().getId().equals(accountId)) {
+        if (!workspace.getAccount().getId().equals(accountId)) {
             throw new RuntimeException("워크스페이스 삭제 권한이 없습니다.");
         }
         
@@ -315,7 +315,7 @@ public class WorkspaceService {
                 .id(workspace.getId())
                 .name(workspace.getName())
                 .iconUrl(workspace.getIconUrl())
-                .owner(convertToUserSummary(workspace.getOwner()))
+                .owner(convertToUserSummary(workspace.getAccount()))
                 .passwordProtected(workspace.getPassword() != null)
                 .inviteCode(workspace.getUrl())
                 .memberCount(members.size())

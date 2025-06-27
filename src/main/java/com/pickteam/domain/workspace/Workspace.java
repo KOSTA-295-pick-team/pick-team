@@ -33,7 +33,7 @@ public class Workspace extends BaseSoftDeleteSupportEntity {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "account_id", nullable = false)
-    private Account owner;
+    private Account account;
 
     @OneToMany(mappedBy = "workspace")
     private List<WorkspaceMember> members = new ArrayList<>();

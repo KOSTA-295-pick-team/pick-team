@@ -3,6 +3,7 @@ package com.pickteam.controller.user;
 import com.pickteam.dto.user.*;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.dto.ApiResponse;
+import com.pickteam.domain.enums.UserRole;
 import com.pickteam.service.user.UserService;
 import com.pickteam.service.user.AuthService;
 import com.pickteam.constants.UserControllerMessages;
@@ -234,8 +235,9 @@ public class UserController {
         // 인증 확인 및 사용자 ID 추출
         Long currentUserId = authService.requireAuthentication();
 
-        // 추가 검증: 관리자 계정 보호 (예: ID가 1인 경우)
-        if (currentUserId.equals(1L)) {
+        // 추가 검증: 관리자 계정 보호
+        UserProfileResponse userProfile = userService.getMyProfile(currentUserId);
+        if (userProfile.getRole() == UserRole.ADMIN) {
             log.error("관리자 계정 삭제 시도 - 사용자 ID: {}", currentUserId);
             throw new com.pickteam.exception.ValidationException("관리자 계정은 삭제할 수 없습니다.");
         }

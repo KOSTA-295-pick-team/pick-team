@@ -131,6 +131,20 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGOUT_SUCCESS, null));
     }
 
+    // 세션 상태 확인
+    @GetMapping("/session/status")
+    public ResponseEntity<ApiResponse<SessionStatusResponse>> getSessionStatus() {
+        log.debug("세션 상태 확인 요청");
+        // 인증 확인 및 사용자 ID 추출
+        Long currentUserId = authService.requireAuthentication();
+
+        log.debug("세션 상태 확인 - 사용자 ID: {}", currentUserId);
+        SessionStatusResponse sessionStatus = userService.getSessionStatus(currentUserId);
+        log.debug("세션 상태 확인 완료 - 사용자 ID: {}, 세션 유효: {}", currentUserId, sessionStatus.isValid());
+
+        return ResponseEntity.ok(ApiResponse.success("세션 상태 조회 성공", sessionStatus));
+    }
+
     // 내 프로필 조회
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getMyProfile() {

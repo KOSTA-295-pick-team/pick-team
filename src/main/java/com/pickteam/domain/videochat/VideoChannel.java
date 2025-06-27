@@ -5,7 +5,9 @@ import com.pickteam.domain.common.BaseTimeEntity;
 import com.pickteam.domain.workspace.Workspace;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,7 +25,7 @@ public class VideoChannel extends BaseSoftDeleteByAnnotation {
 
     private String name;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false,fetch = FetchType.LAZY)
     private Workspace workspace;
 
     @OneToMany(mappedBy = "videoChannel")

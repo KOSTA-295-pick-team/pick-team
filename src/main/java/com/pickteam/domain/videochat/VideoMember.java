@@ -6,6 +6,7 @@ import com.pickteam.domain.common.BaseTimeEntity;
 import com.pickteam.domain.user.Account;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -15,18 +16,16 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class VideoMember extends BaseSoftDeleteSupportEntity {
+public class VideoMember extends BaseSoftDeleteByAnnotation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private LocalDateTime createdAt;
-
     @ManyToOne(optional = false)
     private Account account;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false,fetch = FetchType.LAZY)
     private VideoChannel videoChannel;
 
 }

@@ -89,11 +89,11 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnauthorizedException(UnauthorizedException ex) {
-        log.warn("인증되지 않은 접근 시도가 감지되었습니다");
+        log.warn("인증되지 않은 접근 시도: {}", ex.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("인증이 필요합니다."));
+                .body(ApiResponse.error(ex.getMessage()));
     }
 
     /**
@@ -184,5 +184,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("예상치 못한 오류가 발생했습니다."));
+    }
+
+    /**
+     * 세션 만료 예외 처리
+     * 
+     * @param ex SessionExpiredException
+     * @return 세션 만료 응답
+     */
+    @ExceptionHandler(SessionExpiredException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSessionExpiredException(SessionExpiredException ex) {
+        log.warn("세션 만료: {}", ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(ex.getMessage()));
     }
 }

@@ -10,6 +10,7 @@ public class AuthErrorMessages {
 
     // 인증 관련 메시지
     public static final String INVALID_CREDENTIALS = "이메일 또는 비밀번호가 올바르지 않습니다.";
+    public static final String AUTHENTICATION_REQUIRED = "인증이 필요합니다.";
 
     // 토큰 관련 메시지
     public static final String INVALID_REFRESH_TOKEN = "유효하지 않은 리프레시 토큰입니다.";

@@ -72,8 +72,8 @@ public class UserServiceImpl implements UserService {
             throw new EmailNotVerifiedException(UserErrorMessages.EMAIL_NOT_VERIFIED);
         }
 
-        // 3. 중복 검사
-        if (accountRepository.existsByEmail(request.getEmail())) {
+        // 3. 중복 검사 (활성 계정만 확인)
+        if (accountRepository.existsByEmailAndDeletedAtIsNull(request.getEmail())) {
             throw new DuplicateEmailException(UserErrorMessages.DUPLICATE_EMAIL);
         }
 
@@ -98,15 +98,15 @@ public class UserServiceImpl implements UserService {
 
     /**
      * 이메일 중복 확인
-     * - 회원가입 시 이메일 중복 여부 체크
+     * - 회원가입 시 이메일 중복 여부 체크 (활성 계정만)
      * 
      * @param email 확인할 이메일 주소
      * @return true: 중복됨(사용불가), false: 사용가능
      */
     @Override
     public boolean checkDuplicateId(String email) {
-        // 이메일 중복 확인 (true: 중복됨, false: 사용가능)
-        return accountRepository.existsByEmail(email);
+        // 이메일 중복 확인 (활성 계정만, true: 중복됨, false: 사용가능)
+        return accountRepository.existsByEmailAndDeletedAtIsNull(email);
     }
 
     /**

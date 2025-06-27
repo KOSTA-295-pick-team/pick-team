@@ -61,7 +61,7 @@ public interface AuthService {
      * @param userId 사용자 ID
      * @return 생성된 Refresh Token
      * @throws com.pickteam.exception.UserNotFoundException 사용자를 찾을 수 없는 경우
-     * @throws IllegalArgumentException userId가 null인 경우
+     * @throws IllegalArgumentException                     userId가 null인 경우
      */
     String generateRefreshToken(Long userId);
 
@@ -82,9 +82,13 @@ public interface AuthService {
      *
      * @param request Refresh Token 요청 정보
      * @return 새로운 JWT 인증 응답 (새 Access Token, 새 Refresh Token)
-     * @throws org.springframework.security.core.AuthenticationException Refresh Token이 유효하지 않은 경우
-     * @throws com.pickteam.exception.UserNotFoundException              사용자를 찾을 수 없는 경우
-     * @throws IllegalArgumentException                                  요청이 null이거나 토큰이 없는 경우
+     * @throws org.springframework.security.core.AuthenticationException Refresh
+     *                                                                   Token이 유효하지
+     *                                                                   않은 경우
+     * @throws com.pickteam.exception.UserNotFoundException              사용자를 찾을 수
+     *                                                                   없는 경우
+     * @throws IllegalArgumentException                                  요청이 null이거나
+     *                                                                   토큰이 없는 경우
      */
     JwtAuthenticationResponse refreshToken(RefreshTokenRequest request);
 
@@ -93,8 +97,30 @@ public interface AuthService {
      * Spring Security Context에서 인증 정보를 추출하여 사용자 ID를 반환합니다.
      *
      * @return 현재 사용자 ID
-     * @throws org.springframework.security.core.AuthenticationException 인증되지 않은 사용자인 경우
-     * @throws IllegalStateException                                     SecurityContext에 사용자 정보가 없는 경우
+     * @throws org.springframework.security.core.AuthenticationException 인증되지 않은
+     *                                                                   사용자인 경우
+     * @throws IllegalStateException                                     SecurityContext에
+     *                                                                   사용자 정보가 없는
+     *                                                                   경우
      */
     Long getCurrentUserId();
+
+    /**
+     * 현재 사용자의 인증 상태를 확인하고 사용자 ID를 반환합니다.
+     * 인증되지 않은 경우 UnauthorizedException을 발생시킵니다.
+     *
+     * @return 인증된 사용자 ID
+     * @throws com.pickteam.exception.UnauthorizedException 인증되지 않은 사용자인 경우
+     */
+    Long requireAuthentication();
+
+    /**
+     * 사용자 로그아웃을 처리합니다.
+     * 해당 사용자의 모든 Refresh Token을 무효화하여 보안을 강화합니다.
+     *
+     * @param userId 로그아웃할 사용자 ID
+     * @throws UserNotFoundException    사용자를 찾을 수 없는 경우
+     * @throws IllegalArgumentException userId가 null인 경우
+     */
+    void logout(Long userId);
 }

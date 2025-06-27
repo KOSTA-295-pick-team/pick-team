@@ -7,6 +7,7 @@ import com.pickteam.dto.security.RefreshTokenRequest;
 import com.pickteam.exception.UserNotFoundException;
 import com.pickteam.exception.InvalidTokenException;
 import com.pickteam.exception.AuthenticationException;
+import com.pickteam.exception.UnauthorizedException;
 import com.pickteam.constants.AuthErrorMessages;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.user.RefreshTokenRepository;
@@ -15,8 +16,9 @@ import com.pickteam.domain.user.RefreshToken;
 import com.pickteam.security.UserPrincipal;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +38,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final AccountRepository accountRepository;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
     private final com.pickteam.security.JwtTokenProvider jwtTokenProvider;
 
     /** 리프레시 토큰 만료 기간 */
@@ -247,6 +249,24 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
+     * 현재 사용자의 인증 상태를 확인하고 사용자 ID를 반환
+     * - getCurrentUserId() 호출하여 인증 상태 확인
+     * - 인증되지 않은 경우 UnauthorizedException 발생
+     * - 컨트롤러에서 인증 로직 중복 제거를 위한 헬퍼 메서드
+     * 
+     * @return 인증된 사용자 ID
+     * @throws UnauthorizedException 인증되지 않은 사용자인 경우
+     */
+    @Override
+    public Long requireAuthentication() {
+        Long currentUserId = getCurrentUserId();
+        if (currentUserId == null) {
+            throw new UnauthorizedException(AuthErrorMessages.AUTHENTICATION_REQUIRED);
+        }
+        return currentUserId;
+    }
+
+    /**
      * Refresh Token 생성 및 저장 (중복 로직 제거)
      * - 기존 토큰 삭제 후 새 토큰 생성
      * - 설정 가능한 만료시간 설정
@@ -288,5 +308,29 @@ public class AuthServiceImpl implements AuthService {
         userProfile.setPreferWorkstyle(account.getPreferWorkstyle());
         userProfile.setDislikeWorkstyle(account.getDislikeWorkstyle());
         return userProfile;
+    }
+
+    /**
+     * 사용자 로그아웃 처리
+     * - 해당 사용자의 모든 Refresh Token을 DB에서 삭제
+     * - 토큰 무효화를 통한 보안 강화
+     * - 다중 디바이스 로그아웃 지원
+     * 
+     * @param userId 로그아웃할 사용자 ID
+     * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
+     */
+    @Override
+    @Transactional
+    public void logout(Long userId) {
+        log.info("사용자 로그아웃 시작: userId={}", userId);
+
+        // 1. 사용자 존재 확인
+        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new UserNotFoundException(AuthErrorMessages.USER_NOT_FOUND));
+
+        // 2. 해당 사용자의 모든 Refresh Token 삭제
+        refreshTokenRepository.deleteByAccount(account);
+
+        log.info("사용자 로그아웃 완료: userId={}", userId);
     }
 }

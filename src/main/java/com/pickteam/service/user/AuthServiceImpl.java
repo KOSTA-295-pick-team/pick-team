@@ -8,6 +8,7 @@ import com.pickteam.exception.UserNotFoundException;
 import com.pickteam.exception.InvalidTokenException;
 import com.pickteam.exception.AuthenticationException;
 import com.pickteam.exception.UnauthorizedException;
+import com.pickteam.exception.SessionExpiredException;
 import com.pickteam.constants.AuthErrorMessages;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.user.RefreshTokenRepository;
@@ -69,11 +70,14 @@ public class AuthServiceImpl implements AuthService {
             throw new AuthenticationException(AuthErrorMessages.INVALID_CREDENTIALS);
         }
 
-        // 3. Access/Refresh 토큰 발급
+        // 3. 기존 세션 무효화 (중복 로그인 방지)
+        invalidateExistingSessions(account);
+
+        // 4. Access/Refresh 토큰 발급
         String accessToken = jwtTokenProvider.generateAccessToken(account.getId(), account.getEmail());
         String refreshToken = jwtTokenProvider.generateRefreshToken(account.getId());
 
-        // 4. Refresh Token DB 저장 (기존 토큰 삭제 후 새 토큰 저장)
+        // 5. Refresh Token DB 저장
         createAndSaveRefreshToken(account, refreshToken);
 
         // 5. 사용자 정보 DTO 변환
@@ -197,11 +201,11 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidTokenException(AuthErrorMessages.INVALID_REFRESH_TOKEN);
         }
 
-        // 4. 사용자 정보 조회
+        // 4. 사용자 정보 조회 및 세션 유효성 확인
         Account account = refreshToken.getAccount();
         if (account == null || account.getDeletedAt() != null) {
             refreshTokenRepository.delete(refreshToken);
-            throw new UserNotFoundException(AuthErrorMessages.USER_NOT_FOUND);
+            throw new SessionExpiredException("세션이 만료되었습니다. 다시 로그인해 주세요.");
         }
 
         // 5. 새 Access/Refresh 토큰 발급
@@ -334,5 +338,20 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.deleteByAccount(account);
 
         log.info("사용자 로그아웃 완료: userId={}", userId);
+    }
+
+    /**
+     * 기존 세션 무효화 (중복 로그인 방지)
+     * - 해당 사용자의 모든 기존 Refresh Token을 삭제하여 세션 무효화
+     * - 새 로그인 시 다른 기기에서의 로그인을 강제 종료
+     * 
+     * @param account 세션을 무효화할 사용자 계정
+     */
+    private void invalidateExistingSessions(Account account) {
+        int deletedTokens = refreshTokenRepository.findByAccount(account).size();
+        if (deletedTokens > 0) {
+            refreshTokenRepository.deleteByAccount(account);
+            log.info("기존 세션 무효화 완료: userId={}, 삭제된 토큰 수={}", account.getId(), deletedTokens);
+        }
     }
 }

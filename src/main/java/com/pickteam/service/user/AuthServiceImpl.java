@@ -230,14 +230,16 @@ public class AuthServiceImpl implements AuthService {
      * - JWT 토큰을 통해 인증된 사용자의 ID 반환
      * - UserController의 TODO 해결을 위한 핵심 메서드
      * 
-     * @return 현재 로그인된 사용자 ID, 인증되지 않은 경우 null
+     * @return 현재 로그인된 사용자 ID
+     * @throws AuthenticationException 인증되지 않은 사용자인 경우
+     * @throws IllegalStateException   SecurityContext에 유효한 사용자 정보가 없는 경우
      */
     @Override
     public Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || !authentication.isAuthenticated()) {
-            return null;
+            throw new AuthenticationException(AuthErrorMessages.AUTHENTICATION_REQUIRED);
         }
 
         Object principal = authentication.getPrincipal();
@@ -245,7 +247,7 @@ public class AuthServiceImpl implements AuthService {
             return ((UserPrincipal) principal).getId();
         }
 
-        return null;
+        throw new IllegalStateException("SecurityContext에 유효한 사용자 정보가 없습니다.");
     }
 
     /**

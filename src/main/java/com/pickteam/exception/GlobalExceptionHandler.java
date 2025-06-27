@@ -97,6 +97,66 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 인증 예외 처리
+     * 
+     * @param ex AuthenticationException
+     * @return 인증 실패 응답
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAuthenticationException(AuthenticationException ex) {
+        log.warn("인증 실패: {}", ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /**
+     * 유효성 검사 예외 처리
+     * 
+     * @param ex ValidationException
+     * @return 유효성 검사 실패 응답
+     */
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleValidationException(ValidationException ex) {
+        log.warn("유효성 검사 실패: {}", ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /**
+     * 이메일 중복 예외 처리
+     * 
+     * @param ex DuplicateEmailException
+     * @return 이메일 중복 응답
+     */
+    @ExceptionHandler(DuplicateEmailException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDuplicateEmailException(DuplicateEmailException ex) {
+        log.warn("이메일 중복: {}", ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /**
+     * 잘못된 상태 예외 처리
+     * 
+     * @param ex IllegalStateException
+     * @return 잘못된 상태 응답
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalStateException(IllegalStateException ex) {
+        log.warn("잘못된 상태: {}", ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /**
      * 일반적인 RuntimeException 처리
      * 
      * @param ex RuntimeException

@@ -3,6 +3,7 @@ package com.pickteam.service.user;
 import com.pickteam.dto.user.UserLoginRequest;
 import com.pickteam.dto.user.UserProfileResponse;
 import com.pickteam.dto.user.LogoutResponse;
+import com.pickteam.dto.user.SessionInfoRequest;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.dto.security.RefreshTokenRequest;
 import com.pickteam.exception.UserNotFoundException;
@@ -16,6 +17,8 @@ import com.pickteam.repository.user.RefreshTokenRepository;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.user.RefreshToken;
 import com.pickteam.security.UserPrincipal;
+import com.pickteam.service.security.SecurityAuditLogger;
+import com.pickteam.util.ClientInfoExtractor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -43,6 +47,7 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final com.pickteam.security.JwtTokenProvider jwtTokenProvider;
+    private final SecurityAuditLogger securityAuditLogger;
 
     /** 리프레시 토큰 만료 기간 */
     @Value("${app.jwt.refresh-token.expiration-days}")
@@ -210,6 +215,10 @@ public class AuthServiceImpl implements AuthService {
             throw new SessionExpiredException("세션이 만료되었습니다. 다시 로그인해 주세요.");
         }
 
+        // 4.5. 마지막 사용 시간 업데이트
+        refreshToken.updateLastUsedTime();
+        refreshTokenRepository.save(refreshToken);
+
         // 5. 새 Access/Refresh 토큰 발급
         String newAccessToken = jwtTokenProvider.generateAccessToken(account.getId(), account.getEmail());
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(account.getId());
@@ -286,10 +295,17 @@ public class AuthServiceImpl implements AuthService {
      */
     private RefreshToken createAndSaveRefreshToken(Account account, String token) {
         refreshTokenRepository.deleteByAccount(account);
+        LocalDateTime now = LocalDateTime.now();
         RefreshToken refreshTokenEntity = RefreshToken.builder()
                 .account(account)
                 .token(token)
-                .expiresAt(LocalDateTime.now().plusDays(refreshTokenExpirationDays))
+                .expiresAt(now.plusDays(refreshTokenExpirationDays))
+                .loginTime(now)
+                .lastUsedTime(now)
+                .ipAddress("Unknown") // 기본값 - 향후 개선 필요
+                .deviceInfo("Legacy Login") // 기본값 - 향후 개선 필요
+                .userAgent("Unknown") // 기본값 - 향후 개선 필요
+                .invalidated(false)
                 .build();
         return refreshTokenRepository.save(refreshTokenEntity);
     }
@@ -391,5 +407,157 @@ public class AuthServiceImpl implements AuthService {
             refreshTokenRepository.deleteByAccount(account);
             log.info("기존 세션 무효화 완료: userId={}, 삭제된 토큰 수={}", account.getId(), deletedTokens);
         }
+    }
+
+    /**
+     * 클라이언트 정보를 포함한 사용자 로그인 인증 처리
+     */
+    @Override
+    @Transactional
+    public JwtAuthenticationResponse authenticateWithClientInfo(UserLoginRequest request,
+            SessionInfoRequest sessionInfo,
+            HttpServletRequest httpRequest) {
+        log.info("클라이언트 정보를 포함한 사용자 로그인 시작: email={}", request.getEmail());
+
+        // 1. 기본 인증 수행
+        Account account = accountRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
+                .orElseThrow(() -> new UserNotFoundException(AuthErrorMessages.USER_NOT_FOUND));
+
+        if (!passwordEncoder.matches(request.getPassword(), account.getPassword())) {
+            // 로그인 실패 로깅
+            ClientInfoExtractor.ClientInfo clientInfo = ClientInfoExtractor.extractClientInfo(httpRequest);
+            securityAuditLogger.logLoginFailure(request.getEmail(), clientInfo.getIpAddress(), "잘못된 비밀번호");
+            throw new AuthenticationException(AuthErrorMessages.INVALID_CREDENTIALS);
+        }
+
+        // 2. 중복 로그인 방지 - 기존 세션 무효화
+        List<RefreshToken> existingTokens = refreshTokenRepository.findByAccount(account);
+        if (!existingTokens.isEmpty()) {
+            ClientInfoExtractor.ClientInfo clientInfo = ClientInfoExtractor.extractClientInfo(httpRequest);
+            securityAuditLogger.logDuplicateLogin(account, clientInfo.getIpAddress(),
+                    clientInfo.getDeviceInfoString(), existingTokens.size());
+            invalidateExistingSessions(account);
+        }
+
+        // 3. 새 토큰 생성
+        String accessToken = generateAccessToken(account.getId(), account.getEmail());
+        String refreshToken = generateRefreshTokenWithSessionInfo(account.getId(), sessionInfo, httpRequest);
+
+        // 4. 로그인 성공 로깅
+        RefreshToken tokenEntity = refreshTokenRepository.findByToken(refreshToken)
+                .orElseThrow(() -> new IllegalStateException("생성된 RefreshToken을 찾을 수 없습니다"));
+        securityAuditLogger.logLoginSuccess(account, tokenEntity);
+
+        log.info("클라이언트 정보를 포함한 사용자 로그인 완료: userId={}", account.getId());
+
+        return new JwtAuthenticationResponse(
+                accessToken,
+                refreshToken,
+                jwtTokenProvider.getJwtExpirationMs(),
+                UserProfileResponse.from(account));
+    }
+
+    /**
+     * 클라이언트 정보를 포함한 Refresh Token 생성
+     */
+    @Override
+    @Transactional
+    public String generateRefreshTokenWithClientInfo(Long userId, ClientInfoExtractor.ClientInfo clientInfo) {
+        log.info("클라이언트 정보를 포함한 Refresh Token 생성 시작: userId={}", userId);
+
+        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new UserNotFoundException(AuthErrorMessages.USER_NOT_FOUND));
+
+        LocalDateTime now = LocalDateTime.now();
+        String tokenValue = jwtTokenProvider.generateRefreshToken(userId);
+
+        RefreshToken refreshToken = RefreshToken.builder()
+                .account(account)
+                .token(tokenValue)
+                .expiresAt(now.plusDays(refreshTokenExpirationDays))
+                .loginTime(now)
+                .lastUsedTime(now)
+                .ipAddress(clientInfo.getIpAddress())
+                .deviceInfo(clientInfo.getDeviceInfoString())
+                .userAgent(clientInfo.getUserAgent())
+                .invalidated(false)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
+        log.info("클라이언트 정보를 포함한 Refresh Token 생성 완료: userId={}", userId);
+
+        return tokenValue;
+    }
+
+    /**
+     * 세션 정보를 포함한 Refresh Token 생성
+     */
+    @Override
+    @Transactional
+    public String generateRefreshTokenWithSessionInfo(Long userId, SessionInfoRequest sessionInfo,
+            HttpServletRequest httpRequest) {
+        log.info("세션 정보를 포함한 Refresh Token 생성 시작: userId={}", userId);
+
+        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new UserNotFoundException(AuthErrorMessages.USER_NOT_FOUND));
+
+        ClientInfoExtractor.ClientInfo clientInfo = ClientInfoExtractor.extractClientInfo(httpRequest);
+        LocalDateTime now = LocalDateTime.now();
+        String tokenValue = jwtTokenProvider.generateRefreshToken(userId);
+
+        // 세션 정보와 클라이언트 정보 조합
+        String deviceInfo = sessionInfo != null && sessionInfo.toDeviceInfoString() != null
+                ? sessionInfo.toDeviceInfoString()
+                : clientInfo.getDeviceInfoString();
+
+        RefreshToken refreshToken = RefreshToken.builder()
+                .account(account)
+                .token(tokenValue)
+                .expiresAt(now.plusDays(refreshTokenExpirationDays))
+                .loginTime(now)
+                .lastUsedTime(now)
+                .ipAddress(clientInfo.getIpAddress())
+                .deviceInfo(deviceInfo)
+                .userAgent(clientInfo.getUserAgent())
+                .invalidated(false)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
+        log.info("세션 정보를 포함한 Refresh Token 생성 완료: userId={}", userId);
+
+        return tokenValue;
+    }
+
+    /**
+     * 클라이언트 정보를 포함한 상세 로그아웃 처리
+     */
+    @Override
+    @Transactional
+    public LogoutResponse logoutWithDetails(Long userId, HttpServletRequest httpRequest) {
+        log.info("클라이언트 정보를 포함한 사용자 로그아웃 시작: userId={}", userId);
+        LocalDateTime logoutTime = LocalDateTime.now();
+
+        // 1. 사용자 존재 확인
+        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new UserNotFoundException(AuthErrorMessages.USER_NOT_FOUND));
+
+        // 2. 기존 Refresh Token 개수 확인 및 로깅
+        List<RefreshToken> existingTokens = refreshTokenRepository.findByAccount(account);
+        int tokenCount = existingTokens.size();
+
+        // 3. 로그아웃 로깅
+        ClientInfoExtractor.ClientInfo clientInfo = ClientInfoExtractor.extractClientInfo(httpRequest);
+        securityAuditLogger.logLogout(account, clientInfo.getIpAddress(), tokenCount);
+
+        // 4. 해당 사용자의 모든 Refresh Token 삭제
+        refreshTokenRepository.deleteByAccount(account);
+
+        log.info("클라이언트 정보를 포함한 사용자 로그아웃 완료: userId={}, 무효화된 세션 수={}", userId, tokenCount);
+
+        return LogoutResponse.builder()
+                .logoutTime(logoutTime)
+                .invalidatedSessions(tokenCount)
+                .message("로그아웃이 성공적으로 완료되었습니다.")
+                .build();
     }
 }

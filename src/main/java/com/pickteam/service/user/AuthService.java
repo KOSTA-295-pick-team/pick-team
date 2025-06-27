@@ -2,16 +2,19 @@ package com.pickteam.service.user;
 
 import com.pickteam.dto.user.UserLoginRequest;
 import com.pickteam.dto.user.LogoutResponse;
+import com.pickteam.dto.user.SessionInfoRequest;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.dto.security.RefreshTokenRequest;
 import com.pickteam.exception.UserNotFoundException;
 import org.springframework.security.core.AuthenticationException;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * 인증 서비스 인터페이스
  * - JWT 기반 사용자 인증 및 권한 관리
  * - 비밀번호 암호화 및 검증
  * - 토큰 생성, 갱신, 검증 등 핵심 보안 기능 제공
+ * - 세션 정보 및 보안 로깅 지원
  */
 public interface AuthService {
 
@@ -25,6 +28,20 @@ public interface AuthService {
      * @throws UserNotFoundException   사용자 계정을 찾을 수 없는 경우
      */
     JwtAuthenticationResponse authenticate(UserLoginRequest request);
+
+    /**
+     * 클라이언트 정보를 포함한 사용자 로그인 인증을 처리합니다.
+     *
+     * @param request     로그인 요청 정보
+     * @param sessionInfo 클라이언트 세션 정보
+     * @param httpRequest HTTP 요청 (IP, User-Agent 등 추출용)
+     * @return JWT 인증 응답
+     * @throws AuthenticationException 인증에 실패한 경우
+     * @throws UserNotFoundException   사용자 계정을 찾을 수 없는 경우
+     */
+    JwtAuthenticationResponse authenticateWithClientInfo(UserLoginRequest request,
+            SessionInfoRequest sessionInfo,
+            HttpServletRequest httpRequest);
 
     /**
      * 평문 비밀번호를 안전하게 암호화합니다.
@@ -65,6 +82,26 @@ public interface AuthService {
      * @throws IllegalArgumentException                     userId가 null인 경우
      */
     String generateRefreshToken(Long userId);
+
+    /**
+     * 클라이언트 정보를 포함한 Refresh Token을 생성하고 저장합니다.
+     *
+     * @param userId     사용자 ID
+     * @param clientInfo 클라이언트 정보
+     * @return 생성된 Refresh Token
+     */
+    String generateRefreshTokenWithClientInfo(Long userId, com.pickteam.util.ClientInfoExtractor.ClientInfo clientInfo);
+
+    /**
+     * 클라이언트 정보를 포함한 Refresh Token을 생성하고 저장합니다.
+     *
+     * @param userId      사용자 ID
+     * @param sessionInfo 세션 정보
+     * @param httpRequest HTTP 요청
+     * @return 생성된 Refresh Token
+     */
+    String generateRefreshTokenWithSessionInfo(Long userId, SessionInfoRequest sessionInfo,
+            HttpServletRequest httpRequest);
 
     /**
      * JWT 토큰의 유효성을 검증합니다.
@@ -135,4 +172,13 @@ public interface AuthService {
      * @throws IllegalArgumentException userId가 null인 경우
      */
     LogoutResponse logoutWithDetails(Long userId);
+
+    /**
+     * 클라이언트 정보를 포함한 상세 로그아웃을 처리합니다.
+     *
+     * @param userId      로그아웃할 사용자 ID
+     * @param httpRequest HTTP 요청 (IP 추출용)
+     * @return 로그아웃 상세 정보
+     */
+    LogoutResponse logoutWithDetails(Long userId, HttpServletRequest httpRequest);
 }

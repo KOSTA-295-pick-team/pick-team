@@ -5,6 +5,9 @@ import com.pickteam.dto.ApiResponse;
 import com.pickteam.constants.SessionErrorCode;
 import com.pickteam.repository.user.RefreshTokenRepository;
 import com.pickteam.repository.user.AccountRepository;
+import com.pickteam.domain.user.RefreshToken;
+import com.pickteam.service.security.SecurityAuditLogger;
+import com.pickteam.util.ClientInfoExtractor;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +25,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * JWT 인증 필터
@@ -39,6 +43,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final RefreshTokenRepository refreshTokenRepository;
     private final AccountRepository accountRepository;
     private final ObjectMapper objectMapper;
+    private final SecurityAuditLogger securityAuditLogger;
 
     /**
      * 요청별 JWT 토큰 검증 및 인증 처리
@@ -56,8 +61,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String email = tokenProvider.getEmailFromToken(jwt);
 
                 // 세션 유효성 추가 검증
-                if (!isSessionValid(userId)) {
-                    handleSessionExpired(response);
+                if (!isSessionValid(userId, email, request)) {
+                    handleSessionExpired(response, email, request);
                     return;
                 }
 
@@ -87,15 +92,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /**
      * 세션 유효성 검증
-     * - RefreshToken 존재 여부로 세션 유효성 확인
+     * - RefreshToken 존재 여부와 유효성으로 세션 유효성 확인
+     * - 의심스러운 활동 로깅
      * 
-     * @param userId 사용자 ID
+     * @param userId  사용자 ID
+     * @param email   사용자 이메일
+     * @param request HTTP 요청
      * @return 세션이 유효하면 true, 그렇지 않으면 false
      */
-    private boolean isSessionValid(Long userId) {
+    private boolean isSessionValid(Long userId, String email, HttpServletRequest request) {
         try {
             return accountRepository.findByIdAndDeletedAtIsNull(userId)
-                    .map(account -> !refreshTokenRepository.findByAccount(account).isEmpty())
+                    .map(account -> {
+                        List<RefreshToken> tokens = refreshTokenRepository.findByAccount(account);
+                        if (tokens.isEmpty()) {
+                            // 유효한 세션이 없음을 로깅
+                            ClientInfoExtractor.ClientInfo clientInfo = ClientInfoExtractor.extractClientInfo(request);
+                            securityAuditLogger.logExpiredTokenAccess(email, clientInfo.getIpAddress(),
+                                    clientInfo.getUserAgent());
+                            return false;
+                        }
+                        return tokens.stream().anyMatch(RefreshToken::isValid);
+                    })
                     .orElse(false);
         } catch (Exception e) {
             log.warn("세션 유효성 검증 중 오류 발생: userId={}", userId, e);
@@ -107,12 +125,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * 세션 만료 처리
      * - 401 상태코드와 함께 구체적인 세션 만료 메시지 반환
      * - SessionErrorCode를 사용한 표준화된 에러 응답
+     * - 보안 로깅 추가
      * 
      * @param response HTTP 응답 객체
+     * @param email    사용자 이메일
+     * @param request  HTTP 요청
      * @throws IOException JSON 응답 작성 중 오류 발생 시
      */
-    private void handleSessionExpired(HttpServletResponse response) throws IOException {
-        log.warn("세션이 만료되어 요청을 거부합니다 - 다른 기기에서 로그인됨");
+    private void handleSessionExpired(HttpServletResponse response, String email, HttpServletRequest request)
+            throws IOException {
+        log.warn("세션이 만료되어 요청을 거부합니다 - 다른 기기에서 로그인됨: email={}", email);
+
+        // 보안 이벤트 로깅
+        ClientInfoExtractor.ClientInfo clientInfo = ClientInfoExtractor.extractClientInfo(request);
+        securityAuditLogger.logInvalidTokenAccess(clientInfo.getIpAddress(), clientInfo.getUserAgent(), "세션 만료");
 
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

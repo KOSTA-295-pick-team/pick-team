@@ -5,19 +5,18 @@ import com.pickteam.dto.workspace.*;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.workspace.Workspace;
 import com.pickteam.domain.workspace.WorkspaceMember;
-import com.pickteam.repository.AccountRepository;
-import com.pickteam.repository.WorkspaceMemberRepository;
-import com.pickteam.repository.WorkspaceRepository;
+import com.pickteam.repository.account.AccountRepository;
+import com.pickteam.repository.workspace.WorkspaceMemberRepository;
+import com.pickteam.repository.workspace.WorkspaceRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.Random;
-import java.util.StringBuilder;
 
 @Service
 @RequiredArgsConstructor

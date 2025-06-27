@@ -14,7 +14,7 @@ import EmptyWorkspacePage from './pages/EmptyWorkspacePage';
 import { 
     UserIcon, UsersIcon, BellIcon, LogoutIcon, CogIcon, PlusCircleIcon,
     ChatBubbleIcon, VideoCameraIcon, CalendarDaysIcon, Modal, Input, Button, ItemListSelector,
-    TrashIcon as ComponentTrashIcon, // Renamed to avoid conflict
+    ComponentTrashIcon,
     TextArea
 } from './components';
 import { Workspace, TeamProject, User as UserType, ChatRoom, ChatRoomMember } from './types';
@@ -705,7 +705,7 @@ const WorkspaceSettingsModal: React.FC<{isOpen: boolean, onClose: () => void}> =
                     {TABS_CONFIG.map((tab) => (
                     <button
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
+                        onClick={() => setActiveTab(tab.id)}
                         className={`whitespace-nowrap py-3 px-3 border-b-2 font-medium text-sm flex items-center
                         ${activeTab === tab.id
                             ? 'border-primary text-primary'

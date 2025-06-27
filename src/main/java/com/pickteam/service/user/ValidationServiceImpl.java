@@ -12,8 +12,8 @@ import java.util.regex.Pattern;
 @Service
 public class ValidationServiceImpl implements ValidationService {
 
-    /** 이메일 형식 검증을 위한 정규표현식 */
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@(.+)$");
+    /** 이메일 형식 검증을 위한 정규표현식 (엄격한 패턴) */
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
     /**
      * 비밀번호 복잡성 검증을 위한 정규표현식

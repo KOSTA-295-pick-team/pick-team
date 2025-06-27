@@ -72,11 +72,6 @@ public class UserController {
 
         // 추가 검증: 이메일 형식 및 도메인 체크
         if (request.getEmail() != null) {
-            if (!isValidEmailFormat(request.getEmail())) {
-                log.warn("잘못된 형식의 이메일로 인증 요청: {}", request.getEmail());
-                throw new com.pickteam.exception.ValidationException("올바른 이메일 형식이 아닙니다.");
-            }
-
             if (isBlockedEmailDomain(request.getEmail())) {
                 log.warn("차단된 도메인으로 이메일 인증 요청: {}", request.getEmail());
                 throw new com.pickteam.exception.ValidationException("지원하지 않는 이메일 도메인입니다.");
@@ -109,12 +104,6 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> login(@Valid @RequestBody UserLoginRequest request) {
         log.info("로그인 시도 - 이메일: {}", request.getEmail());
-
-        // 추가 검증: 이메일 형식 재확인 (이중 검증)
-        if (request.getEmail() != null && !isValidEmailFormat(request.getEmail())) {
-            log.warn("잘못된 이메일 형식으로 로그인 시도: {}", request.getEmail());
-            throw new com.pickteam.exception.ValidationException("올바른 이메일 형식이 아닙니다.");
-        }
 
         // 추가 검증: 비밀번호 최소 길이 체크 (보안 강화)
         if (request.getPassword() != null && request.getPassword().length() < 8) {
@@ -276,24 +265,6 @@ public class UserController {
         }
 
         return false;
-    }
-
-    /**
-     * 이메일 형식 유효성 검증
-     * - 기본적인 이메일 형식 체크
-     * - @Valid 애노테이션과 함께 이중 검증
-     * 
-     * @param email 검증할 이메일 주소
-     * @return 유효한 형식이면 true, 그렇지 않으면 false
-     */
-    private boolean isValidEmailFormat(String email) {
-        if (email == null || email.trim().isEmpty()) {
-            return false;
-        }
-
-        // 기본적인 이메일 형식 체크
-        String emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
-        return email.matches(emailRegex);
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.pickteam.exception;
 
 import com.pickteam.dto.ApiResponse;
+import com.pickteam.constants.SessionErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,7 +46,7 @@ public class GlobalExceptionHandler {
 
         log.warn("검증 실패: {}", errors);
 
-        ApiResponse<Map<String, String>> response = new ApiResponse<>(false, "입력값 검증에 실패했습니다.", errors);
+        ApiResponse<Map<String, String>> response = new ApiResponse<>(false, "입력값 검증에 실패했습니다.", null, errors);
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(response);
@@ -93,7 +94,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(ex.getMessage()));
+                .body(ApiResponse.error(SessionErrorCode.SESSION_INVALID, ex.getMessage()));
     }
 
     /**
@@ -108,7 +109,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(ex.getMessage()));
+                .body(ApiResponse.error(SessionErrorCode.LOGIN_FAILED, ex.getMessage()));
     }
 
     /**
@@ -198,6 +199,6 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(ex.getMessage()));
+                .body(ApiResponse.error(SessionErrorCode.DUPLICATE_LOGIN, ex.getMessage()));
     }
 }

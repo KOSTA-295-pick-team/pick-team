@@ -31,7 +31,7 @@ public class UserRegisterRequest {
     /** 나이 */
     @NotNull(message = "나이는 필수입니다")
     @Min(value = 0, message = "나이는 0 이상이어야 합니다")
-    @Max(value = 150, message = "나이는 150세 이하여야 합니다")
+    @Max(value = 225, message = "나이는 225세 이하여야 합니다")
     private Integer age;
 
     /** MBTI 성격 유형 (선택사항) */

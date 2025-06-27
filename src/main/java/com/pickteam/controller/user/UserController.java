@@ -118,17 +118,17 @@ public class UserController {
 
     // 로그아웃
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout() {
+    public ResponseEntity<ApiResponse<LogoutResponse>> logout() {
         log.debug("로그아웃 요청 시작");
         // 인증 확인 및 사용자 ID 추출
         Long currentUserId = authService.requireAuthentication();
 
         log.info("로그아웃 진행 - 사용자 ID: {}", currentUserId);
-        // Refresh Token 무효화
-        authService.logout(currentUserId);
-        log.info("로그아웃 완료 - 사용자 ID: {}", currentUserId);
+        // 개선된 로그아웃 처리
+        LogoutResponse logoutResponse = authService.logoutWithDetails(currentUserId);
+        log.info("로그아웃 완료 - 사용자 ID: {}, 무효화된 세션: {}", currentUserId, logoutResponse.getInvalidatedSessions());
 
-        return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGOUT_SUCCESS, null));
+        return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGOUT_SUCCESS, logoutResponse));
     }
 
     // 세션 상태 확인

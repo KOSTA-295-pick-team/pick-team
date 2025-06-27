@@ -1,6 +1,7 @@
 package com.pickteam.service.user;
 
 import com.pickteam.dto.user.UserLoginRequest;
+import com.pickteam.dto.user.LogoutResponse;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.dto.security.RefreshTokenRequest;
 import com.pickteam.exception.UserNotFoundException;
@@ -123,4 +124,15 @@ public interface AuthService {
      * @throws IllegalArgumentException userId가 null인 경우
      */
     void logout(Long userId);
+
+    /**
+     * 개선된 사용자 로그아웃을 처리합니다.
+     * 로그아웃 시간과 무효화된 세션 수 등 상세 정보를 반환합니다.
+     *
+     * @param userId 로그아웃할 사용자 ID
+     * @return 로그아웃 상세 정보
+     * @throws UserNotFoundException    사용자를 찾을 수 없는 경우
+     * @throws IllegalArgumentException userId가 null인 경우
+     */
+    LogoutResponse logoutWithDetails(Long userId);
 }

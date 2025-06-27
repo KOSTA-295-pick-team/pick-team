@@ -2,6 +2,7 @@ package com.pickteam.service.user;
 
 import com.pickteam.dto.user.UserLoginRequest;
 import com.pickteam.dto.user.UserProfileResponse;
+import com.pickteam.dto.user.LogoutResponse;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.dto.security.RefreshTokenRequest;
 import com.pickteam.exception.UserNotFoundException;
@@ -24,6 +25,7 @@ import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 인증 서비스 구현체
@@ -338,6 +340,42 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.deleteByAccount(account);
 
         log.info("사용자 로그아웃 완료: userId={}", userId);
+    }
+
+    /**
+     * 개선된 사용자 로그아웃 처리
+     * - 로그아웃 시간과 무효화된 세션 수 등 상세 정보 반환
+     * - 해당 사용자의 모든 Refresh Token을 DB에서 삭제
+     * - 보안 강화 및 사용자 피드백 개선
+     * 
+     * @param userId 로그아웃할 사용자 ID
+     * @return 로그아웃 상세 정보
+     * @throws UserNotFoundException 사용자를 찾을 수 없는 경우
+     */
+    @Override
+    @Transactional
+    public LogoutResponse logoutWithDetails(Long userId) {
+        log.info("개선된 사용자 로그아웃 시작: userId={}", userId);
+        LocalDateTime logoutTime = LocalDateTime.now();
+
+        // 1. 사용자 존재 확인
+        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new UserNotFoundException(AuthErrorMessages.USER_NOT_FOUND));
+
+        // 2. 기존 Refresh Token 개수 확인
+        List<RefreshToken> existingTokens = refreshTokenRepository.findByAccount(account);
+        int tokenCount = existingTokens.size();
+
+        // 3. 해당 사용자의 모든 Refresh Token 삭제
+        refreshTokenRepository.deleteByAccount(account);
+
+        log.info("개선된 사용자 로그아웃 완료: userId={}, 무효화된 세션 수={}", userId, tokenCount);
+
+        return LogoutResponse.builder()
+                .logoutTime(logoutTime)
+                .invalidatedSessions(tokenCount)
+                .message("로그아웃이 성공적으로 완료되었습니다.")
+                .build();
     }
 
     /**

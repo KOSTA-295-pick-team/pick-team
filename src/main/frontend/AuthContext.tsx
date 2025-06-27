@@ -43,25 +43,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Mock data는 백엔드가 준비되기 전까지 폴백으로 사용
 const FALLBACK_WORKSPACES: Workspace[] = [
-  // 기본 워크스페이스 하나만 남김 (완전한 빈 화면 방지용)
-  { id: 'ws_default', name: '기본 워크스페이스', ownerId: '1', iconUrl: '🏠', 
-    members: [
-        {id: '1', name: '테스트 사용자', profilePictureUrl: 'https://picsum.photos/seed/user1/40/40'}
-    ],
-    inviteCode: 'default-invite'
-  },
-  // 목업 데이터 제거 - 실제 API만 사용
-  // { id: 'ws_kosta', name: 'kosta 2957', ownerId: '1', iconUrl: 'K', 
-  //   members: [
-  //       {id: '1', name: '테스트 사용자', profilePictureUrl: 'https://picsum.photos/seed/user1/40/40'}, 
-  //       {id: 'user_kim', name: '김코딩', profilePictureUrl: 'https://picsum.photos/seed/userA/40/40'}, 
-  //       {id: 'user_park', name: '박해커', profilePictureUrl: 'https://picsum.photos/seed/userB/40/40'}
-  //   ],
-  //   inviteCode: 'kosta2957-invite-xyz'
-  // },
+  // 빈 배열로 변경 - 실제 API 응답이 없을 때 EmptyWorkspacePage 표시
 ];
 
-export const MOCK_USERS_FOR_CHAT: User[] = [
+export const DEMO_USERS_FOR_CHAT: User[] = [
     { id: 'user@example.com', email: 'user@example.com', name: '테스트 사용자', profilePictureUrl: 'https://picsum.photos/seed/user1/40/40' },
     { id: 'user_kim', email: 'kim@example.com', name: '김코딩', profilePictureUrl: 'https://picsum.photos/seed/userA/40/40' },
     { id: 'user_park', email: 'park@example.com', name: '박해커', profilePictureUrl: 'https://picsum.photos/seed/userB/40/40' },
@@ -69,10 +54,10 @@ export const MOCK_USERS_FOR_CHAT: User[] = [
 ];
 
 
-const MOCK_CHAT_ROOMS_INITIAL: ChatRoom[] = [
+const DEMO_CHAT_ROOMS_INITIAL: ChatRoom[] = [
     {
         id: 'chat_dm_user_kim',
-        workspaceId: 'ws_default',
+        workspaceId: 'ws_1', // 실제 생성되는 워크스페이스 ID로 변경
         type: 'dm',
         members: [
             { id: 'user@example.com', name: '테스트 사용자', profilePictureUrl: 'https://picsum.photos/seed/user1/40/40' },
@@ -84,10 +69,10 @@ const MOCK_CHAT_ROOMS_INITIAL: ChatRoom[] = [
     },
     {
         id: 'chat_group_general',
-        workspaceId: 'ws_default',
+        workspaceId: 'ws_1', // 실제 생성되는 워크스페이스 ID로 변경
         name: '일반 토론방',
         type: 'group',
-        members: MOCK_USERS_FOR_CHAT.filter(u => u.id !== 'user_lee'), // Everyone except lee
+        members: DEMO_USERS_FOR_CHAT.filter(u => u.id !== 'user_lee'), // Everyone except lee
         lastMessage: {id: 'grp_msg1', roomId: 'chat_group_general', userId:'user_park', userName:'박해커', text: '새로운 기능 아이디어 공유합니다.', timestamp: new Date(Date.now() - 7200000)},
         createdAt: new Date(Date.now() - 5 * 86400000),
         updatedAt: new Date(Date.now() - 7200000),
@@ -95,13 +80,13 @@ const MOCK_CHAT_ROOMS_INITIAL: ChatRoom[] = [
     },
      {
         id: 'chat_group_project_alpha_discussion',
-        workspaceId: 'ws_default',
+        workspaceId: 'ws_1', // 실제 생성되는 워크스페이스 ID로 변경
         name: '알파 프로젝트 논의',
         type: 'group',
         members: [ // Specific members for this group
-            MOCK_USERS_FOR_CHAT.find(u => u.id === 'user@example.com')!,
-            MOCK_USERS_FOR_CHAT.find(u => u.id === 'user_kim')!,
-            MOCK_USERS_FOR_CHAT.find(u => u.id === 'user_park')!,
+            DEMO_USERS_FOR_CHAT.find(u => u.id === 'user@example.com')!,
+            DEMO_USERS_FOR_CHAT.find(u => u.id === 'user_kim')!,
+            DEMO_USERS_FOR_CHAT.find(u => u.id === 'user_park')!,
         ],
         createdAt: new Date(Date.now() - 3 * 86400000),
         updatedAt: new Date(Date.now() - 86400000),
@@ -119,7 +104,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [error, setError] = useState<string | null>(null);
 
   // Chat state
-  const [chatRooms, setChatRooms] = useState<ChatRoom[]>(MOCK_CHAT_ROOMS_INITIAL);
+  const [chatRooms, setChatRooms] = useState<ChatRoom[]>(DEMO_CHAT_ROOMS_INITIAL);
   const [currentChatRoom, _setCurrentChatRoom] = useState<ChatRoom | null>(null);
 
   // 워크스페이스 목록을 새로고침하는 함수
@@ -145,16 +130,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [currentUser]);
 
   const login = useCallback(async (user: User) => {
-    const mockUserWithPic: User = {
+    const demoUserWithPic: User = {
       ...user,
       id: user.id || '1',
       email: user.email,
-      name: user.name || 'Mock User',
+      name: user.name || 'Demo User',
       profilePictureUrl: user.profilePictureUrl || `https://picsum.photos/seed/${user.email}/100/100`,
       mbti: user.mbti || 'ISTP',
       tags: user.tags || ['#아침형인간', '#리더역할선호'],
     };
-    setCurrentUser(mockUserWithPic);
+    setCurrentUser(demoUserWithPic);
     _setCurrentTeamProject(null);
     _setCurrentChatRoom(null);
     
@@ -415,7 +400,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 
   const isAuthenticated = !!currentUser;
-  const allUsersForChat = MOCK_USERS_FOR_CHAT; // Provide all mock users for selection
+  const allUsersForChat = DEMO_USERS_FOR_CHAT; // Provide all demo users for selection
 
   const filteredChatRooms = currentWorkspace 
     ? chatRooms.filter(room => room.workspaceId === currentWorkspace.id)

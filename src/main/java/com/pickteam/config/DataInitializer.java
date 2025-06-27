@@ -1,8 +1,9 @@
 package com.pickteam.config;
 
 import com.pickteam.domain.user.Account;
+import com.pickteam.repository.account.AccountRepository;
 import com.pickteam.domain.enums.UserRole;
-import com.pickteam.repository.AccountRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;

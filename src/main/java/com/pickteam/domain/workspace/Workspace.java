@@ -7,7 +7,6 @@ import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Getter
@@ -38,11 +37,4 @@ public class Workspace extends BaseSoftDeleteSupportEntity {
 
     @OneToMany(mappedBy = "workspace")
     private List<WorkspaceMember> members = new ArrayList<>();
-    
-    @PrePersist
-    public void generateInviteCode() {
-        if (this.url == null) {
-            this.url = UUID.randomUUID().toString().substring(0, 8);
-        }
-    }
 }

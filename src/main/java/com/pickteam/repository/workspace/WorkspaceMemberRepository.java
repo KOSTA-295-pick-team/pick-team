@@ -1,4 +1,4 @@
-package com.pickteam.repository;
+package com.pickteam.repository.workspace;
 
 import com.pickteam.domain.workspace.WorkspaceMember;
 import org.springframework.data.jpa.repository.JpaRepository;

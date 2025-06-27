@@ -5,17 +5,18 @@ import com.pickteam.dto.workspace.*;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.workspace.Workspace;
 import com.pickteam.domain.workspace.WorkspaceMember;
-import com.pickteam.repository.AccountRepository;
-import com.pickteam.repository.WorkspaceMemberRepository;
-import com.pickteam.repository.WorkspaceRepository;
+import com.pickteam.repository.account.AccountRepository;
+import com.pickteam.repository.workspace.WorkspaceMemberRepository;
+import com.pickteam.repository.workspace.WorkspaceRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -269,7 +270,42 @@ public class WorkspaceService {
     }
     
     private String generateInviteCode() {
-        return UUID.randomUUID().toString().substring(0, 8);
+        // 혼동하기 쉬운 문자 제외: 0(zero), O(oh), 1(one), l(L), I(i)
+        final String CHARACTERS = "23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
+        final Random random = new Random();
+        
+        String inviteCode;
+        int attempts = 0;
+        final int MAX_ATTEMPTS = 10;
+        
+        do {
+            StringBuilder sb = new StringBuilder();
+            
+            // 기본 8자리 코드 생성
+            for (int i = 0; i < 8; i++) {
+                sb.append(CHARACTERS.charAt(random.nextInt(CHARACTERS.length())));
+            }
+            
+            inviteCode = sb.toString();
+            attempts++;
+            
+            // 최대 시도 횟수 초과 시 더 긴 코드 생성
+            if (attempts >= MAX_ATTEMPTS) {
+                for (int i = 0; i < 4; i++) { // 4자리 추가 (총 12자리)
+                    sb.append(CHARACTERS.charAt(random.nextInt(CHARACTERS.length())));
+                }
+                inviteCode = sb.toString();
+            }
+            
+        } while (workspaceRepository.findByUrl(inviteCode).isPresent() && attempts < MAX_ATTEMPTS * 2);
+        
+        // 그래도 중복이면 타임스탬프 추가
+        if (workspaceRepository.findByUrl(inviteCode).isPresent()) {
+            String timestamp = String.valueOf(System.currentTimeMillis()).substring(8); // 마지막 5자리
+            inviteCode = inviteCode.substring(0, Math.min(inviteCode.length(), 6)) + timestamp;
+        }
+        
+        return inviteCode;
     }
     
     private WorkspaceResponse convertToResponse(Workspace workspace) {

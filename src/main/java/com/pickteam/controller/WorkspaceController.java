@@ -6,6 +6,7 @@ import com.pickteam.service.WorkspaceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.HashMap;
 import java.util.List;
@@ -24,7 +25,7 @@ public class WorkspaceController {
     @PostMapping
     public ResponseEntity<WorkspaceResponse> createWorkspace(
             @RequestHeader("User-Id") Long userId,
-            @RequestBody WorkspaceCreateRequest request) {
+            @Valid @RequestBody WorkspaceCreateRequest request) {
         WorkspaceResponse response = workspaceService.createWorkspace(userId, request);
         return ResponseEntity.ok(response);
     }
@@ -35,7 +36,7 @@ public class WorkspaceController {
     @PostMapping("/join")
     public ResponseEntity<WorkspaceResponse> joinWorkspace(
             @RequestHeader("User-Id") Long userId,
-            @RequestBody WorkspaceJoinRequest request) {
+            @Valid @RequestBody WorkspaceJoinRequest request) {
         WorkspaceResponse response = workspaceService.joinWorkspace(userId, request);
         return ResponseEntity.ok(response);
     }
@@ -79,7 +80,7 @@ public class WorkspaceController {
     public ResponseEntity<WorkspaceResponse> updateWorkspace(
             @PathVariable Long workspaceId,
             @RequestHeader("User-Id") Long userId,
-            @RequestBody WorkspaceUpdateRequest request) {
+            @Valid @RequestBody WorkspaceUpdateRequest request) {
         WorkspaceResponse response = workspaceService.updateWorkspace(workspaceId, userId, request);
         return ResponseEntity.ok(response);
     }

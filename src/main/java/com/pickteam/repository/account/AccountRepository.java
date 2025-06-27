@@ -1,4 +1,4 @@
-package com.pickteam.repository;
+package com.pickteam.repository.account;
 
 import com.pickteam.domain.user.Account;
 import org.springframework.data.jpa.repository.JpaRepository;

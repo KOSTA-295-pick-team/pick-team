@@ -5,11 +5,8 @@ import { TeamProject, Announcement, CalendarEvent, User, KanbanBoard, KanbanColu
 import { useAuth } from '../AuthContext';
 import { PaperClipIcon, CheckCircleIcon, Bars3Icon, TableCellsIcon, ClipboardDocumentListIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon, ChatBubbleBottomCenterTextIcon } from '@heroicons/react/24/outline';
 
-// Mock Team Data - 목업 데이터 제거, 실제 API만 사용
-// const MOCK_TEAM_PROJECTS_ALL_DETAIL: TeamProject[] = [];
-
-// 실제 API에서 팀 데이터를 가져와야 함
-const MOCK_TEAM_PROJECTS_ALL_DETAIL: TeamProject[] = [];
+// Demo Team Data - 목업 데이터 제거, 실제 API만 사용
+const DEMO_TEAM_PROJECTS_ALL_DETAIL: TeamProject[] = [];
 
 // Sub-components for TeamSpacePage
 const TeamAnnouncementBoard: React.FC<{ 
@@ -447,18 +444,18 @@ const TeamKanbanBoard: React.FC<{ teamProjectId: string, currentUser: User }> = 
 
 
     useEffect(() => {
-        const mockCommentsUser1: KanbanComment[] = [
+        const demoCommentsUser1: KanbanComment[] = [
             { id: 'comment1-1', cardId: 'card1', userId: currentUser.id, userName: currentUser.name || '김코딩', text: '이거 오늘까지 마무리 가능할까요?', createdAt: new Date(Date.now() - 3600000) },
             { id: 'comment1-2', cardId: 'card1', userId: 'otherUser', userName: '박해커', text: '네, 거의 다 됐습니다!', createdAt: new Date(Date.now() - 1800000) },
         ];
-         const mockCommentsUser3: KanbanComment[] = [
+         const demoCommentsUser3: KanbanComment[] = [
             { id: 'comment3-1', cardId: 'card3', userId: currentUser.id, userName: currentUser.name || '김코딩', text: 'OAuth 부분에서 이슈가 있는데 같이 봐주실 수 있나요?', createdAt: new Date(Date.now() - 7200000) },
         ];
 
-        const mockCards: KanbanCardType[] = [
-            {id: 'card1', columnId: 'col1', title: '디자인 시안 작업', description: '메인 페이지 및 주요 서브 페이지 UI/UX 디자인 작업. 사용성 테스트 포함.', order: 0, assigneeIds: [currentUser.id], comments: mockCommentsUser1, dueDate: new Date(Date.now() + 2 * 86400000)},
-            {id: 'card2', columnId: 'col1', title: 'API 명세서 작성', description: '사용자 인증, 팀 관리, 게시판 CRUD 관련 API 상세 명세 작성', order: 1, assigneeIds: ['dev_lead_id']},
-            {id: 'card3', columnId: 'col2', title: '로그인 기능 개발', description: 'OAuth 2.0 (Google, Kakao) 연동 및 자체 이메일/비밀번호 로그인 기능 구현. JWT 토큰 기반 인증.', order: 0, dueDate: new Date(Date.now() + 5 * 86400000), comments: mockCommentsUser3, assigneeIds: [currentUser.id, 'backend_dev_id']},
+        const demoCards: KanbanCardType[] = [
+            {id: 'card1', title: '로그인 페이지 디자인', description: '사용자 인증 UI 구현', columnId: 'col1', order: 0, assigneeIds: [currentUser.id], comments: demoCommentsUser1, dueDate: new Date(Date.now() + 2 * 86400000)},
+            {id: 'card2', title: 'API 문서 작성', description: 'REST API 명세서 작성', columnId: 'col2', order: 0, assigneeIds: ['backend_dev_id'], dueDate: new Date(Date.now() + 5 * 86400000), comments: demoCommentsUser3, assigneeIds: [currentUser.id, 'backend_dev_id']},
+            {id: 'card3', columnId: 'col2', title: '로그인 기능 개발', description: 'OAuth 2.0 (Google, Kakao) 연동 및 자체 이메일/비밀번호 로그인 기능 구현. JWT 토큰 기반 인증.', order: 0, dueDate: new Date(Date.now() + 5 * 86400000), comments: demoCommentsUser3, assigneeIds: [currentUser.id, 'backend_dev_id']},
             {id: 'card4', columnId: 'col3', title: '1차 QA 완료', description: '회원가입 및 로그인 플로우, 기본 팀 생성 기능에 대한 QA 완료됨.', order: 0, isApproved: true},
             {id: 'card5', columnId: 'col3', title: '팀 공지사항 UI 개발', description: '팀 스페이스 내 공지사항 CRUD UI 개발 완료.', order: 1, isApproved: false},
         ];
@@ -466,9 +463,9 @@ const TeamKanbanBoard: React.FC<{ teamProjectId: string, currentUser: User }> = 
             id: `kanban-${teamProjectId}`,
             teamProjectId,
             columns: [
-                {id: 'col1', boardId: `kanban-${teamProjectId}`, title: 'To Do', cards: mockCards.filter(c => c.columnId === 'col1').sort((a,b) => a.order - b.order), order: 0},
-                {id: 'col2', boardId: `kanban-${teamProjectId}`, title: 'In Progress', cards: mockCards.filter(c => c.columnId === 'col2').sort((a,b) => a.order - b.order), order: 1},
-                {id: 'col3', boardId: `kanban-${teamProjectId}`, title: 'Done', cards: mockCards.filter(c => c.columnId === 'col3').sort((a,b) => a.order - b.order), order: 2},
+                {id: 'col1', boardId: `kanban-${teamProjectId}`, title: 'To Do', cards: demoCards.filter(c => c.columnId === 'col1').sort((a,b) => a.order - b.order), order: 0},
+                {id: 'col2', boardId: `kanban-${teamProjectId}`, title: 'In Progress', cards: demoCards.filter(c => c.columnId === 'col2').sort((a,b) => a.order - b.order), order: 1},
+                {id: 'col3', boardId: `kanban-${teamProjectId}`, title: 'Done', cards: demoCards.filter(c => c.columnId === 'col3').sort((a,b) => a.order - b.order), order: 2},
             ]
         });
     }, [teamProjectId, currentUser.id, currentUser.name]);
@@ -894,7 +891,7 @@ export const TeamSpacePage: React.FC = () => {
       } else {
         setLoading(true);
         setTimeout(() => { 
-          const foundTeam = MOCK_TEAM_PROJECTS_ALL_DETAIL.find(t => t.id === teamProjectId && t.workspaceId === workspaceId);
+          const foundTeam = DEMO_TEAM_PROJECTS_ALL_DETAIL.find(t => t.id === teamProjectId && t.workspaceId === workspaceId);
           if (foundTeam) {
             setTeam(foundTeam);
             setCurrentTeamProject(foundTeam); 

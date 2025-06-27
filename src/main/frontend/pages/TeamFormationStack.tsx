@@ -1,13 +1,183 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Input, Card, Modal, ItemListSelector, ProfileSummaryCard, PlusCircleIcon, TrashIcon } from '../components';
 import { User, Team, Poll, VoteOption, TeamProject } from '../types';
 import { useAuth } from '../AuthContext';
 
+// Add toast animation styles
+const toastStyles = `
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideOut {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+`;
 
-// Mock data
-const mockAvailableUsers: User[] = [
+// Inject styles into the document head
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = toastStyles;
+  document.head.appendChild(styleSheet);
+}
+
+// Toast notification component
+interface ToastProps {
+  message: string;
+  type: 'error' | 'success' | 'info';
+  createdAt: number;
+  isNew: boolean;
+  onClose: () => void;
+}
+
+const Toast: React.FC<ToastProps> = ({ message, type, createdAt, isNew, onClose }) => {
+  const [isVisible, setIsVisible] = useState(true);
+  const [isExiting, setIsExiting] = useState(false);
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  useEffect(() => {
+    // 슬라이드 인 애니메이션은 새로운 토스트에만 적용
+    if (isNew) {
+      setHasAnimated(true);
+    }
+  }, [isNew]);
+
+  useEffect(() => {
+    // 생성 시간을 기준으로 개별 타이머 설정
+    const now = Date.now();
+    const elapsed = now - createdAt;
+    const remainingFadeTime = Math.max(0, 2500 - elapsed);
+    const remainingRemoveTime = Math.max(0, 3000 - elapsed);
+
+    let fadeTimer: NodeJS.Timeout | undefined;
+    let removeTimer: NodeJS.Timeout | undefined;
+
+    if (remainingFadeTime > 0) {
+      fadeTimer = setTimeout(() => {
+        setIsExiting(true);
+      }, remainingFadeTime);
+    } else if (!isExiting) {
+      setIsExiting(true);
+    }
+
+    if (remainingRemoveTime > 0) {
+      removeTimer = setTimeout(() => {
+        setIsVisible(false);
+        onClose();
+      }, remainingRemoveTime);
+    } else {
+      setIsVisible(false);
+      onClose();
+    }
+
+    return () => {
+      if (fadeTimer) clearTimeout(fadeTimer);
+      if (removeTimer) clearTimeout(removeTimer);
+    };
+  }, [createdAt, onClose, isExiting]);
+
+  const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+  const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+
+  if (!isVisible) return null;
+
+  return (
+    <div 
+      className={`${bgColor} text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 max-w-sm transform transition-all duration-300 ease-in-out ${
+        isExiting ? 'opacity-0 scale-95 translate-x-2' : 'opacity-100 scale-100 translate-x-0'
+      }`}
+      style={{
+        animation: (isNew && hasAnimated) ? 'slideIn 0.3s ease-out forwards' : 'none'
+      }}
+    >
+      <span className="text-lg">{icon}</span>
+      <span className="flex-1 text-sm">{message}</span>
+      <button 
+        onClick={() => {
+          setIsExiting(true);
+          setTimeout(onClose, 300);
+        }} 
+        className="text-white hover:text-gray-200 transition-colors"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  );
+};
+
+// Custom hook for toast notifications
+const useToast = () => {
+  const [toasts, setToasts] = useState<Array<{ 
+    id: string; 
+    message: string; 
+    type: 'error' | 'success' | 'info';
+    createdAt: number;
+    isNew: boolean;
+  }>>([]);
+
+  const showToast = (message: string, type: 'error' | 'success' | 'info' = 'info') => {
+    const id = Date.now().toString();
+    const createdAt = Date.now();
+    
+    // 기존 토스트들의 isNew를 false로 설정
+    setToasts(prev => [
+      ...prev.map(toast => ({ ...toast, isNew: false })),
+      { id, message, type, createdAt, isNew: true }
+    ]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
+  const ToastContainer = () => (
+    <div className="fixed top-4 right-4 z-50 pointer-events-none">
+      <div className="flex flex-col space-y-3">
+        {toasts.map((toast, index) => (
+          <div 
+            key={toast.id}
+            className="pointer-events-auto transform transition-all duration-300 ease-in-out"
+            style={{ 
+              transform: `translateY(${index * 4}px)`,
+              zIndex: 1000 - index 
+            }}
+          >
+            <Toast
+              message={toast.message}
+              type={toast.type}
+              createdAt={toast.createdAt}
+              isNew={toast.isNew}
+              onClose={() => removeToast(toast.id)}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  return { showToast, ToastContainer };
+};
+
+
+// Demo data
+const demoAvailableUsers: User[] = [
   { id: '1', name: '김코딩', email: 'kim@example.com', mbti: 'ENTP', tags: ['#리더십', '#기획'], profilePictureUrl: 'https://picsum.photos/seed/userA/100/100' },
   { id: '2', name: '박해커', email: 'park@example.com', mbti: 'ISTP', tags: ['#개발', '#문제해결'], profilePictureUrl: 'https://picsum.photos/seed/userB/100/100' },
   { id: '3', name: '이디자인', email: 'lee@example.com', mbti: 'ISFP', tags: ['#디자인', '#UIUX'], profilePictureUrl: 'https://picsum.photos/seed/userC/100/100' },
@@ -57,6 +227,7 @@ interface AutoTeamPageProps {
 }
 export const AutoTeamPage: React.FC<AutoTeamPageProps> = ({ mode }) => {
   const { currentWorkspace } = useAuth();
+  const { showToast, ToastContainer } = useToast();
   const [participants, setParticipants] = useState<User[]>([]);
   const [numTeams, setNumTeams] = useState<number>(2);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -79,11 +250,11 @@ export const AutoTeamPage: React.FC<AutoTeamPageProps> = ({ mode }) => {
 
   const handleDistributeTeams = () => {
     if (participants.length === 0 || numTeams <= 0) {
-      alert('참가자를 선택하고 팀 수를 설정해주세요.');
+      showToast('참가자를 선택하고 팀 수를 설정해주세요.', 'error');
       return;
     }
     if (!currentWorkspace) {
-      alert('현재 워크스페이스 정보를 가져올 수 없습니다. 다시 시도해주세요.');
+      showToast('현재 워크스페이스 정보를 가져올 수 없습니다. 다시 시도해주세요.', 'error');
       return;
     }
     setIsProcessing(true);
@@ -132,13 +303,15 @@ export const AutoTeamPage: React.FC<AutoTeamPageProps> = ({ mode }) => {
 
 
   return (
-    <Card title={mode === 'dice' ? '🎲 주사위 굴리기 팀 분배' : '🪜 사다리타기 팀 분배'}>
-      {!showResults ? (
+    <>
+      <ToastContainer />
+      <Card title={mode === 'dice' ? '🎲 주사위 굴리기 팀 분배' : '🪜 사다리타기 팀 분배'}>
+        {!showResults ? (
         <>
           <div className="mb-4">
             <label className="block text-sm font-medium text-neutral-700 mb-1">참가자 선택:</label>
             <ItemListSelector
-              items={mockAvailableUsers}
+              items={demoAvailableUsers}
               selectedItems={participants}
               onSelectItem={handleUserSelect}
               renderItem={renderUserItem}
@@ -186,13 +359,15 @@ export const AutoTeamPage: React.FC<AutoTeamPageProps> = ({ mode }) => {
           </Button>
         </div>
       )}
-    </Card>
+      </Card>
+    </>
   );
 };
 
 // VoteTeamPage
 export const VoteTeamPage: React.FC = () => {
   const { currentWorkspace } = useAuth();
+  const { showToast, ToastContainer } = useToast();
   const [poll, setPoll] = useState<Poll | null>(null);
   const [isCreatingPoll, setIsCreatingPoll] = useState(true);
   const [pollQuestion, setPollQuestion] = useState('');
@@ -213,11 +388,11 @@ export const VoteTeamPage: React.FC = () => {
 
   const handleCreatePoll = () => {
     if (!currentWorkspace) {
-        alert("워크스페이스 정보를 찾을 수 없습니다.");
+        showToast("워크스페이스 정보를 찾을 수 없습니다.", 'error');
         return;
     }
     if (!pollQuestion.trim() || pollOptions.some(opt => !opt.trim())) {
-      alert('질문과 모든 옵션을 입력해주세요.');
+      showToast('질문과 모든 옵션을 입력해주세요.', 'error');
       return;
     }
     const newPoll: Poll = {
@@ -227,7 +402,10 @@ export const VoteTeamPage: React.FC = () => {
       teamProjectId: currentWorkspace.id, // Context for the poll (using workspace ID as a stand-in)
     };
     setPoll(newPoll);
-    setVotes(newPoll.options.reduce((acc, opt) => ({ ...acc, [opt.id]: 0 }), {}));
+    setVotes(newPoll.options.reduce((acc, opt) => {
+      acc[opt.id] = 0;
+      return acc;
+    }, {} as Record<string, number>));
     setIsCreatingPoll(false);
   };
 
@@ -239,7 +417,9 @@ export const VoteTeamPage: React.FC = () => {
 
   if (isCreatingPoll) {
     return (
-      <Card title="🗳️ 투표 기반 팀 분배 설정">
+      <>
+        <ToastContainer />
+        <Card title="🗳️ 투표 기반 팀 분배 설정">
         <div className="space-y-4">
           <Input 
             label="투표 질문 (예: 함께하고 싶은 사람, 선호하는 역할)" 
@@ -267,7 +447,8 @@ export const VoteTeamPage: React.FC = () => {
           </div>
           <Button onClick={handleCreatePoll} className="w-full" disabled={!currentWorkspace}>투표 생성</Button>
         </div>
-      </Card>
+        </Card>
+      </>
     );
   }
 
@@ -276,7 +457,9 @@ export const VoteTeamPage: React.FC = () => {
   const totalVotes = Object.values(votes).reduce((sum, count) => sum + count, 0);
 
   return (
-    <Card title={`투표: ${poll.question}`}>
+    <>
+      <ToastContainer />
+      <Card title={`투표: ${poll.question}`}>
       <div className="space-y-3 mb-6">
         {poll.options.map(option => {
           const percentage = totalVotes > 0 ? ((votes[option.id] || 0) / totalVotes) * 100 : 0;
@@ -305,7 +488,8 @@ export const VoteTeamPage: React.FC = () => {
       <p className="mt-4 text-center text-neutral-500 italic">
         (실제 팀 구성 로직은 추가 구현이 필요합니다. 현재는 투표 및 결과 표시만 가능합니다.)
       </p>
-    </Card>
+      </Card>
+    </>
   );
 };
 
@@ -313,7 +497,8 @@ export const VoteTeamPage: React.FC = () => {
 // AdminTeamPage
 export const AdminTeamPage: React.FC = () => {
   const { currentWorkspace } = useAuth();
-  const [users, setUsers] = useState<User[]>(mockAvailableUsers);
+  const { showToast, ToastContainer } = useToast();
+  const [users, setUsers] = useState<User[]>(demoAvailableUsers);
   
   const initialTeams: Team[] = currentWorkspace ? [
     { id: 'admin-team-1', workspaceId: currentWorkspace.id, name: '알파 팀', members: [], announcements: [] },
@@ -380,7 +565,7 @@ export const AdminTeamPage: React.FC = () => {
 
   const handleAddTeam = () => {
     if (!currentWorkspace) {
-        alert("워크스페이스 정보를 먼저 로드해야 합니다.");
+        showToast("워크스페이스 정보를 먼저 로드해야 합니다.", 'error');
         return;
     }
     const newTeamName = prompt("새 팀 이름을 입력하세요:", `팀 ${teams.length + 1}`);
@@ -397,7 +582,7 @@ export const AdminTeamPage: React.FC = () => {
   
   const handleConfirmTeams = () => {
     // In a real app, send team data to backend
-    alert('팀 구성이 확정되었습니다! (콘솔에서 결과 확인)');
+    showToast('팀 구성이 확정되었습니다! (콘솔에서 결과 확인)', 'success');
     console.log("확정된 팀:", teams);
   };
   
@@ -411,7 +596,9 @@ export const AdminTeamPage: React.FC = () => {
 
 
   return (
-    <Card title="⚙️ 관리자 수동 팀 분배">
+    <>
+      <ToastContainer />
+      <Card title="⚙️ 관리자 수동 팀 분배">
       <div className="flex justify-end mb-4">
         <Button onClick={handleAddTeam} leftIcon={<PlusCircleIcon />} variant="outline" disabled={!currentWorkspace}>팀 추가</Button>
       </div>
@@ -480,6 +667,7 @@ export const AdminTeamPage: React.FC = () => {
        <p className="mt-4 text-center text-neutral-500 italic">
         (드래그 앤 드롭 기능은 기본 HTML5 API로 구현되었습니다. 실제 앱에서는 라이브러리 사용을 권장합니다.)
       </p>
-    </Card>
+      </Card>
+    </>
   );
 };

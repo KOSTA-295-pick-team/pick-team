@@ -1,6 +1,5 @@
-
-import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { Button, Input, Card } from '../components'; 
 import { User } from '../types';
@@ -12,22 +11,52 @@ export const LoginPage: React.FC = () => {
   const auth = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const inviteCode = searchParams.get('inviteCode');
   const from = location.state?.from?.pathname || "/"; // Default to root, App.tsx will handle initial redirect
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (inviteCode) {
+      // 초대코드가 있으면 사용자에게 알림
+      console.log('초대코드로 접속:', inviteCode);
+    }
+  }, [inviteCode]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    // Mock login
+    // Demo login
     if (email === 'user@example.com' && password === 'password') {
-      const mockUser: User = { 
-        id: 'user_example_com', // Consistent ID for mock
+      const demoUser: User = { 
+        id: 'user_example_com', // Consistent ID for demo
         email, 
         name: '테스트 사용자', 
         profilePictureUrl: 'https://picsum.photos/seed/user1/100/100',
         mbti: 'INFP',
         tags: ['#독서광', '#조용한활동선호'],
       };
-      auth.login(mockUser);
+      auth.login(demoUser);
+      
+      // 초대코드가 있으면 워크스페이스 참여 진행
+      if (inviteCode) {
+        try {
+          const workspace = await auth.joinWorkspace({
+            inviteCode: inviteCode,
+            password: undefined
+          });
+          
+          if (workspace) {
+            auth.setCurrentWorkspace(workspace);
+            navigate(`/ws/${workspace.id}`, { replace: true });
+            return;
+          }
+        } catch (err) {
+          console.error('Auto join after login error:', err);
+          // 실패해도 일단 홈으로 이동하고, 수동으로 참여하도록 안내
+          setError('로그인은 성공했지만 워크스페이스 참여에 실패했습니다. 수동으로 참여해주세요.');
+        }
+      }
+      
       navigate(from, { replace: true });
     } else {
       setError('잘못된 이메일 또는 비밀번호입니다.');
@@ -38,8 +67,18 @@ export const LoginPage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-neutral-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
          <div className="text-center">
-            <h1 className="text-4xl font-bold text-primary">팀플메이트</h1>
+            <h1 className="text-4xl font-bold text-primary">PickTeam</h1>
             <p className="mt-2 text-neutral-600">팀 프로젝트 협업을 위한 최고의 선택</p>
+            {inviteCode && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>워크스페이스 초대</strong>
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  로그인 후 자동으로 워크스페이스에 참여됩니다.
+                </p>
+              </div>
+            )}
         </div>
         <Card title="로그인">
           <form className="space-y-6" onSubmit={handleSubmit}>
@@ -103,7 +142,7 @@ export const SignupPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const [step, setStep] = useState(1); // 1: Form, 2: Verification Pending, 3: Verified (mock)
+  const [step, setStep] = useState(1); // 1: Form, 2: Verification Pending, 3: Verified (demo)
   // const auth = useAuth(); // Not used directly for signup logic, but for login after verify
   // const navigate = useNavigate();
 
@@ -118,7 +157,7 @@ export const SignupPage: React.FC = () => {
         setError('비밀번호는 6자 이상이어야 합니다.');
         return;
     }
-    // Mock signup: proceed to email verification step
+    // Demo signup: proceed to email verification step
     console.log('Signup attempt:', { email, password });
     setStep(2); 
   };
@@ -130,9 +169,8 @@ export const SignupPage: React.FC = () => {
   const handleConfirmVerification = () => {
     // In a real app, this would be after user clicks link in email and backend confirms
     alert('이메일 인증이 완료되었습니다! 로그인 페이지로 이동합니다. (목업)');
-    // const mockUser: User = { id: `user_${Date.now()}`, email, name: email.split('@')[0] };
-    // auth.login(mockUser); // Auto-login after verification not typical, redirect to login
-    // navigate('/login');
+    // const demoUser: User = { id: `user_${Date.now()}`, email, name: email.split('@')[0] };
+    // auth.login(demoUser); // Auto-login after verification not typical, redirect to login
     setStep(1); // Reset form for next signup or redirect
     setEmail(''); setPassword(''); setConfirmPassword(''); // Clear form
     // Ideally navigate('/login');
@@ -152,7 +190,7 @@ export const SignupPage: React.FC = () => {
                 </p>
                 <div className="space-y-3">
                     <Button onClick={handleResendEmail} variant="outline" className="w-full">인증 메일 재전송</Button>
-                    {/* This button is a MOCK for user clicking link in email */}
+                    {/* This button is a DEMO for user clicking link in email */}
                     <Button onClick={handleConfirmVerification} variant="primary" className="w-full">이메일 인증 완료 (목업 확인)</Button> 
                     <Button onClick={() => setStep(1)} variant="ghost" className="w-full">이메일 주소 변경</Button>
                 </div>
@@ -166,7 +204,7 @@ export const SignupPage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-neutral-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-            <h1 className="text-4xl font-bold text-primary">팀플메이트</h1>
+            <h1 className="text-4xl font-bold text-primary">PickTeam</h1>
              <p className="mt-2 text-neutral-600">새로운 팀 경험을 시작하세요.</p>
         </div>
         <Card title="회원가입">

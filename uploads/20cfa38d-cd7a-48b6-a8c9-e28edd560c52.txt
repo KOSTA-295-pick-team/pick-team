@@ -1,0 +1,80 @@
+github 자주 쓰는 명령어
+
+1. 맨 처음 설정
+git config --global init.defaultBranch 변경브랜치명 
+git config --get  init.defaultBranch 
+
+2. add, commit  동시
+git commit -am "add와 commit을 동시에" 
+
+3. Revert 명령어
+
+git revert HEAD 
+git revert HEAD –개수 
+git revert 기존의커밋ID
+
+3-1.Origin까지 push된 이후 취소(push 후 취소) : 
+1. git revert 커밋ID
+2. 특정 커밋버전을 취소시키는 새로운 commit을 생성 후에 다시 push 
+3. vi 모드를 통해 commit 메시지 작성하는 창으로 바로 변환 → wq! 
+
+4. git Clone 명령어
+git clone https://github.com/아이디/이름.git .
+
+5. git branch
+
+ Branch 생성 
+☞ git branch 브랜치이름 
+
+
+
+ Branch 검색 
+☞ git branch 
+
+ Branch 이동하기 
+☞ git switch 브랜치이름
+
+ Branch생성과 동시에 이동하기 
+☞ git switch -c 브랜치이름 
+
+
+ Branch삭제하기  
+☞ git branch -d 삭제할이름
+
+Branch이름 변경하기 
+☞ git branch -m 기존브랜치이름  새로운브랜치이름
+
+
+6. 브랜치 생성 및 통합 작업 순서 
+1) local 에서 main브랜치 최신화 한다 (git pull origin main)  
+
+2) 현재 main기준으로 새로운 브랜치 생성한다.( git switch -c 새로운브랜치이름) 
+
+3)작업 후 git push origin 새로운브랜치명 
+Local 의 main하고 합치지 않고 원격(remote)에 push한다 
+(git push origin 새로운브랜치이름)       
+
+4) Pull Request 를 요청한다.  github 에서 pull requests > new pull request 
+
+5) 조원들이 PR 검토하고 main에 합치는 권한을 가지고 있는 조원이 PR을 처리한다. 
+
+6)작업 완료된 브랜치 삭제( git branch –D 브랜치이름)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

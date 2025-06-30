@@ -74,6 +74,9 @@ public class Account extends BaseSoftDeleteByAnnotation {
     /** 포트폴리오 링크 또는 설명 */
     private String portfolio;
 
+    /** 프로필 이미지 URL (파일 저장소에 업로드된 이미지 경로) */
+    private String profileImageUrl;
+
     /** 선호하는 작업 스타일 (팀 매칭 알고리즘에 활용) */
     private String preferWorkstyle;
 

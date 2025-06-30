@@ -6,6 +6,7 @@ import com.pickteam.dto.ApiResponse;
 import com.pickteam.domain.enums.UserRole;
 import com.pickteam.service.user.UserService;
 import com.pickteam.service.user.AuthService;
+import com.pickteam.service.user.FileUploadService;
 import com.pickteam.constants.UserControllerMessages;
 import com.pickteam.exception.validation.ValidationException;
 import jakarta.validation.Valid;
@@ -13,6 +14,7 @@ import jakarta.validation.constraints.Positive;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.util.List;
@@ -26,6 +28,7 @@ public class UserController {
 
     private final UserService userService;
     private final AuthService authService;
+    private final FileUploadService fileUploadService;
 
     // 간소화된 회원가입
     @PostMapping("/register")
@@ -329,6 +332,159 @@ public class UserController {
         // 6자리 숫자 형태의 인증 코드 검증
         String codeRegex = "^[0-9]{6}$";
         return verificationCode.matches(codeRegex);
+    }
+
+    // ==================== 해시태그 관리 API ====================
+
+    // 내 해시태그 조회
+    @GetMapping("/me/hashtags")
+    public ResponseEntity<ApiResponse<List<HashtagResponse>>> getMyHashtags() {
+        log.debug("내 해시태그 조회 요청");
+        // 인증 확인 및 사용자 ID 추출
+        Long currentUserId = authService.requireAuthentication();
+
+        log.debug("내 해시태그 조회 - 사용자 ID: {}", currentUserId);
+        List<HashtagResponse> hashtags = userService.getMyHashtags(currentUserId);
+        log.info("내 해시태그 조회 완료 - 사용자 ID: {}, 해시태그 수: {}", currentUserId, hashtags.size());
+        return ResponseEntity.ok(ApiResponse.success("내 해시태그 조회 성공", hashtags));
+    }
+
+    // 해시태그 추가
+    @PostMapping("/me/hashtags")
+    public ResponseEntity<ApiResponse<Void>> addHashtag(@Valid @RequestBody HashtagAddRequest request) {
+        log.debug("해시태그 추가 요청 - 해시태그: {}", request.getName());
+        // 인증 확인 및 사용자 ID 추출
+        Long currentUserId = authService.requireAuthentication();
+
+        // 추가 검증: 해시태그 형식 체크
+        if (request.getName() != null && !isValidHashtagName(request.getName())) {
+            log.warn("잘못된 해시태그 형식 - 사용자 ID: {}, 해시태그: {}", currentUserId, request.getName());
+            throw new ValidationException("해시태그는 영문, 숫자, 한글만 사용 가능하며 2~20자여야 합니다.");
+        }
+
+        log.info("해시태그 추가 - 사용자 ID: {}, 해시태그: {}", currentUserId, request.getName());
+        userService.addHashtag(currentUserId, request);
+        log.info("해시태그 추가 완료 - 사용자 ID: {}, 해시태그: {}", currentUserId, request.getName());
+        return ResponseEntity.ok(ApiResponse.success("해시태그 추가 성공", null));
+    }
+
+    // 해시태그 삭제
+    @DeleteMapping("/me/hashtags/{hashtagName}")
+    public ResponseEntity<ApiResponse<Void>> removeHashtag(@PathVariable String hashtagName) {
+        log.debug("해시태그 삭제 요청 - 해시태그: {}", hashtagName);
+        // 인증 확인 및 사용자 ID 추출
+        Long currentUserId = authService.requireAuthentication();
+
+        // 추가 검증: 해시태그 이름 디코딩 및 형식 체크
+        if (hashtagName != null && !isValidHashtagName(hashtagName)) {
+            log.warn("잘못된 해시태그 형식 - 사용자 ID: {}, 해시태그: {}", currentUserId, hashtagName);
+            throw new ValidationException("유효하지 않은 해시태그 이름입니다.");
+        }
+
+        log.info("해시태그 삭제 - 사용자 ID: {}, 해시태그: {}", currentUserId, hashtagName);
+        userService.removeHashtag(currentUserId, hashtagName);
+        log.info("해시태그 삭제 완료 - 사용자 ID: {}, 해시태그: {}", currentUserId, hashtagName);
+        return ResponseEntity.ok(ApiResponse.success("해시태그 삭제 성공", null));
+    }
+
+    // 해시태그 검색
+    @GetMapping("/hashtags/search")
+    public ResponseEntity<ApiResponse<List<HashtagResponse>>> searchHashtags(
+            @RequestParam String keyword) {
+        log.debug("해시태그 검색 요청 - 키워드: {}", keyword);
+
+        // 추가 검증: 키워드 길이 및 형식 체크
+        if (keyword == null || keyword.trim().isEmpty()) {
+            log.warn("빈 키워드로 해시태그 검색 시도");
+            throw new ValidationException("검색 키워드는 필수입니다.");
+        }
+        if (keyword.length() > 50) {
+            log.warn("너무 긴 키워드로 해시태그 검색 시도: {}", keyword);
+            throw new ValidationException("검색 키워드는 50자 이하여야 합니다.");
+        }
+
+        List<HashtagResponse> hashtags = userService.searchHashtags(keyword.trim());
+        log.info("해시태그 검색 완료 - 키워드: {}, 결과 수: {}", keyword, hashtags.size());
+        return ResponseEntity.ok(ApiResponse.success("해시태그 검색 성공", hashtags));
+    }
+
+    // ==================== 프로필 이미지 관리 API ====================
+
+    // 프로필 이미지 업로드
+    @PostMapping("/me/profile-image")
+    public ResponseEntity<ApiResponse<String>> uploadProfileImage(
+            @RequestParam("file") MultipartFile file) {
+        log.debug("프로필 이미지 업로드 요청 - 파일명: {}", file.getOriginalFilename());
+        // 인증 확인 및 사용자 ID 추출
+        Long currentUserId = authService.requireAuthentication();
+
+        // 추가 검증: 파일 존재 여부 확인
+        if (file.isEmpty()) {
+            log.warn("빈 파일 업로드 시도 - 사용자 ID: {}", currentUserId);
+            throw new ValidationException("업로드할 파일을 선택해주세요.");
+        }
+
+        log.info("프로필 이미지 업로드 - 사용자 ID: {}, 파일: {}", currentUserId, file.getOriginalFilename());
+        String imageUrl = fileUploadService.uploadProfileImage(file, currentUserId);
+        log.info("프로필 이미지 업로드 완료 - 사용자 ID: {}, URL: {}", currentUserId, imageUrl);
+
+        return ResponseEntity.ok(ApiResponse.success("프로필 이미지 업로드 성공", imageUrl));
+    }
+
+    // 프로필 이미지 삭제
+    @DeleteMapping("/me/profile-image")
+    public ResponseEntity<ApiResponse<Void>> deleteProfileImage() {
+        log.debug("프로필 이미지 삭제 요청");
+        // 인증 확인 및 사용자 ID 추출
+        Long currentUserId = authService.requireAuthentication();
+
+        // 현재 프로필 정보 조회
+        UserProfileResponse profile = userService.getMyProfile(currentUserId);
+        if (profile.getProfileImageUrl() == null || profile.getProfileImageUrl().trim().isEmpty()) {
+            log.warn("삭제할 프로필 이미지가 없음 - 사용자 ID: {}", currentUserId);
+            throw new ValidationException("삭제할 프로필 이미지가 없습니다.");
+        }
+
+        log.info("프로필 이미지 삭제 - 사용자 ID: {}, URL: {}", currentUserId, profile.getProfileImageUrl());
+
+        // 파일 삭제
+        fileUploadService.deleteProfileImage(profile.getProfileImageUrl(), currentUserId);
+
+        // DB에서 프로필 이미지 URL 제거
+        UserProfileUpdateRequest updateRequest = new UserProfileUpdateRequest();
+        updateRequest.setProfileImageUrl(null);
+        userService.updateMyProfile(currentUserId, updateRequest);
+
+        log.info("프로필 이미지 삭제 완료 - 사용자 ID: {}", currentUserId);
+        return ResponseEntity.ok(ApiResponse.success("프로필 이미지 삭제 성공", null));
+    }
+
+    // ==================== 유효성 검증 헬퍼 메서드들 ====================
+
+    /**
+     * 해시태그 이름 유효성 검증
+     * - 영문, 숫자, 한글만 허용
+     * - 2~20자 길이 제한
+     * - 특수문자 및 공백 불허용
+     * 
+     * @param hashtagName 검증할 해시태그 이름
+     * @return 유효한 형식이면 true, 그렇지 않으면 false
+     */
+    private boolean isValidHashtagName(String hashtagName) {
+        if (hashtagName == null || hashtagName.trim().isEmpty()) {
+            return false;
+        }
+
+        String trimmedName = hashtagName.trim();
+
+        // 길이 체크 (2~20자)
+        if (trimmedName.length() < 2 || trimmedName.length() > 20) {
+            return false;
+        }
+
+        // 영문, 숫자, 한글만 허용 (공백, 특수문자 불허용)
+        String hashtagRegex = "^[a-zA-Z0-9가-힣]+$";
+        return trimmedName.matches(hashtagRegex);
     }
 
     // ==================== 예외 처리 메서드들 ====================

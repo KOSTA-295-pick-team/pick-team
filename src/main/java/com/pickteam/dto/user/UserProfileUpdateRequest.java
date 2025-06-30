@@ -37,6 +37,10 @@ public class UserProfileUpdateRequest {
     @Size(max = 200, message = "포트폴리오 링크는 200자 이하여야 합니다")
     private String portfolio;
 
+    /** 프로필 이미지 URL (파일 업로드 후 받은 URL) */
+    @Size(max = 500, message = "프로필 이미지 URL은 500자 이하여야 합니다")
+    private String profileImageUrl;
+
     /** 선호하는 작업 스타일 (팀 매칭 알고리즘에 활용) */
     @Size(max = 100, message = "선호 작업 스타일은 100자 이하여야 합니다")
     private String preferWorkstyle;

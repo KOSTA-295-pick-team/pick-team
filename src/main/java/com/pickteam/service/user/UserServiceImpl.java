@@ -4,6 +4,8 @@ import com.pickteam.dto.user.*;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.user.RefreshToken;
+import com.pickteam.domain.user.UserHashtag;
+import com.pickteam.domain.user.UserHashtagList;
 import com.pickteam.domain.enums.UserRole;
 import com.pickteam.exception.email.EmailNotVerifiedException;
 import com.pickteam.exception.user.UserNotFoundException;
@@ -14,6 +16,8 @@ import com.pickteam.exception.user.AccountWithdrawalException;
 import com.pickteam.constants.UserErrorMessages;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.user.RefreshTokenRepository;
+import com.pickteam.repository.user.UserHashtagRepository;
+import com.pickteam.repository.user.UserHashtagListRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +40,8 @@ public class UserServiceImpl implements UserService {
 
     private final AccountRepository accountRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserHashtagRepository userHashtagRepository;
+    private final UserHashtagListRepository userHashtagListRepository;
     private final AuthService authService;
     private final EmailService emailService;
     private final ValidationService validationService;
@@ -240,6 +246,8 @@ public class UserServiceImpl implements UserService {
             account.setIntroduction(request.getIntroduction());
         if (request.getPortfolio() != null)
             account.setPortfolio(request.getPortfolio());
+        if (request.getProfileImageUrl() != null)
+            account.setProfileImageUrl(request.getProfileImageUrl());
         if (request.getPreferWorkstyle() != null)
             account.setPreferWorkstyle(request.getPreferWorkstyle());
         if (request.getDislikeWorkstyle() != null)
@@ -431,5 +439,116 @@ public class UserServiceImpl implements UserService {
         response.setPreferWorkstyle(account.getPreferWorkstyle());
         response.setDislikeWorkstyle(account.getDislikeWorkstyle());
         return response;
+    }
+
+    // === 해시태그 관리 구현 ===
+
+    /**
+     * 내 해시태그 조회
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<HashtagResponse> getMyHashtags(Long userId) {
+        log.debug("사용자 해시태그 조회 시작: userId={}", userId);
+
+        List<UserHashtagList> userHashtagLists = userHashtagListRepository.findByAccountId(userId);
+
+        List<HashtagResponse> hashtags = userHashtagLists.stream()
+                .map(uhl -> HashtagResponse.from(uhl.getUserHashtag()))
+                .collect(Collectors.toList());
+
+        log.debug("사용자 해시태그 조회 완료: userId={}, 해시태그 수={}", userId, hashtags.size());
+        return hashtags;
+    }
+
+    /**
+     * 해시태그 추가
+     */
+    @Override
+    public void addHashtag(Long userId, HashtagAddRequest request) {
+        log.info("해시태그 추가 시작: userId={}, hashtagName={}", userId, request.getName());
+
+        // 1. 사용자 조회
+        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
+
+        // 2. 해시태그 이름 정리 (앞뒤 공백 제거, 소문자 변환)
+        String cleanedName = request.getName().trim().toLowerCase();
+        if (cleanedName.isEmpty()) {
+            throw new ValidationException("해시태그 이름이 비어있습니다");
+        }
+
+        // 3. 해시태그 찾기 또는 생성
+        UserHashtag userHashtag = userHashtagRepository.findByName(cleanedName)
+                .orElseGet(() -> {
+                    UserHashtag newHashtag = UserHashtag.builder()
+                            .name(cleanedName)
+                            .build();
+                    return userHashtagRepository.save(newHashtag);
+                });
+
+        // 4. 중복 확인
+        if (userHashtagListRepository.existsByAccountAndUserHashtag(account, userHashtag)) {
+            throw new ValidationException("이미 추가된 해시태그입니다");
+        }
+
+        // 5. 사용자-해시태그 연결 생성
+        UserHashtagList userHashtagList = UserHashtagList.builder()
+                .account(account)
+                .userHashtag(userHashtag)
+                .build();
+
+        userHashtagListRepository.save(userHashtagList);
+        log.info("해시태그 추가 완료: userId={}, hashtagName={}", userId, cleanedName);
+    }
+
+    /**
+     * 해시태그 삭제
+     */
+    @Override
+    public void removeHashtag(Long userId, String hashtagName) {
+        log.info("해시태그 삭제 시작: userId={}, hashtagName={}", userId, hashtagName);
+
+        // 1. 사용자 조회
+        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
+
+        // 2. 해시태그 이름 정리
+        String cleanedName = hashtagName.trim().toLowerCase();
+
+        // 3. 해시태그 조회
+        UserHashtag userHashtag = userHashtagRepository.findByName(cleanedName)
+                .orElseThrow(() -> new ValidationException("해시태그를 찾을 수 없습니다"));
+
+        // 4. 사용자-해시태그 연결 찾기
+        UserHashtagList userHashtagList = userHashtagListRepository.findByAccountAndUserHashtag(account, userHashtag)
+                .orElseThrow(() -> new ValidationException("사용자가 해당 해시태그를 가지고 있지 않습니다"));
+
+        // 5. 연결 삭제
+        userHashtagListRepository.delete(userHashtagList);
+        log.info("해시태그 삭제 완료: userId={}, hashtagName={}", userId, hashtagName);
+    }
+
+    /**
+     * 해시태그 검색 (자동완성용)
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<HashtagResponse> searchHashtags(String keyword) {
+        log.debug("해시태그 검색 시작: keyword={}", keyword);
+
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
+        }
+
+        String cleanedKeyword = keyword.trim().toLowerCase();
+        List<UserHashtag> hashtags = userHashtagRepository.findByNameContainingIgnoreCase(cleanedKeyword);
+
+        List<HashtagResponse> results = hashtags.stream()
+                .map(HashtagResponse::from)
+                .collect(Collectors.toList());
+
+        log.debug("해시태그 검색 완료: keyword={}, 결과 수={}", cleanedKeyword, results.size());
+        return results;
     }
 }

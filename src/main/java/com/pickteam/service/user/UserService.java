@@ -47,15 +47,6 @@ public interface UserService {
     void deleteAccount(Long userId);
 
     // === 해시태그 관리 ===
-    // 내 해시태그 조회
-    java.util.List<HashtagResponse> getMyHashtags(Long userId);
-
-    // 해시태그 추가
-    void addHashtag(Long userId, HashtagAddRequest request);
-
-    // 해시태그 삭제
-    void removeHashtag(Long userId, String hashtagName);
-
     // 해시태그 검색 (다른 사용자들의 해시태그 포함)
     java.util.List<HashtagResponse> searchHashtags(String keyword);
 }

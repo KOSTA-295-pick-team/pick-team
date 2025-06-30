@@ -12,9 +12,13 @@ import java.util.Optional;
 
 public interface UserHashtagListRepository extends JpaRepository<UserHashtagList, Long> {
 
-    // 사용자의 해시태그 목록 조회
+    // 사용자의 해시태그 목록 조회 (User ID로)
     @Query("SELECT uhl FROM UserHashtagList uhl JOIN FETCH uhl.userHashtag WHERE uhl.account.id = :userId")
     List<UserHashtagList> findByAccountId(@Param("userId") Long userId);
+
+    // 사용자의 해시태그 목록 조회 (Account 객체로)
+    @Query("SELECT uhl FROM UserHashtagList uhl JOIN FETCH uhl.userHashtag WHERE uhl.account = :account")
+    List<UserHashtagList> findByAccount(@Param("account") Account account);
 
     // 사용자와 해시태그로 찾기
     Optional<UserHashtagList> findByAccountAndUserHashtag(Account account, UserHashtag userHashtag);

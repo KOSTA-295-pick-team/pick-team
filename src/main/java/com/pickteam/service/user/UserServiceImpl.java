@@ -233,28 +233,74 @@ public class UserServiceImpl implements UserService {
             throw new ValidationException(UserErrorMessages.INVALID_MBTI);
         }
 
-        // 프로필 업데이트
-        if (request.getName() != null)
-            account.setName(request.getName());
+        // 프로필 업데이트 (null과 빈 문자열 모두 체크)
+        if (request.getName() != null && !request.getName().trim().isEmpty())
+            account.setName(request.getName().trim());
         if (request.getAge() != null)
             account.setAge(request.getAge());
-        if (request.getMbti() != null)
-            account.setMbti(request.getMbti());
-        if (request.getDisposition() != null)
-            account.setDisposition(request.getDisposition());
-        if (request.getIntroduction() != null)
-            account.setIntroduction(request.getIntroduction());
-        if (request.getPortfolio() != null)
-            account.setPortfolio(request.getPortfolio());
-        if (request.getProfileImageUrl() != null)
-            account.setProfileImageUrl(request.getProfileImageUrl());
-        if (request.getPreferWorkstyle() != null)
-            account.setPreferWorkstyle(request.getPreferWorkstyle());
-        if (request.getDislikeWorkstyle() != null)
-            account.setDislikeWorkstyle(request.getDislikeWorkstyle());
+        if (request.getMbti() != null && !request.getMbti().trim().isEmpty())
+            account.setMbti(request.getMbti().trim());
+        if (request.getDisposition() != null && !request.getDisposition().trim().isEmpty())
+            account.setDisposition(request.getDisposition().trim());
+        if (request.getIntroduction() != null && !request.getIntroduction().trim().isEmpty())
+            account.setIntroduction(request.getIntroduction().trim());
+        if (request.getPortfolio() != null && !request.getPortfolio().trim().isEmpty())
+            account.setPortfolio(request.getPortfolio().trim());
+        if (request.getProfileImageUrl() != null && !request.getProfileImageUrl().trim().isEmpty())
+            account.setProfileImageUrl(request.getProfileImageUrl().trim());
+        if (request.getPreferWorkstyle() != null && !request.getPreferWorkstyle().trim().isEmpty())
+            account.setPreferWorkstyle(request.getPreferWorkstyle().trim());
+        if (request.getDislikeWorkstyle() != null && !request.getDislikeWorkstyle().trim().isEmpty())
+            account.setDislikeWorkstyle(request.getDislikeWorkstyle().trim());
+
+        // 해시태그 처리 (빈 배열도 허용 - 모든 해시태그 삭제 의미)
+        if (request.getHashtags() != null) {
+            updateUserHashtags(account, request.getHashtags());
+        }
 
         accountRepository.save(account);
         log.info("프로필 수정 완료: userId={}", userId);
+    }
+
+    /**
+     * 사용자 해시태그 업데이트 처리
+     * - 기존 해시태그 연결을 모두 삭제하고 새로운 해시태그들로 재설정
+     * 
+     * @param account      사용자 계정
+     * @param hashtagNames 새로운 해시태그 이름 목록
+     */
+    private void updateUserHashtags(Account account, List<String> hashtagNames) {
+        log.debug("해시태그 업데이트 시작: userId={}, hashtags={}", account.getId(), hashtagNames);
+
+        // 1. 기존 해시태그 연결 모두 삭제
+        userHashtagListRepository.deleteByAccount(account);
+
+        // 2. 새로운 해시태그들 처리
+        for (String hashtagName : hashtagNames) {
+            if (hashtagName == null || hashtagName.trim().isEmpty()) {
+                continue; // 빈 해시태그 무시
+            }
+
+            String cleanedName = hashtagName.trim().toLowerCase();
+
+            // 3. 해시태그 조회 또는 생성
+            UserHashtag userHashtag = userHashtagRepository.findByName(cleanedName)
+                    .orElseGet(() -> {
+                        UserHashtag newHashtag = UserHashtag.builder()
+                                .name(cleanedName)
+                                .build();
+                        return userHashtagRepository.save(newHashtag);
+                    });
+
+            // 4. 사용자-해시태그 연결 생성
+            UserHashtagList userHashtagList = UserHashtagList.builder()
+                    .account(account)
+                    .userHashtag(userHashtag)
+                    .build();
+            userHashtagListRepository.save(userHashtagList);
+        }
+
+        log.info("해시태그 업데이트 완료: userId={}, count={}", account.getId(), hashtagNames.size());
     }
 
     /**
@@ -420,6 +466,7 @@ public class UserServiceImpl implements UserService {
      * 계정 정보를 프로필 응답 DTO로 변환하는 헬퍼 메서드
      * - Entity를 API 응답용 DTO로 안전하게 변환
      * - 민감한 정보(비밀번호 등) 제외하고 변환
+     * - 엔티티 레벨에서 기본값이 설정되므로 null 체크 불필요
      * - 코드 중복 제거를 위한 공통 변환 로직
      * 
      * @param account 변환할 계정 엔티티
@@ -429,105 +476,28 @@ public class UserServiceImpl implements UserService {
         UserProfileResponse response = new UserProfileResponse();
         response.setId(account.getId());
         response.setEmail(account.getEmail());
-        response.setName(account.getName());
-        response.setAge(account.getAge());
+        response.setName(account.getName()); // 엔티티 기본값: "신규 사용자"
+        response.setAge(account.getAge()); // 나이는 숫자이므로 null 유지
         response.setRole(account.getRole());
-        response.setMbti(account.getMbti());
-        response.setDisposition(account.getDisposition());
-        response.setIntroduction(account.getIntroduction());
-        response.setPortfolio(account.getPortfolio());
-        response.setPreferWorkstyle(account.getPreferWorkstyle());
-        response.setDislikeWorkstyle(account.getDislikeWorkstyle());
+        response.setMbti(account.getMbti()); // 엔티티 기본값: "정보없음"
+        response.setDisposition(account.getDisposition()); // 엔티티 기본값: "정보없음"
+        response.setIntroduction(account.getIntroduction()); // 엔티티 기본값: "정보없음"
+        response.setPortfolio(account.getPortfolio()); // 엔티티 기본값: "https://github.com/myportfolio"
+        response.setProfileImageUrl(account.getProfileImageUrl()); // 프로필 이미지는 null 유지
+        response.setPreferWorkstyle(account.getPreferWorkstyle()); // 엔티티 기본값: "정보없음"
+        response.setDislikeWorkstyle(account.getDislikeWorkstyle()); // 엔티티 기본값: "정보없음"
+
+        // 해시태그 목록 조회 및 설정
+        List<UserHashtagList> userHashtagLists = userHashtagListRepository.findByAccount(account);
+        List<String> hashtags = userHashtagLists.stream()
+                .map(userHashtagList -> userHashtagList.getUserHashtag().getName())
+                .collect(Collectors.toList());
+        response.setHashtags(hashtags);
+
         return response;
     }
 
     // === 해시태그 관리 구현 ===
-
-    /**
-     * 내 해시태그 조회
-     */
-    @Override
-    @Transactional(readOnly = true)
-    public List<HashtagResponse> getMyHashtags(Long userId) {
-        log.debug("사용자 해시태그 조회 시작: userId={}", userId);
-
-        List<UserHashtagList> userHashtagLists = userHashtagListRepository.findByAccountId(userId);
-
-        List<HashtagResponse> hashtags = userHashtagLists.stream()
-                .map(uhl -> HashtagResponse.from(uhl.getUserHashtag()))
-                .collect(Collectors.toList());
-
-        log.debug("사용자 해시태그 조회 완료: userId={}, 해시태그 수={}", userId, hashtags.size());
-        return hashtags;
-    }
-
-    /**
-     * 해시태그 추가
-     */
-    @Override
-    public void addHashtag(Long userId, HashtagAddRequest request) {
-        log.info("해시태그 추가 시작: userId={}, hashtagName={}", userId, request.getName());
-
-        // 1. 사용자 조회
-        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
-
-        // 2. 해시태그 이름 정리 (앞뒤 공백 제거, 소문자 변환)
-        String cleanedName = request.getName().trim().toLowerCase();
-        if (cleanedName.isEmpty()) {
-            throw new ValidationException("해시태그 이름이 비어있습니다");
-        }
-
-        // 3. 해시태그 찾기 또는 생성
-        UserHashtag userHashtag = userHashtagRepository.findByName(cleanedName)
-                .orElseGet(() -> {
-                    UserHashtag newHashtag = UserHashtag.builder()
-                            .name(cleanedName)
-                            .build();
-                    return userHashtagRepository.save(newHashtag);
-                });
-
-        // 4. 중복 확인
-        if (userHashtagListRepository.existsByAccountAndUserHashtag(account, userHashtag)) {
-            throw new ValidationException("이미 추가된 해시태그입니다");
-        }
-
-        // 5. 사용자-해시태그 연결 생성
-        UserHashtagList userHashtagList = UserHashtagList.builder()
-                .account(account)
-                .userHashtag(userHashtag)
-                .build();
-
-        userHashtagListRepository.save(userHashtagList);
-        log.info("해시태그 추가 완료: userId={}, hashtagName={}", userId, cleanedName);
-    }
-
-    /**
-     * 해시태그 삭제
-     */
-    @Override
-    public void removeHashtag(Long userId, String hashtagName) {
-        log.info("해시태그 삭제 시작: userId={}, hashtagName={}", userId, hashtagName);
-
-        // 1. 사용자 조회
-        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
-
-        // 2. 해시태그 이름 정리
-        String cleanedName = hashtagName.trim().toLowerCase();
-
-        // 3. 해시태그 조회
-        UserHashtag userHashtag = userHashtagRepository.findByName(cleanedName)
-                .orElseThrow(() -> new ValidationException("해시태그를 찾을 수 없습니다"));
-
-        // 4. 사용자-해시태그 연결 찾기
-        UserHashtagList userHashtagList = userHashtagListRepository.findByAccountAndUserHashtag(account, userHashtag)
-                .orElseThrow(() -> new ValidationException("사용자가 해당 해시태그를 가지고 있지 않습니다"));
-
-        // 5. 연결 삭제
-        userHashtagListRepository.delete(userHashtagList);
-        log.info("해시태그 삭제 완료: userId={}, hashtagName={}", userId, hashtagName);
-    }
 
     /**
      * 해시태그 검색 (자동완성용)

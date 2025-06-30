@@ -50,7 +50,8 @@ public class Account extends BaseSoftDeleteByAnnotation {
 
     /** 사용자 이름 (프로필 완성 시 입력) */
     @Column(nullable = true)
-    private String name;
+    @Builder.Default
+    private String name = "신규 사용자";
 
     /** 사용자 나이 (탈퇴 시 개인정보보호를 위해 삭제) */
     @Column(nullable = true)
@@ -63,25 +64,31 @@ public class Account extends BaseSoftDeleteByAnnotation {
     private UserRole role = UserRole.USER;
 
     /** MBTI 성격 유형 (팀 매칭 시 참고용, 선택 사항) */
-    private String mbti;
+    @Builder.Default
+    private String mbti = "정보없음";
 
     /** 사용자 성향/특성 설명 (팀 매칭 시 참고용) */
-    private String disposition;
+    @Builder.Default
+    private String disposition = "정보없음";
 
     /** 사용자 자기소개 */
-    private String introduction;
+    @Builder.Default
+    private String introduction = "정보없음";
 
     /** 포트폴리오 링크 또는 설명 */
-    private String portfolio;
+    @Builder.Default
+    private String portfolio = "https://github.com/myportfolio";
 
     /** 프로필 이미지 URL (파일 저장소에 업로드된 이미지 경로) */
     private String profileImageUrl;
 
     /** 선호하는 작업 스타일 (팀 매칭 알고리즘에 활용) */
-    private String preferWorkstyle;
+    @Builder.Default
+    private String preferWorkstyle = "정보없음";
 
     /** 기피하는 작업 스타일 (팀 매칭 알고리즘에서 제외) */
-    private String dislikeWorkstyle;
+    @Builder.Default
+    private String dislikeWorkstyle = "정보없음";
 
     /**
      * 계정 영구 삭제 예정일

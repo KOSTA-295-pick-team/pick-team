@@ -336,58 +336,7 @@ public class UserController {
 
     // ==================== 해시태그 관리 API ====================
 
-    // 내 해시태그 조회
-    @GetMapping("/me/hashtags")
-    public ResponseEntity<ApiResponse<List<HashtagResponse>>> getMyHashtags() {
-        log.debug("내 해시태그 조회 요청");
-        // 인증 확인 및 사용자 ID 추출
-        Long currentUserId = authService.requireAuthentication();
-
-        log.debug("내 해시태그 조회 - 사용자 ID: {}", currentUserId);
-        List<HashtagResponse> hashtags = userService.getMyHashtags(currentUserId);
-        log.info("내 해시태그 조회 완료 - 사용자 ID: {}, 해시태그 수: {}", currentUserId, hashtags.size());
-        return ResponseEntity.ok(ApiResponse.success("내 해시태그 조회 성공", hashtags));
-    }
-
-    // 해시태그 추가
-    @PostMapping("/me/hashtags")
-    public ResponseEntity<ApiResponse<Void>> addHashtag(@Valid @RequestBody HashtagAddRequest request) {
-        log.debug("해시태그 추가 요청 - 해시태그: {}", request.getName());
-        // 인증 확인 및 사용자 ID 추출
-        Long currentUserId = authService.requireAuthentication();
-
-        // 추가 검증: 해시태그 형식 체크
-        if (request.getName() != null && !isValidHashtagName(request.getName())) {
-            log.warn("잘못된 해시태그 형식 - 사용자 ID: {}, 해시태그: {}", currentUserId, request.getName());
-            throw new ValidationException("해시태그는 영문, 숫자, 한글만 사용 가능하며 2~20자여야 합니다.");
-        }
-
-        log.info("해시태그 추가 - 사용자 ID: {}, 해시태그: {}", currentUserId, request.getName());
-        userService.addHashtag(currentUserId, request);
-        log.info("해시태그 추가 완료 - 사용자 ID: {}, 해시태그: {}", currentUserId, request.getName());
-        return ResponseEntity.ok(ApiResponse.success("해시태그 추가 성공", null));
-    }
-
-    // 해시태그 삭제
-    @DeleteMapping("/me/hashtags/{hashtagName}")
-    public ResponseEntity<ApiResponse<Void>> removeHashtag(@PathVariable String hashtagName) {
-        log.debug("해시태그 삭제 요청 - 해시태그: {}", hashtagName);
-        // 인증 확인 및 사용자 ID 추출
-        Long currentUserId = authService.requireAuthentication();
-
-        // 추가 검증: 해시태그 이름 디코딩 및 형식 체크
-        if (hashtagName != null && !isValidHashtagName(hashtagName)) {
-            log.warn("잘못된 해시태그 형식 - 사용자 ID: {}, 해시태그: {}", currentUserId, hashtagName);
-            throw new ValidationException("유효하지 않은 해시태그 이름입니다.");
-        }
-
-        log.info("해시태그 삭제 - 사용자 ID: {}, 해시태그: {}", currentUserId, hashtagName);
-        userService.removeHashtag(currentUserId, hashtagName);
-        log.info("해시태그 삭제 완료 - 사용자 ID: {}, 해시태그: {}", currentUserId, hashtagName);
-        return ResponseEntity.ok(ApiResponse.success("해시태그 삭제 성공", null));
-    }
-
-    // 해시태그 검색
+    // 해시태그 검색 (자동완성용)
     @GetMapping("/hashtags/search")
     public ResponseEntity<ApiResponse<List<HashtagResponse>>> searchHashtags(
             @RequestParam String keyword) {
@@ -460,33 +409,5 @@ public class UserController {
     }
 
     // ==================== 유효성 검증 헬퍼 메서드들 ====================
-
-    /**
-     * 해시태그 이름 유효성 검증
-     * - 영문, 숫자, 한글만 허용
-     * - 2~20자 길이 제한
-     * - 특수문자 및 공백 불허용
-     * 
-     * @param hashtagName 검증할 해시태그 이름
-     * @return 유효한 형식이면 true, 그렇지 않으면 false
-     */
-    private boolean isValidHashtagName(String hashtagName) {
-        if (hashtagName == null || hashtagName.trim().isEmpty()) {
-            return false;
-        }
-
-        String trimmedName = hashtagName.trim();
-
-        // 길이 체크 (2~20자)
-        if (trimmedName.length() < 2 || trimmedName.length() > 20) {
-            return false;
-        }
-
-        // 영문, 숫자, 한글만 허용 (공백, 특수문자 불허용)
-        String hashtagRegex = "^[a-zA-Z0-9가-힣]+$";
-        return trimmedName.matches(hashtagRegex);
-    }
-
-    // ==================== 예외 처리 메서드들 ====================
 
 }

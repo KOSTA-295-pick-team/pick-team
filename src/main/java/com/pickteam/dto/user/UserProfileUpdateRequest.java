@@ -2,6 +2,8 @@ package com.pickteam.dto.user;
 
 import lombok.Data;
 import jakarta.validation.constraints.*;
+import jakarta.validation.Valid;
+import java.util.List;
 
 /**
  * 사용자 프로필 수정 요청 DTO
@@ -48,4 +50,8 @@ public class UserProfileUpdateRequest {
     /** 기피하는 작업 스타일 (팀 매칭 알고리즘에서 제외) */
     @Size(max = 100, message = "기피 작업 스타일은 100자 이하여야 합니다")
     private String dislikeWorkstyle;
+
+    /** 사용자 해시태그 목록 (전체 교체) */
+    @Size(max = 20, message = "해시태그는 최대 20개까지 가능합니다")
+    private List<@Valid @Size(min = 2, max = 20, message = "해시태그는 2자 이상 20자 이하여야 합니다") String> hashtags;
 }

@@ -8,14 +8,6 @@ import com.pickteam.service.user.UserService;
 import com.pickteam.service.user.AuthService;
 import com.pickteam.constants.UserControllerMessages;
 import com.pickteam.exception.validation.ValidationException;
-import com.pickteam.exception.auth.UnauthorizedException;
-import com.pickteam.exception.user.UserNotFoundException;
-import com.pickteam.exception.auth.AuthenticationException;
-import com.pickteam.exception.user.DuplicateEmailException;
-import com.pickteam.exception.auth.InvalidTokenException;
-import com.pickteam.exception.email.EmailSendException;
-import com.pickteam.exception.email.EmailNotVerifiedException;
-import com.pickteam.exception.user.AccountWithdrawalException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import org.springframework.validation.annotation.Validated;
@@ -26,7 +18,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.validation.FieldError;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import java.util.List;
 
 @Slf4j
@@ -437,110 +428,6 @@ public class UserController {
     }
 
     /**
-     * 커스텀 예외들 처리 (UnauthorizedException 등)
-     * - 인증/권한 관련 예외
-     * - 401 Unauthorized로 응답
-     */
-    @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleUnauthorizedException(
-            UnauthorizedException ex) {
-        log.warn("인증 실패: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-    }
-
-    /**
-     * UserNotFoundException 처리
-     * - 사용자를 찾을 수 없는 경우
-     * - 404 Not Found로 응답
-     */
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleUserNotFoundException(
-            UserNotFoundException ex) {
-        log.warn("사용자 없음: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-    }
-
-    /**
-     * AuthenticationException 처리
-     * - 로그인 실패 등 인증 실패
-     * - 401 Unauthorized로 응답
-     */
-    @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAuthenticationException(
-            AuthenticationException ex) {
-        log.warn("인증 실패: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-    }
-
-    /**
-     * ValidationException 처리
-     * - 비즈니스 로직 검증 실패
-     * - 400 Bad Request로 응답
-     */
-    @ExceptionHandler(ValidationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleValidationException(
-            ValidationException ex) {
-        log.warn("비즈니스 검증 실패: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-    }
-
-    /**
-     * DuplicateEmailException 처리
-     * - 이메일 중복 시 발생
-     * - 409 Conflict로 응답
-     */
-    @ExceptionHandler(DuplicateEmailException.class)
-    public ResponseEntity<ApiResponse<Void>> handleDuplicateEmailException(
-            DuplicateEmailException ex) {
-        log.warn("이메일 중복: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
-    }
-
-    /**
-     * InvalidTokenException 처리
-     * - 토큰이 유효하지 않은 경우
-     * - 401 Unauthorized로 응답
-     */
-    @ExceptionHandler(InvalidTokenException.class)
-    public ResponseEntity<ApiResponse<Void>> handleInvalidTokenException(
-            InvalidTokenException ex) {
-        log.warn("유효하지 않은 토큰: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-    }
-
-    /**
-     * EmailSendException 처리
-     * - 이메일 발송 실패
-     * - 503 Service Unavailable로 응답
-     */
-    @ExceptionHandler(EmailSendException.class)
-    public ResponseEntity<ApiResponse<Void>> handleEmailSendException(
-            EmailSendException ex) {
-        log.error("이메일 발송 실패: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error("이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.");
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
-    }
-
-    /**
-     * EmailNotVerifiedException 처리
-     * - 이메일 인증이 완료되지 않은 경우
-     * - 403 Forbidden으로 응답
-     */
-    @ExceptionHandler(EmailNotVerifiedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleEmailNotVerifiedException(
-            EmailNotVerifiedException ex) {
-        log.warn("이메일 미인증: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
-    }
-
-    /**
      * PessimisticLockingFailureException 처리
      * - 데이터베이스 락 대기 시간 초과 시 발생
      * - 동시성 문제로 인한 락 타임아웃
@@ -554,78 +441,5 @@ public class UserController {
 
         ApiResponse<Void> response = ApiResponse.error("현재 요청이 처리 중입니다. 잠시 후 다시 시도해주세요.");
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
-    }
-
-    /**
-     * 계정 탈퇴 관련 예외 처리
-     * - 탈퇴 유예 기간 중인 계정으로 작업 시도 시 발생
-     * - 409 Conflict로 응답
-     */
-    @ExceptionHandler(AccountWithdrawalException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAccountWithdrawalException(
-            AccountWithdrawalException ex) {
-        log.warn("탈퇴 계정 관련 오류: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error(ex.getDetailedMessage());
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
-    }
-
-    /**
-     * DataIntegrityViolationException 처리
-     * - 데이터베이스 제약 조건 위반 시 발생
-     * - 이메일 인증 중복 요청, 중복 이메일 등의 경우
-     * - 409 Conflict로 응답
-     */
-    @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
-        String errorMessage = ex.getMessage();
-        String rootCauseMessage = "";
-
-        // 근본 원인 메시지 추출
-        Throwable rootCause = ex.getRootCause();
-        if (rootCause != null) {
-            rootCauseMessage = rootCause.getMessage();
-        }
-
-        // 상세한 로그 출력 (디버깅용)
-        log.error("=== DataIntegrityViolationException 상세 정보 ===");
-        log.error("Exception Message: {}", errorMessage);
-        log.error("Root Cause Message: {}", rootCauseMessage);
-        log.error("Full Stack Trace: ", ex);
-
-        // 이메일 인증 중복 요청인 경우 사용자 친화적 메시지 제공
-        if ((errorMessage != null && errorMessage.contains("email_verification")
-                && errorMessage.contains("Duplicate entry"))
-                || (rootCauseMessage != null && rootCauseMessage.contains("email_verification")
-                        && rootCauseMessage.contains("Duplicate entry"))) {
-            log.warn("이메일 인증 중복 요청 감지: errorMessage={}, rootCause={}", errorMessage, rootCauseMessage);
-            ApiResponse<Void> response = ApiResponse.error("이미 해당 이메일로 인증 요청이 진행 중입니다. 기존 인증을 완료하거나 잠시 후 다시 시도해주세요.");
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
-        }
-
-        // accounts 테이블 이메일 중복인 경우
-        if ((errorMessage != null && errorMessage.contains("accounts") && errorMessage.contains("email"))
-                || (rootCauseMessage != null && rootCauseMessage.contains("accounts")
-                        && rootCauseMessage.contains("email"))) {
-            log.warn("accounts 테이블 이메일 중복: errorMessage={}, rootCause={}", errorMessage, rootCauseMessage);
-            ApiResponse<Void> response = ApiResponse.error("이미 사용 중인 이메일입니다. 다른 이메일을 사용해주세요.");
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
-        }
-
-        // 기타 제약 조건 위반
-        log.error("알 수 없는 데이터베이스 제약 조건 위반: errorMessage={}, rootCause={}", errorMessage, rootCauseMessage);
-        ApiResponse<Void> response = ApiResponse.error("데이터베이스 제약 조건 위반이 발생했습니다. 잠시 후 다시 시도해주세요.");
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
-    }
-
-    /**
-     * 기타 모든 예외 처리
-     * - 예상하지 못한 예외들에 대한 fallback
-     * - 500 Internal Server Error로 응답
-     */
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
-        log.error("예상하지 못한 오류 발생", ex);
-        ApiResponse<Void> response = ApiResponse.error("서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 }

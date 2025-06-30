@@ -383,4 +383,124 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(problemDetail);
     }
+
+    /**
+     * HttpMessageNotReadableException 처리
+     * - 요청 본문이 누락되거나 형식이 잘못된 경우 발생
+     * - JSON 파싱 오류, 필수 Request Body 누락 등
+     */
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ProblemDetail> handleHttpMessageNotReadableException(
+            org.springframework.http.converter.HttpMessageNotReadableException ex) {
+
+        String errorMessage = ex.getMessage();
+        String detail = "요청 데이터 형식이 올바르지 않습니다.";
+
+        // 요청 본문 누락인 경우
+        if (errorMessage != null && errorMessage.contains("Required request body is missing")) {
+            detail = "요청 본문이 필요합니다. JSON 데이터를 포함해서 요청해주세요.";
+        }
+        // JSON 파싱 오류인 경우
+        else if (errorMessage != null
+                && (errorMessage.contains("JSON parse error") || errorMessage.contains("not well-formed"))) {
+            detail = "잘못된 JSON 형식입니다. 요청 데이터를 확인해주세요.";
+        }
+
+        log.warn("요청 메시지 읽기 오류: {}", errorMessage);
+
+        ProblemDetail problemDetail = ProblemDetail.builder()
+                .type(ProblemType.VALIDATION_FAILED.getType())
+                .title(ProblemType.VALIDATION_FAILED.getTitle())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .detail(detail)
+                .instance("/message-not-readable")
+                .build();
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(problemDetail);
+    }
+
+    /**
+     * IllegalArgumentException 처리
+     * - 입력값 검증 실패 시 발생하는 예외
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ProblemDetail> handleIllegalArgumentException(IllegalArgumentException ex) {
+        log.warn("잘못된 요청 파라미터: {}", ex.getMessage());
+
+        ProblemDetail problemDetail = ProblemDetail.builder()
+                .type(ProblemType.VALIDATION_FAILED.getType())
+                .title(ProblemType.VALIDATION_FAILED.getTitle())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .detail(ex.getMessage())
+                .instance("/illegal-argument")
+                .build();
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(problemDetail);
+    }
+
+    /**
+     * ConstraintViolationException 처리
+     * - @Positive 등 제약 조건 위반 시 발생하는 예외
+     */
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    public ResponseEntity<ProblemDetail> handleConstraintViolationException(
+            jakarta.validation.ConstraintViolationException ex) {
+
+        StringBuilder errorMessage = new StringBuilder("제약 조건 위반: ");
+        ex.getConstraintViolations().forEach(violation -> {
+            errorMessage.append(violation.getPropertyPath())
+                    .append(" - ")
+                    .append(violation.getMessage())
+                    .append("; ");
+        });
+
+        String message = errorMessage.toString();
+        log.warn("제약 조건 위반: {}", message);
+
+        Map<String, Object> extensions = new HashMap<>();
+        extensions.put("violations", ex.getConstraintViolations().size());
+        extensions.put("timestamp", LocalDateTime.now());
+
+        ProblemDetail problemDetail = ProblemDetail.builder()
+                .type(ProblemType.CONSTRAINT_VIOLATION.getType())
+                .title(ProblemType.CONSTRAINT_VIOLATION.getTitle())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .detail(message)
+                .instance("/constraint-violation")
+                .extensions(extensions)
+                .build();
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(problemDetail);
+    }
+
+    /**
+     * PessimisticLockingFailureException 처리
+     * - 데이터베이스 락 대기 시간 초과 시 발생
+     * - 동시성 문제로 인한 락 타임아웃
+     */
+    @ExceptionHandler(org.springframework.dao.PessimisticLockingFailureException.class)
+    public ResponseEntity<ProblemDetail> handlePessimisticLockingFailureException(
+            org.springframework.dao.PessimisticLockingFailureException ex) {
+
+        log.error("데이터베이스 락 타임아웃 발생: {}", ex.getMessage());
+        log.warn("동시 요청으로 인한 락 대기 시간 초과 - 잠시 후 다시 시도하도록 안내");
+
+        ProblemDetail problemDetail = ProblemDetail.builder()
+                .type(ProblemType.SERVICE_UNAVAILABLE.getType())
+                .title(ProblemType.SERVICE_UNAVAILABLE.getTitle())
+                .status(HttpStatus.SERVICE_UNAVAILABLE.value())
+                .detail("현재 요청이 처리 중입니다. 잠시 후 다시 시도해주세요.")
+                .instance("/database-lock-timeout")
+                .build();
+
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(problemDetail);
+    }
 }

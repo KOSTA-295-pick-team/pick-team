@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.enums.UserRole;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.List;
 
@@ -50,4 +51,27 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
         List<Account> findRecommendedTeamMembers(@Param("mbti") String mbti,
                         @Param("disposition") String disposition,
                         @Param("excludeId") Long excludeId);
+
+        // === 계정 삭제 관련 쿼리 ===
+
+        // 유예기간이 만료된 계정 조회 (영구 삭제 대상)
+        @Query("SELECT a FROM Account a WHERE a.permanentDeletionDate IS NOT NULL " +
+                        "AND a.permanentDeletionDate < CURRENT_TIMESTAMP")
+        List<Account> findAccountsToHardDelete();
+
+        // 유예기간이 만료된 계정 개수 조회
+        @Query("SELECT COUNT(a) FROM Account a WHERE a.permanentDeletionDate IS NOT NULL " +
+                        "AND a.permanentDeletionDate < CURRENT_TIMESTAMP")
+        long countAccountsToHardDelete();
+
+        // 특정 기간 이전에 삭제된 계정 조회 (배치 처리용)
+        @Query("SELECT a FROM Account a WHERE a.permanentDeletionDate IS NOT NULL " +
+                        "AND a.permanentDeletionDate < :cutoffDate")
+        List<Account> findAccountsToHardDeleteBefore(@Param("cutoffDate") LocalDateTime cutoffDate);
+
+        // 영구 삭제 예정인 계정 조회 (복구 가능한 계정)
+        @Query("SELECT a FROM Account a WHERE a.permanentDeletionDate IS NOT NULL " +
+                        "AND a.permanentDeletionDate > CURRENT_TIMESTAMP " +
+                        "AND a.deletedAt IS NOT NULL")
+        List<Account> findAccountsInGracePeriod();
 }

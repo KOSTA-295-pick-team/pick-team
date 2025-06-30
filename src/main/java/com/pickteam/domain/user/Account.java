@@ -18,6 +18,7 @@ import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDateTime;
 
 /**
  * 사용자 계정 엔티티
@@ -79,6 +80,15 @@ public class Account extends BaseSoftDeleteByAnnotation {
     /** 기피하는 작업 스타일 (팀 매칭 알고리즘에서 제외) */
     private String dislikeWorkstyle;
 
+    /**
+     * 계정 영구 삭제 예정일
+     * - soft-delete 시점에서 유예기간을 더한 날짜
+     * - 이 날짜가 지나면 스케줄러에 의해 hard-delete 수행
+     * - null이면 일반 활성 계정 또는 영구 보관 계정
+     */
+    @Column(name = "permanent_deletion_date")
+    private LocalDateTime permanentDeletionDate;
+
     // === 연관관계 매핑 ===
     // 사용자가 탈퇴해도 관련 정보가 삭제되면 안 되므로 cascade 없이 조회용으로만 연결
 
@@ -136,5 +146,61 @@ public class Account extends BaseSoftDeleteByAnnotation {
     @OneToMany(mappedBy = "account")
     @Builder.Default
     private List<UserHashtagList> userHashtagLists = new ArrayList<>();
+
+    // === 계정 삭제 관련 메서드 ===
+
+    /**
+     * 계정 소프트 삭제 시 유예기간 설정
+     * - 기본 유예기간: 30일
+     * - 유예기간 후 스케줄러에 의해 하드 삭제 수행
+     * 
+     * @param gracePeriodDays 유예기간 (일)
+     */
+    public void markDeletedWithGracePeriod(int gracePeriodDays) {
+        super.markDeleted();
+        this.permanentDeletionDate = LocalDateTime.now().plusDays(gracePeriodDays);
+    }
+
+    /**
+     * 기본 유예기간(30일)으로 계정 소프트 삭제
+     */
+    public void markDeletedWithDefaultGracePeriod() {
+        markDeletedWithGracePeriod(30);
+    }
+
+    /**
+     * 계정 복구 (유예기간 내에만 가능)
+     * - 소프트 삭제 상태 해제
+     * - 영구 삭제 예정일 초기화
+     * 
+     * @return 복구 성공 여부
+     */
+    public boolean restoreAccount() {
+        if (this.permanentDeletionDate != null && LocalDateTime.now().isBefore(this.permanentDeletionDate)) {
+            super.restore();
+            this.permanentDeletionDate = null;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 유예기간 만료 여부 확인
+     * 
+     * @return 유예기간이 만료되었으면 true
+     */
+    public boolean isGracePeriodExpired() {
+        return this.permanentDeletionDate != null &&
+                LocalDateTime.now().isAfter(this.permanentDeletionDate);
+    }
+
+    /**
+     * 영구 삭제 예정 여부 확인
+     * 
+     * @return 영구 삭제가 예정된 계정이면 true
+     */
+    public boolean isScheduledForPermanentDeletion() {
+        return this.permanentDeletionDate != null;
+    }
 
 }

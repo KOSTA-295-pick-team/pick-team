@@ -74,4 +74,18 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
                         "AND a.permanentDeletionDate > CURRENT_TIMESTAMP " +
                         "AND a.deletedAt IS NOT NULL")
         List<Account> findAccountsInGracePeriod();
+
+        // 탈퇴 유예 기간 중인 특정 이메일 계정 조회
+        @Query("SELECT a FROM Account a WHERE a.email = :email " +
+                        "AND a.permanentDeletionDate IS NOT NULL " +
+                        "AND a.permanentDeletionDate > CURRENT_TIMESTAMP " +
+                        "AND a.deletedAt IS NOT NULL")
+        Optional<Account> findWithdrawnAccountByEmail(@Param("email") String email);
+
+        // 특정 이메일의 탈퇴 상태 확인
+        @Query("SELECT COUNT(a) > 0 FROM Account a WHERE a.email = :email " +
+                        "AND a.permanentDeletionDate IS NOT NULL " +
+                        "AND a.permanentDeletionDate > CURRENT_TIMESTAMP " +
+                        "AND a.deletedAt IS NOT NULL")
+        boolean existsWithdrawnAccountByEmail(@Param("email") String email);
 }

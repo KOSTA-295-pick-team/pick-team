@@ -10,6 +10,7 @@ import com.pickteam.exception.UserNotFoundException;
 import com.pickteam.exception.ValidationException;
 import com.pickteam.exception.DuplicateEmailException;
 import com.pickteam.exception.AuthenticationException;
+import com.pickteam.exception.AccountWithdrawalException;
 import com.pickteam.constants.UserErrorMessages;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.user.RefreshTokenRepository;
@@ -70,17 +71,25 @@ public class UserServiceImpl implements UserService {
             throw new ValidationException(UserErrorMessages.INVALID_MBTI);
         }
 
-        // 2. 이메일 인증 확인
+        // 2. 탈퇴 계정 검증 (유예 기간 중인 계정 확인)
+        accountRepository.findWithdrawnAccountByEmail(request.getEmail())
+                .ifPresent(withdrawnAccount -> {
+                    throw new AccountWithdrawalException(
+                            UserErrorMessages.ACCOUNT_WITHDRAWAL_GRACE_PERIOD,
+                            withdrawnAccount.getPermanentDeletionDate());
+                });
+
+        // 3. 이메일 인증 확인
         if (!emailService.isEmailVerified(request.getEmail())) {
             throw new EmailNotVerifiedException(UserErrorMessages.EMAIL_NOT_VERIFIED);
         }
 
-        // 3. 중복 검사 (활성 계정만 확인)
+        // 4. 중복 검사 (활성 계정만 확인)
         if (accountRepository.existsByEmailAndDeletedAtIsNull(request.getEmail())) {
             throw new DuplicateEmailException(UserErrorMessages.DUPLICATE_EMAIL);
         }
 
-        // 4. 계정 생성
+        // 5. 계정 생성
         Account account = Account.builder()
                 .email(request.getEmail())
                 .password(authService.encryptPassword(request.getPassword()))

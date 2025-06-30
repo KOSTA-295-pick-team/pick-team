@@ -2,8 +2,11 @@ package com.pickteam.service.user;
 
 import com.pickteam.domain.user.EmailVerification;
 import com.pickteam.exception.EmailSendException;
+import com.pickteam.exception.AccountWithdrawalException;
 import com.pickteam.constants.EmailErrorMessages;
+import com.pickteam.constants.UserErrorMessages;
 import com.pickteam.repository.user.EmailVerificationRepository;
+import com.pickteam.repository.user.AccountRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -32,6 +35,7 @@ public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
     private final EmailVerificationRepository emailVerificationRepository;
+    private final AccountRepository accountRepository;
 
     /** 이메일 발신자 주소 */
     @Value("${app.mail.from}")
@@ -98,6 +102,14 @@ public class EmailServiceImpl implements EmailService {
     @Override
     public void storeVerificationCode(String email, String code) {
         log.info("인증 코드 저장 시작: {}", email);
+
+        // 탈퇴 계정 검증 (유예 기간 중인 계정 확인)
+        accountRepository.findWithdrawnAccountByEmail(email)
+                .ifPresent(withdrawnAccount -> {
+                    throw new AccountWithdrawalException(
+                            UserErrorMessages.EMAIL_VERIFICATION_BLOCKED_WITHDRAWAL,
+                            withdrawnAccount.getPermanentDeletionDate());
+                });
 
         // 기존 미인증 코드 삭제
         emailVerificationRepository.deleteByEmail(email);

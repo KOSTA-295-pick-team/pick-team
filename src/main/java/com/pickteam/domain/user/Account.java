@@ -5,7 +5,6 @@ import com.pickteam.domain.board.Post;
 import com.pickteam.domain.chat.ChatMember;
 import com.pickteam.domain.chat.ChatMessage;
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
-import com.pickteam.domain.common.BaseTimeEntity;
 import com.pickteam.domain.enums.UserRole;
 import com.pickteam.domain.kanban.KanbanTaskComment;
 import com.pickteam.domain.kanban.KanbanTaskMember;
@@ -159,13 +158,6 @@ public class Account extends BaseSoftDeleteByAnnotation {
     public void markDeletedWithGracePeriod(int gracePeriodDays) {
         super.markDeleted();
         this.permanentDeletionDate = LocalDateTime.now().plusDays(gracePeriodDays);
-    }
-
-    /**
-     * 기본 유예기간(30일)으로 계정 소프트 삭제
-     */
-    public void markDeletedWithDefaultGracePeriod() {
-        markDeletedWithGracePeriod(30);
     }
 
     /**

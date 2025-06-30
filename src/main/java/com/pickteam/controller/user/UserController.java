@@ -7,6 +7,15 @@ import com.pickteam.domain.enums.UserRole;
 import com.pickteam.service.user.UserService;
 import com.pickteam.service.user.AuthService;
 import com.pickteam.constants.UserControllerMessages;
+import com.pickteam.exception.validation.ValidationException;
+import com.pickteam.exception.auth.UnauthorizedException;
+import com.pickteam.exception.user.UserNotFoundException;
+import com.pickteam.exception.auth.AuthenticationException;
+import com.pickteam.exception.user.DuplicateEmailException;
+import com.pickteam.exception.auth.InvalidTokenException;
+import com.pickteam.exception.email.EmailSendException;
+import com.pickteam.exception.email.EmailNotVerifiedException;
+import com.pickteam.exception.user.AccountWithdrawalException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import org.springframework.validation.annotation.Validated;
@@ -38,7 +47,7 @@ public class UserController {
         // 추가 검증: 이메일 도메인 블랙리스트 체크 (보안 강화)
         if (request.getEmail() != null && isBlockedEmailDomain(request.getEmail())) {
             log.warn("차단된 이메일 도메인 회원가입 시도: {}", request.getEmail());
-            throw new com.pickteam.exception.ValidationException("지원하지 않는 이메일 도메인입니다.");
+            throw new ValidationException("지원하지 않는 이메일 도메인입니다.");
         }
 
         userService.registerUser(request);
@@ -74,7 +83,7 @@ public class UserController {
         if (request.getEmail() != null) {
             if (isBlockedEmailDomain(request.getEmail())) {
                 log.warn("차단된 도메인으로 이메일 인증 요청: {}", request.getEmail());
-                throw new com.pickteam.exception.ValidationException("지원하지 않는 이메일 도메인입니다.");
+                throw new ValidationException("지원하지 않는 이메일 도메인입니다.");
             }
         }
 
@@ -92,7 +101,7 @@ public class UserController {
         // 추가 검증: 인증 코드 형식 체크
         if (request.getVerificationCode() != null && !isValidVerificationCode(request.getVerificationCode())) {
             log.warn("잘못된 인증 코드 형식: 이메일={}", request.getEmail());
-            throw new com.pickteam.exception.ValidationException("유효하지 않은 인증 코드 형식입니다.");
+            throw new ValidationException("유효하지 않은 인증 코드 형식입니다.");
         }
 
         boolean isVerified = userService.verifyEmail(request.getEmail(), request.getVerificationCode());
@@ -108,7 +117,7 @@ public class UserController {
         // 추가 검증: 비밀번호 최소 길이 체크 (보안 강화)
         if (request.getPassword() != null && request.getPassword().length() < 8) {
             log.warn("너무 짧은 비밀번호로 로그인 시도: 이메일={}", request.getEmail());
-            throw new com.pickteam.exception.ValidationException("비밀번호는 최소 8자 이상이어야 합니다.");
+            throw new ValidationException("비밀번호는 최소 8자 이상이어야 합니다.");
         }
 
         JwtAuthenticationResponse response = userService.login(request);
@@ -127,7 +136,7 @@ public class UserController {
         // 추가 검증: 비밀번호 최소 길이 체크 (보안 강화)
         if (request.getPassword() != null && request.getPassword().length() < 8) {
             log.warn("너무 짧은 비밀번호로 로그인 시도: 이메일={}", request.getEmail());
-            throw new com.pickteam.exception.ValidationException("비밀번호는 최소 8자 이상이어야 합니다.");
+            throw new ValidationException("비밀번호는 최소 8자 이상이어야 합니다.");
         }
 
         JwtAuthenticationResponse response = authService.authenticateWithClientInfo(request, sessionInfo, httpRequest);
@@ -215,7 +224,7 @@ public class UserController {
         // 추가 검증: 사용자 ID 범위 체크 (보안 강화)
         if (userId > Long.MAX_VALUE / 2) {
             log.warn("비정상적인 사용자 ID 접근 시도: {}", userId);
-            throw new com.pickteam.exception.ValidationException("유효하지 않은 사용자 ID입니다.");
+            throw new ValidationException("유효하지 않은 사용자 ID입니다.");
         }
 
         UserProfileResponse profile = userService.getUserProfile(userId);
@@ -257,7 +266,7 @@ public class UserController {
         if (request.getCurrentPassword() != null && request.getNewPassword() != null &&
                 request.getCurrentPassword().equals(request.getNewPassword())) {
             log.warn("동일한 비밀번호로 변경 시도 - 사용자 ID: {}", currentUserId);
-            throw new com.pickteam.exception.ValidationException("새 비밀번호는 기존 비밀번호와 달라야 합니다.");
+            throw new ValidationException("새 비밀번호는 기존 비밀번호와 달라야 합니다.");
         }
 
         log.info("비밀번호 변경 시작 - 사용자 ID: {}", currentUserId);
@@ -277,7 +286,7 @@ public class UserController {
         UserProfileResponse userProfile = userService.getMyProfile(currentUserId);
         if (userProfile.getRole() == UserRole.ADMIN) {
             log.error("관리자 계정 삭제 시도 - 사용자 ID: {}", currentUserId);
-            throw new com.pickteam.exception.ValidationException("관리자 계정은 삭제할 수 없습니다.");
+            throw new ValidationException("관리자 계정은 삭제할 수 없습니다.");
         }
 
         log.warn("계정 삭제 시작 - 사용자 ID: {} (중요: 계정 삭제 작업)", currentUserId);
@@ -432,9 +441,9 @@ public class UserController {
      * - 인증/권한 관련 예외
      * - 401 Unauthorized로 응답
      */
-    @ExceptionHandler(com.pickteam.exception.UnauthorizedException.class)
+    @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnauthorizedException(
-            com.pickteam.exception.UnauthorizedException ex) {
+            UnauthorizedException ex) {
         log.warn("인증 실패: {}", ex.getMessage());
         ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
@@ -445,9 +454,9 @@ public class UserController {
      * - 사용자를 찾을 수 없는 경우
      * - 404 Not Found로 응답
      */
-    @ExceptionHandler(com.pickteam.exception.UserNotFoundException.class)
+    @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleUserNotFoundException(
-            com.pickteam.exception.UserNotFoundException ex) {
+            UserNotFoundException ex) {
         log.warn("사용자 없음: {}", ex.getMessage());
         ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
@@ -458,9 +467,9 @@ public class UserController {
      * - 로그인 실패 등 인증 실패
      * - 401 Unauthorized로 응답
      */
-    @ExceptionHandler(com.pickteam.exception.AuthenticationException.class)
+    @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiResponse<Void>> handleAuthenticationException(
-            com.pickteam.exception.AuthenticationException ex) {
+            AuthenticationException ex) {
         log.warn("인증 실패: {}", ex.getMessage());
         ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
@@ -471,9 +480,9 @@ public class UserController {
      * - 비즈니스 로직 검증 실패
      * - 400 Bad Request로 응답
      */
-    @ExceptionHandler(com.pickteam.exception.ValidationException.class)
+    @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationException(
-            com.pickteam.exception.ValidationException ex) {
+            ValidationException ex) {
         log.warn("비즈니스 검증 실패: {}", ex.getMessage());
         ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
@@ -484,9 +493,9 @@ public class UserController {
      * - 이메일 중복 시 발생
      * - 409 Conflict로 응답
      */
-    @ExceptionHandler(com.pickteam.exception.DuplicateEmailException.class)
+    @ExceptionHandler(DuplicateEmailException.class)
     public ResponseEntity<ApiResponse<Void>> handleDuplicateEmailException(
-            com.pickteam.exception.DuplicateEmailException ex) {
+            DuplicateEmailException ex) {
         log.warn("이메일 중복: {}", ex.getMessage());
         ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
@@ -497,9 +506,9 @@ public class UserController {
      * - 토큰이 유효하지 않은 경우
      * - 401 Unauthorized로 응답
      */
-    @ExceptionHandler(com.pickteam.exception.InvalidTokenException.class)
+    @ExceptionHandler(InvalidTokenException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidTokenException(
-            com.pickteam.exception.InvalidTokenException ex) {
+            InvalidTokenException ex) {
         log.warn("유효하지 않은 토큰: {}", ex.getMessage());
         ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
@@ -510,9 +519,9 @@ public class UserController {
      * - 이메일 발송 실패
      * - 503 Service Unavailable로 응답
      */
-    @ExceptionHandler(com.pickteam.exception.EmailSendException.class)
+    @ExceptionHandler(EmailSendException.class)
     public ResponseEntity<ApiResponse<Void>> handleEmailSendException(
-            com.pickteam.exception.EmailSendException ex) {
+            EmailSendException ex) {
         log.error("이메일 발송 실패: {}", ex.getMessage());
         ApiResponse<Void> response = ApiResponse.error("이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.");
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
@@ -523,9 +532,9 @@ public class UserController {
      * - 이메일 인증이 완료되지 않은 경우
      * - 403 Forbidden으로 응답
      */
-    @ExceptionHandler(com.pickteam.exception.EmailNotVerifiedException.class)
+    @ExceptionHandler(EmailNotVerifiedException.class)
     public ResponseEntity<ApiResponse<Void>> handleEmailNotVerifiedException(
-            com.pickteam.exception.EmailNotVerifiedException ex) {
+            EmailNotVerifiedException ex) {
         log.warn("이메일 미인증: {}", ex.getMessage());
         ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
@@ -552,9 +561,9 @@ public class UserController {
      * - 탈퇴 유예 기간 중인 계정으로 작업 시도 시 발생
      * - 409 Conflict로 응답
      */
-    @ExceptionHandler(com.pickteam.exception.AccountWithdrawalException.class)
+    @ExceptionHandler(AccountWithdrawalException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccountWithdrawalException(
-            com.pickteam.exception.AccountWithdrawalException ex) {
+            AccountWithdrawalException ex) {
         log.warn("탈퇴 계정 관련 오류: {}", ex.getMessage());
         ApiResponse<Void> response = ApiResponse.error(ex.getDetailedMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);

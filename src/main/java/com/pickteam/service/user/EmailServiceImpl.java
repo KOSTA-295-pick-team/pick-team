@@ -1,8 +1,8 @@
 package com.pickteam.service.user;
 
 import com.pickteam.domain.user.EmailVerification;
-import com.pickteam.exception.EmailSendException;
-import com.pickteam.exception.AccountWithdrawalException;
+import com.pickteam.exception.email.EmailSendException;
+import com.pickteam.exception.user.AccountWithdrawalException;
 import com.pickteam.constants.EmailErrorMessages;
 import com.pickteam.constants.UserErrorMessages;
 import com.pickteam.repository.user.EmailVerificationRepository;

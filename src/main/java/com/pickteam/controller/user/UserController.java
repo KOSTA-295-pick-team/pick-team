@@ -12,10 +12,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.validation.FieldError;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.util.List;
@@ -336,110 +333,4 @@ public class UserController {
 
     // ==================== 예외 처리 메서드들 ====================
 
-    /**
-     * HttpMessageNotReadableException 처리
-     * - 요청 본문이 누락되거나 형식이 잘못된 경우 발생
-     * - JSON 파싱 오류, 필수 Request Body 누락 등
-     * - 400 Bad Request로 응답
-     */
-    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
-    public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadableException(
-            org.springframework.http.converter.HttpMessageNotReadableException ex) {
-        String errorMessage = ex.getMessage();
-
-        // 요청 본문 누락인 경우
-        if (errorMessage != null && errorMessage.contains("Required request body is missing")) {
-            log.warn("요청 본문 누락: {}", errorMessage);
-            ApiResponse<Void> response = ApiResponse.error("요청 본문이 필요합니다. JSON 데이터를 포함해서 요청해주세요.");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-        }
-
-        // JSON 파싱 오류인 경우
-        if (errorMessage != null
-                && (errorMessage.contains("JSON parse error") || errorMessage.contains("not well-formed"))) {
-            log.warn("JSON 파싱 오류: {}", errorMessage);
-            ApiResponse<Void> response = ApiResponse.error("잘못된 JSON 형식입니다. 요청 데이터를 확인해주세요.");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-        }
-
-        // 기타 메시지 읽기 오류
-        log.warn("요청 메시지 읽기 오류: {}", errorMessage);
-        ApiResponse<Void> response = ApiResponse.error("요청 데이터 형식이 올바르지 않습니다.");
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-    }
-
-    /**
-     * IllegalArgumentException 처리
-     * - 입력값 검증 실패 시 발생하는 예외
-     * - 400 Bad Request로 응답
-     */
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(IllegalArgumentException ex) {
-        log.warn("잘못된 요청 파라미터: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-    }
-
-    /**
-     * MethodArgumentNotValidException 처리
-     * - @Valid 검증 실패 시 발생하는 예외
-     * - 400 Bad Request로 응답
-     */
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Void>> handleValidationException(MethodArgumentNotValidException ex) {
-        StringBuilder errorMessage = new StringBuilder("입력값 검증 실패: ");
-
-        for (FieldError error : ex.getBindingResult().getFieldErrors()) {
-            errorMessage.append(error.getField())
-                    .append(" - ")
-                    .append(error.getDefaultMessage())
-                    .append("; ");
-        }
-
-        String message = errorMessage.toString();
-        log.warn("입력값 검증 실패: {}", message);
-
-        ApiResponse<Void> response = ApiResponse.error(message);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-    }
-
-    /**
-     * jakarta.validation.ConstraintViolationException 처리
-     * - @Positive 등 제약 조건 위반 시 발생하는 예외
-     * - 400 Bad Request로 응답
-     */
-    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(
-            jakarta.validation.ConstraintViolationException ex) {
-        StringBuilder errorMessage = new StringBuilder("제약 조건 위반: ");
-
-        ex.getConstraintViolations().forEach(violation -> {
-            errorMessage.append(violation.getPropertyPath())
-                    .append(" - ")
-                    .append(violation.getMessage())
-                    .append("; ");
-        });
-
-        String message = errorMessage.toString();
-        log.warn("제약 조건 위반: {}", message);
-
-        ApiResponse<Void> response = ApiResponse.error(message);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-    }
-
-    /**
-     * PessimisticLockingFailureException 처리
-     * - 데이터베이스 락 대기 시간 초과 시 발생
-     * - 동시성 문제로 인한 락 타임아웃
-     * - 503 Service Unavailable로 응답
-     */
-    @ExceptionHandler(org.springframework.dao.PessimisticLockingFailureException.class)
-    public ResponseEntity<ApiResponse<Void>> handlePessimisticLockingFailureException(
-            org.springframework.dao.PessimisticLockingFailureException ex) {
-        log.error("데이터베이스 락 타임아웃 발생: {}", ex.getMessage());
-        log.warn("동시 요청으로 인한 락 대기 시간 초과 - 잠시 후 다시 시도하도록 안내");
-
-        ApiResponse<Void> response = ApiResponse.error("현재 요청이 처리 중입니다. 잠시 후 다시 시도해주세요.");
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
-    }
 }

@@ -21,4 +21,10 @@ public interface UserHashtagListRepository extends JpaRepository<UserHashtagList
 
     // 사용자가 특정 해시태그를 가지고 있는지 확인
     boolean existsByAccountAndUserHashtag(Account account, UserHashtag userHashtag);
+
+    // 특정 사용자의 모든 해시태그 연결 삭제 (계정 삭제 시 사용)
+    void deleteByAccount(Account account);
+
+    // 특정 사용자 ID의 모든 해시태그 연결 삭제 (계정 삭제 시 사용)
+    void deleteByAccountId(Long accountId);
 }

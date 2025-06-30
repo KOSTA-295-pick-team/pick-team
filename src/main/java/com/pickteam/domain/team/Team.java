@@ -24,6 +24,11 @@ public class Team extends BaseSoftDeleteByAnnotation {
 
     private String name;
 
+    private String teamPassword;
+
+    /** 팀장 AccountID **/
+    private Long accountId;
+
     @ManyToOne(optional = false)
     private Workspace workspace;
 

@@ -26,4 +26,8 @@ public class TeamMember extends BaseSoftDeleteByAnnotation {
 
     @ManyToOne(optional = false)
     private Account account;
+
+    //차단 여부
+    private boolean isBlocked;
+
 }

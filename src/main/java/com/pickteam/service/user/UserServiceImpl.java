@@ -45,35 +45,30 @@ public class UserServiceImpl implements UserService {
     private int defaultGracePeriodDays;
 
     /**
-     * 회원가입 처리
-     * - 입력값 유효성 검사 (이메일, 비밀번호, 이름, 나이, MBTI)
-     * - 이메일 중복 확인 후 계정 생성
-     * - 비밀번호 암호화 및 기본 역할(USER) 설정
+     * 간소화된 회원가입 처리
+     * - 이메일과 패스워드만으로 기본 계정 생성
+     * - 프로필 정보는 나중에 별도로 완성
      * 
-     * @param request 회원가입 요청 정보
+     * @param request 간소화된 회원가입 요청 정보
      * @throws ValidationException       유효성 검사 실패 시
      * @throws EmailNotVerifiedException 이메일 인증 미완료 시
      * @throws DuplicateEmailException   이메일 중복 시
      */
     @Override
-    public void registerUser(UserRegisterRequest request) {
-        log.info("사용자 등록 시작: {}", request.getEmail());
+    public void registerUser(SignupRequest request) {
+        log.info("간소화된 사용자 등록 시작: {}", request.getEmail());
 
-        // 1. 유효성 검사
+        // 1. 기본 유효성 검사
         if (!validationService.isValidEmail(request.getEmail())) {
             throw new ValidationException(UserErrorMessages.INVALID_EMAIL);
         }
         if (!validationService.isValidPassword(request.getPassword())) {
             throw new ValidationException(UserErrorMessages.INVALID_PASSWORD);
         }
-        if (!validationService.isValidName(request.getName())) {
-            throw new ValidationException(UserErrorMessages.INVALID_NAME);
-        }
-        if (!validationService.isValidAge(request.getAge())) {
-            throw new ValidationException(UserErrorMessages.INVALID_AGE_REGISTER);
-        }
-        if (request.getMbti() != null && !validationService.isValidMbti(request.getMbti())) {
-            throw new ValidationException(UserErrorMessages.INVALID_MBTI);
+
+        // 패스워드 확인 검증
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new ValidationException("비밀번호가 일치하지 않습니다");
         }
 
         // 2. 탈퇴 계정 검증 (유예 기간 중인 계정 확인)
@@ -94,23 +89,15 @@ public class UserServiceImpl implements UserService {
             throw new DuplicateEmailException(UserErrorMessages.DUPLICATE_EMAIL);
         }
 
-        // 5. 계정 생성
+        // 5. 간소화된 계정 생성 (이메일, 패스워드, 기본 role만)
         Account account = Account.builder()
                 .email(request.getEmail())
                 .password(authService.encryptPassword(request.getPassword()))
-                .name(request.getName())
-                .age(request.getAge())
-                .role(UserRole.USER)
-                .mbti(request.getMbti())
-                .disposition(request.getDisposition())
-                .introduction(request.getIntroduction())
-                .portfolio(request.getPortfolio())
-                .preferWorkstyle(request.getPreferWorkstyle())
-                .dislikeWorkstyle(request.getDislikeWorkstyle())
+                .role(UserRole.USER) // 기본값 설정
                 .build();
 
         accountRepository.save(account);
-        log.info("사용자 등록 완료: {}", request.getEmail());
+        log.info("간소화된 사용자 등록 완료: {}", request.getEmail());
     }
 
     /**

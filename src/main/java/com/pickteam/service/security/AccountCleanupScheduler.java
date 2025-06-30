@@ -16,14 +16,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 계정 정리 스케줄러
- * - 유예기간이 만료된 계정을 영구 삭제 (hard-delete)
+ * 계정 개인정보 삭제 스케줄러
+ * - 유예기간이 만료된 계정의 개인정보를 삭제 (계정은 유지)
  * - 개인정보보호법 준수를 위한 자동 데이터 삭제
  * - 스케줄링을 통한 주기적 정리 작업 수행
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("unused")
 public class AccountCleanupScheduler {
 
     private final AccountRepository accountRepository;
@@ -36,85 +37,78 @@ public class AccountCleanupScheduler {
     private int gracePeriodDays;
 
     /**
-     * 유예기간 만료된 계정 영구 삭제
+     * 유예기간 만료된 계정 개인정보 삭제
      * - 매일 새벽 2시에 실행 (cron: 0 0 2 * * ?)
-     * - 개인정보보호법 준수를 위한 자동 삭제
-     * - 연관 데이터 정리 포함
+     * - 개인정보보호법 준수를 위한 개인정보 삭제
+     * - 계정은 유지하되 개인식별정보만 제거
      */
     @Scheduled(cron = "${app.account.cleanup-schedule}")
     @Transactional
-    public void cleanupExpiredAccounts() {
-        log.info("===== 계정 정리 스케줄러 시작 =====");
+    public void processExpiredAccounts() {
+        log.info("===== 계정 개인정보 삭제 스케줄러 시작 =====");
 
         try {
-            // 영구 삭제 대상 계정 조회
-            List<Account> accountsToDelete = accountRepository.findAccountsToHardDelete();
+            // 개인정보 삭제 대상 계정 조회
+            List<Account> accountsToProcess = accountRepository.findAccountsToHardDelete();
 
-            if (accountsToDelete.isEmpty()) {
-                log.info("영구 삭제할 계정이 없습니다.");
+            if (accountsToProcess.isEmpty()) {
+                log.info("개인정보 삭제할 계정이 없습니다.");
                 return;
             }
 
-            log.info("영구 삭제 대상 계정 수: {}개", accountsToDelete.size());
+            log.info("개인정보 삭제 대상 계정 수: {}개", accountsToProcess.size());
 
-            int deletedCount = 0;
-            for (Account account : accountsToDelete) {
+            int processedCount = 0;
+            for (Account account : accountsToProcess) {
                 try {
-                    // 연관 데이터 정리 (필요시)
-                    cleanupRelatedData(account);
+                    // 개인정보 삭제 전 필요한 연관 데이터 정리
+                    cleanupSensitiveData(account);
 
-                    // 영구 삭제 (hard-delete)
-                    accountRepository.delete(account);
-                    deletedCount++;
+                    // 개인정보 삭제 (계정은 유지)
+                    account.removePersonalInformation();
+                    accountRepository.save(account);
+                    processedCount++;
 
-                    log.info("계정 영구 삭제 완료: ID={}, 이메일={}, 삭제예정일={}",
+                    log.info("계정 개인정보 삭제 완료: ID={}, 기존이메일={}, 삭제예정일={}",
                             account.getId(),
-                            maskEmail(account.getEmail()),
+                            maskEmail(account.getEmail()), // 이미 null이 될 수 있음
                             account.getPermanentDeletionDate());
 
                 } catch (Exception e) {
-                    log.error("계정 영구 삭제 실패: ID={}, 이메일={}, 오류={}",
-                            account.getId(),
-                            maskEmail(account.getEmail()),
-                            e.getMessage(), e);
+                    log.error("계정 개인정보 삭제 실패: ID={}, 오류={}",
+                            account.getId(), e.getMessage(), e);
                 }
             }
 
-            log.info("===== 계정 정리 스케줄러 완료: {}개 삭제 =====", deletedCount);
+            log.info("===== 계정 개인정보 삭제 스케줄러 완료: {}개 처리 =====", processedCount);
 
         } catch (Exception e) {
-            log.error("계정 정리 스케줄러 실행 중 오류 발생", e);
+            log.error("계정 개인정보 삭제 스케줄러 실행 중 오류 발생", e);
         }
     }
 
     /**
-     * 연관 데이터 정리
-     * - 사용자와 연관된 모든 데이터를 안전하게 처리
-     * - 비즈니스 로직에 따라 삭제 또는 익명화 수행
-     * - GDPR 및 개인정보보호법 준수
+     * 개인정보 삭제 전 민감한 데이터 정리
+     * - 인증 관련 데이터 삭제 (토큰, 인증 코드)
+     * - 개인정보 포함된 알림 등 정리
+     * - 계정 자체와 연관 데이터(게시글, 댓글 등)는 보존
      * 
-     * @param account 삭제할 계정
+     * @param account 처리할 계정
      */
-    private void cleanupRelatedData(Account account) {
-        log.debug("연관 데이터 정리 시작: 계정 ID={}", account.getId());
+    private void cleanupSensitiveData(Account account) {
+        log.debug("민감한 데이터 정리 시작: 계정 ID={}", account.getId());
 
         try {
             // 1. 인증 관련 데이터 삭제 (보안 우선)
             cleanupAuthenticationData(account);
 
-            // 2. 사용자 생성 콘텐츠 처리 (비즈니스 로직에 따라)
-            cleanupUserContent(account);
+            // 2. 개인정보 관련 알림 삭제
+            cleanupPersonalNotifications(account);
 
-            // 3. 멤버십 및 관계 데이터 삭제
-            cleanupMembershipData(account);
-
-            // 4. 개인정보 관련 데이터 삭제
-            cleanupPersonalData(account);
-
-            log.info("연관 데이터 정리 완료: 계정 ID={}", account.getId());
+            log.info("민감한 데이터 정리 완료: 계정 ID={}", account.getId());
 
         } catch (Exception e) {
-            log.error("연관 데이터 정리 중 오류 발생: 계정 ID={}, 오류={}",
+            log.error("민감한 데이터 정리 중 오류 발생: 계정 ID={}, 오류={}",
                     account.getId(), e.getMessage(), e);
             throw e; // 트랜잭션 롤백을 위해 예외 재발생
         }
@@ -136,6 +130,30 @@ public class AccountCleanupScheduler {
 
         } catch (Exception e) {
             log.error("인증 데이터 정리 실패: 계정 ID={}", account.getId(), e);
+        }
+    }
+
+    /**
+     * 개인정보 포함된 알림 데이터 삭제
+     * - 개인 식별 가능한 알림 내용 삭제
+     * 
+     * @param account 처리할 계정
+     */
+    private void cleanupPersonalNotifications(Account account) {
+        log.debug("개인정보 알림 정리 시작: 계정 ID={}", account.getId());
+
+        try {
+            // NotificationLog에서 개인정보 포함된 알림 삭제
+            int deletedNotifications = entityManager.createQuery(
+                    "DELETE FROM NotificationLog n WHERE n.account.id = :accountId")
+                    .setParameter("accountId", account.getId())
+                    .executeUpdate();
+
+            log.debug("개인 알림 삭제 완료: {}개", deletedNotifications);
+
+        } catch (Exception e) {
+            log.error("개인정보 알림 정리 중 오류: 계정 ID={}", account.getId(), e);
+            throw e;
         }
     }
 
@@ -334,25 +352,32 @@ public class AccountCleanupScheduler {
     }
 
     /**
-     * 수동으로 특정 기간 이전 계정 정리
+     * 수동으로 특정 기간 이전 계정 개인정보 삭제
      * - 관리자 전용 기능
-     * - 비상시 또는 대량 정리가 필요한 경우
+     * - 비상시 또는 대량 처리가 필요한 경우
      * 
-     * @param cutoffDate 기준 날짜 (이 날짜 이전에 삭제 예정인 계정들 삭제)
-     * @return 삭제된 계정 수
+     * @param cutoffDate 기준 날짜 (이 날짜 이전에 삭제 예정인 계정들 처리)
+     * @return 처리된 계정 수
      */
     @Transactional
-    public int manualCleanupAccountsBefore(LocalDateTime cutoffDate) {
-        log.warn("수동 계정 정리 시작: 기준일={}", cutoffDate);
+    public int manualProcessAccountsBefore(LocalDateTime cutoffDate) {
+        log.warn("수동 계정 개인정보 삭제 시작: 기준일={}", cutoffDate);
 
-        List<Account> accountsToDelete = accountRepository.findAccountsToHardDeleteBefore(cutoffDate);
+        List<Account> accountsToProcess = accountRepository.findAccountsToHardDeleteBefore(cutoffDate);
 
-        for (Account account : accountsToDelete) {
-            cleanupRelatedData(account);
-            accountRepository.delete(account);
+        int processedCount = 0;
+        for (Account account : accountsToProcess) {
+            try {
+                cleanupSensitiveData(account);
+                account.removePersonalInformation();
+                accountRepository.save(account);
+                processedCount++;
+            } catch (Exception e) {
+                log.error("수동 처리 중 오류: 계정 ID={}", account.getId(), e);
+            }
         }
 
-        log.warn("수동 계정 정리 완료: {}개 삭제", accountsToDelete.size());
-        return accountsToDelete.size();
+        log.warn("수동 계정 개인정보 삭제 완료: {}개 처리", processedCount);
+        return processedCount;
     }
 }

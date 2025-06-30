@@ -39,8 +39,8 @@ public class Account extends BaseSoftDeleteByAnnotation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 사용자 이메일 주소 (로그인 ID로 사용, 유니크 제약) */
-    @Column(nullable = false, unique = true)
+    /** 사용자 이메일 주소 (로그인 ID로 사용, 탈퇴 시 null 처리) */
+    @Column(nullable = true, unique = true)
     private String email;
 
     /** 사용자 비밀번호 (암호화되어 저장) */
@@ -48,18 +48,19 @@ public class Account extends BaseSoftDeleteByAnnotation {
     // 실제 저장 시에는 암호화된 값이 저장되어야 함
     private String password;
 
-    /** 사용자 이름 */
-    @Column(nullable = false)
+    /** 사용자 이름 (프로필 완성 시 입력) */
+    @Column(nullable = true)
     private String name;
 
-    /** 사용자 나이 */
-    @Column(nullable = false)
+    /** 사용자 나이 (탈퇴 시 개인정보보호를 위해 삭제) */
+    @Column(nullable = true)
     private Integer age;
 
     /** 사용자 권한 (ADMIN, USER 등) */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserRole role;
+    @Builder.Default
+    private UserRole role = UserRole.USER;
 
     /** MBTI 성격 유형 (팀 매칭 시 참고용, 선택 사항) */
     private String mbti;
@@ -193,6 +194,39 @@ public class Account extends BaseSoftDeleteByAnnotation {
      */
     public boolean isScheduledForPermanentDeletion() {
         return this.permanentDeletionDate != null;
+    }
+
+    /**
+     * 개인정보 완전 삭제 (유예기간 만료 후 실행)
+     * - 이메일을 null로 설정하여 로그인 완전 차단
+     * - 개인식별 정보 제거 (이름, 나이, 자기소개, 포트폴리오)
+     * - 팀 매칭 관련 정보는 보존 (MBTI, 성향, 작업 스타일, 역할)
+     * - 연관 데이터는 모두 보존 (게시글, 댓글, 팀 멤버십 등)
+     */
+    public void removePersonalInformation() {
+        // 🔴 개인식별정보 완전 삭제
+        this.email = null;
+        this.password = "ACCOUNT_PERMANENTLY_DELETED";
+        this.name = "탈퇴한 사용자";
+        this.age = null;
+        this.introduction = null;
+        this.portfolio = null;
+
+        // 🟢 보존되는 정보들:
+        // - role: 팀 구성 통계용
+        // - mbti, disposition: 성향 분석용
+        // - preferWorkstyle, dislikeWorkstyle: 팀 매칭 알고리즘 개선용
+        // - 모든 연관관계 데이터: 서비스 연속성 보장
+    }
+
+    /**
+     * 탈퇴한 사용자인지 확인
+     * - 이메일이 null이면 개인정보가 삭제된 탈퇴 사용자
+     * 
+     * @return 탈퇴 사용자면 true
+     */
+    public boolean isWithdrawnUser() {
+        return this.email == null;
     }
 
 }

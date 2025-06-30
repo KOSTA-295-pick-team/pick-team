@@ -27,10 +27,10 @@ public class UserController {
     private final UserService userService;
     private final AuthService authService;
 
-    // 회원가입
+    // 간소화된 회원가입
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<Void>> registerUser(@Valid @RequestBody UserRegisterRequest request) {
-        log.info("회원가입 요청 - 이메일: {}", request.getEmail());
+    public ResponseEntity<ApiResponse<Void>> registerUser(@Valid @RequestBody SignupRequest request) {
+        log.info("간소화된 회원가입 요청 - 이메일: {}", request.getEmail());
 
         // 추가 검증: 이메일 도메인 블랙리스트 체크 (보안 강화)
         if (request.getEmail() != null && isBlockedEmailDomain(request.getEmail())) {
@@ -39,7 +39,7 @@ public class UserController {
         }
 
         userService.registerUser(request);
-        log.info("회원가입 완료 - 이메일: {}", request.getEmail());
+        log.info("간소화된 회원가입 완료 - 이메일: {}", request.getEmail());
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.REGISTER_SUCCESS, null));
     }
 
@@ -190,7 +190,7 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.PROFILE_GET_SUCCESS, profile));
     }
 
-    // 내 프로필 수정
+    // 내 프로필 수정 (신규 프로필 작성 포함)
     @PutMapping("/me")
     public ResponseEntity<ApiResponse<Void>> updateMyProfile(@Valid @RequestBody UserProfileUpdateRequest request) {
         log.debug("내 프로필 수정 요청");

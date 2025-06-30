@@ -14,6 +14,7 @@ import com.pickteam.exception.user.AccountWithdrawalException;
 import com.pickteam.constants.UserErrorMessages;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.user.RefreshTokenRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,10 @@ public class UserServiceImpl implements UserService {
     private final AuthService authService;
     private final EmailService emailService;
     private final ValidationService validationService;
+
+    /** 기본 유예기간 (일) - 환경변수에서 주입 */
+    @Value("${app.account.default-grace-period-days}")
+    private int defaultGracePeriodDays;
 
     /**
      * 회원가입 처리
@@ -374,10 +379,10 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         // Soft Delete 실행 (유예기간 설정)
-        account.markDeletedWithDefaultGracePeriod();
+        account.markDeletedWithGracePeriod(defaultGracePeriodDays);
         accountRepository.save(account);
         log.info("계정 삭제 완료 (유예기간 {}일): userId={}, permanentDeletionDate={}",
-                30, userId, account.getPermanentDeletionDate());
+                defaultGracePeriodDays, userId, account.getPermanentDeletionDate());
     }
 
     /**

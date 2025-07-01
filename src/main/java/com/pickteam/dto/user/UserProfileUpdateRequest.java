@@ -41,6 +41,7 @@ public class UserProfileUpdateRequest {
 
     /** 프로필 이미지 URL (파일 업로드 후 받은 URL) */
     @Size(max = 500, message = "프로필 이미지 URL은 500자 이하여야 합니다")
+    @Pattern(regexp = "^$|^https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=]+\\.(jpg|jpeg|png|gif|webp)(\\?[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=]*)?$", message = "올바른 이미지 URL 형식이 아닙니다 (http/https + jpg/jpeg/png/gif/webp)")
     private String profileImageUrl;
 
     /** 선호하는 작업 스타일 (팀 매칭 알고리즘에 활용) */

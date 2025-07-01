@@ -1,4 +1,4 @@
-package com.pickteam.exception;
+package com.pickteam.exception.user;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -22,7 +22,7 @@ public class AccountWithdrawalException extends RuntimeException {
     public AccountWithdrawalException(String message, LocalDateTime permanentDeletionDate) {
         super(message);
         this.permanentDeletionDate = permanentDeletionDate;
-        this.remainingDays = ChronoUnit.DAYS.between(LocalDateTime.now(), permanentDeletionDate);
+        this.remainingDays = calculateRemainingDays(permanentDeletionDate);
     }
 
     /**
@@ -34,6 +34,21 @@ public class AccountWithdrawalException extends RuntimeException {
         super(message);
         this.permanentDeletionDate = null;
         this.remainingDays = -1;
+    }
+
+    /**
+     * 남은 일수를 계산하는 메서드
+     * - 음수 방지 (이미 지난 날짜의 경우 0 반환)
+     * - 계산 로직 재사용 가능
+     * 
+     * @param permanentDeletionDate 완전 삭제 예정일
+     * @return 남은 일수 (최소 0)
+     */
+    private static long calculateRemainingDays(LocalDateTime permanentDeletionDate) {
+        if (permanentDeletionDate == null) {
+            return -1;
+        }
+        return Math.max(0, ChronoUnit.DAYS.between(LocalDateTime.now(), permanentDeletionDate));
     }
 
     public LocalDateTime getPermanentDeletionDate() {

@@ -1,4 +1,4 @@
-package com.pickteam.exception;
+package com.pickteam.exception.auth;
 
 /**
  * 인증되지 않은 사용자 접근 예외

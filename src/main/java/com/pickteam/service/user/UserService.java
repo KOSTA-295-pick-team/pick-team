@@ -4,8 +4,8 @@ import com.pickteam.dto.user.*;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 
 public interface UserService {
-    // 회원가입
-    void registerUser(UserRegisterRequest request);
+    // 간소화된 회원가입 (이메일 + 패스워드)
+    void registerUser(SignupRequest request);
 
     // ID 중복검사
     boolean checkDuplicateId(String email);

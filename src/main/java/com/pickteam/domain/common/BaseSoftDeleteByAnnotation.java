@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @SoftDelete(columnName = "is_deleted")
 public abstract class BaseSoftDeleteByAnnotation extends BaseTimeEntity {
 
-    @Column(name = "is_deleted", insertable = false, updatable = false, nullable = false)
+    @Column(name = "is_deleted", nullable = false)
     protected Boolean isDeleted = false;
 
     @Column(name = "deleted_at")

@@ -83,15 +83,6 @@ public class Account extends BaseSoftDeleteByAnnotation {
     /** 기피하는 작업 스타일 (팀 매칭 알고리즘에서 제외) */
     private String dislikeWorkstyle;
 
-    /**
-     * 계정 영구 삭제 예정일
-     * - soft-delete 시점에서 유예기간을 더한 날짜
-     * - 이 날짜가 지나면 스케줄러에 의해 hard-delete 수행
-     * - null이면 일반 활성 계정 또는 영구 보관 계정
-     */
-    @Column(name = "permanent_deletion_date")
-    private LocalDateTime permanentDeletionDate;
-
         // === 연관관계 매핑 ===
     /**
      * 계정 영구 삭제 예정일

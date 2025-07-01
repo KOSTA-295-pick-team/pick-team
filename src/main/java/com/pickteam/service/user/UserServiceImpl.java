@@ -333,13 +333,25 @@ public class UserServiceImpl implements UserService {
         // 4. 새로운 해시태그들 처리
         for (String cleanedName : validHashtags) {
 
-            // 3. 해시태그 조회 또는 생성
-            UserHashtag userHashtag = userHashtagRepository.findByName(cleanedName)
+            // 해시태그 조회 또는 생성 (활성 해시태그만 우선 조회)
+            UserHashtag userHashtag = userHashtagRepository.findByNameAndIsDeletedFalse(cleanedName)
                     .orElseGet(() -> {
-                        UserHashtag newHashtag = UserHashtag.builder()
-                                .name(cleanedName)
-                                .build();
-                        return userHashtagRepository.save(newHashtag);
+                        // 삭제된 해시태그가 있는지 확인하여 복원할지, 새로 생성할지 결정
+                        Optional<UserHashtag> deletedHashtag = userHashtagRepository.findByName(cleanedName);
+                        if (deletedHashtag.isPresent() && deletedHashtag.get().getIsDeleted()) {
+                            // 삭제된 해시태그가 있다면 복원
+                            UserHashtag restored = deletedHashtag.get();
+                            restored.restore();
+                            log.debug("삭제된 해시태그 복원: {}", cleanedName);
+                            return userHashtagRepository.save(restored);
+                        } else {
+                            // 새로운 해시태그 생성
+                            UserHashtag newHashtag = UserHashtag.builder()
+                                    .name(cleanedName)
+                                    .build();
+                            log.debug("새 해시태그 생성: {}", cleanedName);
+                            return userHashtagRepository.save(newHashtag);
+                        }
                     });
 
             // 4. 사용자-해시태그 연결 생성
@@ -582,6 +594,9 @@ public class UserServiceImpl implements UserService {
 
     /**
      * 해시태그 검색 (자동완성용)
+     * - 성능 최적화: 상위 10개 결과만 반환
+     * - Soft-delete 필터링: 삭제된 해시태그 제외
+     * - 입력 검증 및 정규화 처리
      */
     @Override
     @Transactional(readOnly = true)
@@ -589,17 +604,21 @@ public class UserServiceImpl implements UserService {
         log.debug("해시태그 검색 시작: [KEYWORD_LENGTH={}]", keyword.length());
 
         if (keyword == null || keyword.trim().isEmpty()) {
+            log.debug("빈 키워드로 인한 빈 결과 반환");
             return List.of();
         }
 
         String cleanedKeyword = keyword.trim().toLowerCase();
-        List<UserHashtag> hashtags = userHashtagRepository.findByNameContainingIgnoreCase(cleanedKeyword);
+
+        // 성능 최적화: Top 10개만 조회, soft-delete 필터링 적용
+        List<UserHashtag> hashtags = userHashtagRepository
+                .findTop10ByIsDeletedFalseAndNameContainingIgnoreCaseOrderByName(cleanedKeyword);
 
         List<HashtagResponse> results = hashtags.stream()
                 .map(HashtagResponse::from)
                 .collect(Collectors.toList());
 
-        log.debug("해시태그 검색 완료: [KEYWORD_LENGTH={}], 결과 수={}", cleanedKeyword.length(), results.size());
+        log.debug("해시태그 검색 완료: [KEYWORD_LENGTH={}], 결과 수={} (최대 10개)", cleanedKeyword.length(), results.size());
         return results;
     }
 }

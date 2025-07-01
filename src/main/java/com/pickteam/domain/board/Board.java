@@ -1,6 +1,7 @@
 package com.pickteam.domain.board;
 
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
+import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.common.BaseTimeEntity;
 import com.pickteam.domain.team.Team;
 import jakarta.persistence.*;
@@ -15,7 +16,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Board extends BaseSoftDeleteByAnnotation {
+public class Board extends BaseSoftDeleteSupportEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

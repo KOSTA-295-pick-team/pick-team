@@ -7,6 +7,8 @@ import com.pickteam.dto.VideoChannelDTO;
 import com.pickteam.exception.VideoConferenceException;
 import com.pickteam.repository.VideoChannelRepository;
 import com.pickteam.repository.VideoMemberRepository;
+import com.pickteam.repository.user.AccountRepository;
+import com.pickteam.repository.workspace.WorkspaceRepository;
 import com.pickteam.service.VideoConferenceService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

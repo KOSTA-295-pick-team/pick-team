@@ -32,7 +32,8 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
                 .join(post.account, account).fetchJoin()
                 .join(post.board, board).fetchJoin()
                 .leftJoin(post.comments, comment)
-                .where(post.board.id.eq(boardId))
+                .where(post.board.id.eq(boardId)
+                        .and(post.isDeleted.eq(false))) //  Soft Delete 조건 추가
                 .groupBy(post.id)
                 .orderBy(post.createdAt.desc())
                 .offset(pageable.getOffset())
@@ -42,7 +43,8 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         JPAQuery<Long> countQuery = queryFactory
                 .select(Wildcard.count)
                 .from(post)
-                .where(post.board.id.eq(boardId));
+                .where(post.board.id.eq(boardId)
+                        .and(post.isDeleted.eq(false))); //  Soft Delete 조건 추가
 
         return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
     }

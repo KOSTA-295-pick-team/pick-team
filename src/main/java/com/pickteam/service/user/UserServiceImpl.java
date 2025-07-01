@@ -51,6 +51,47 @@ public class UserServiceImpl implements UserService {
     private int defaultGracePeriodDays;
 
     /**
+     * 이메일 마스킹 (개인정보 보호)
+     * - 로그에 이메일 출력 시 개인정보 보호를 위해 마스킹
+     * 
+     * @param email 원본 이메일
+     * @return 마스킹된 이메일
+     */
+    private String maskEmail(String email) {
+        if (email == null || email.length() < 3) {
+            return "***@***.***";
+        }
+
+        int atIndex = email.indexOf('@');
+        if (atIndex == -1) {
+            return email.substring(0, Math.min(2, email.length())) + "***";
+        }
+
+        String localPart = email.substring(0, atIndex);
+        String domainPart = email.substring(atIndex);
+
+        if (localPart.length() <= 2) {
+            return localPart.charAt(0) + "***" + domainPart;
+        } else {
+            return localPart.substring(0, 2) + "***" + domainPart;
+        }
+    }
+
+    /**
+     * 해시태그 목록 마스킹 (개인정보 보호)
+     * - 해시태그 내용 대신 개수만 로깅
+     * 
+     * @param hashtags 해시태그 목록
+     * @return 마스킹된 정보
+     */
+    private String maskHashtags(List<String> hashtags) {
+        if (hashtags == null || hashtags.isEmpty()) {
+            return "빈 목록";
+        }
+        return hashtags.size() + "개 해시태그";
+    }
+
+    /**
      * 간소화된 회원가입 처리
      * - 이메일과 패스워드만으로 기본 계정 생성
      * - 프로필 정보는 나중에 별도로 완성
@@ -62,7 +103,7 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public void registerUser(SignupRequest request) {
-        log.info("간소화된 사용자 등록 시작: {}", request.getEmail());
+        log.info("간소화된 사용자 등록 시작: {}", maskEmail(request.getEmail()));
 
         // 1. 기본 유효성 검사
         if (!validationService.isValidEmail(request.getEmail())) {
@@ -103,7 +144,7 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         accountRepository.save(account);
-        log.info("간소화된 사용자 등록 완료: {}", request.getEmail());
+        log.info("간소화된 사용자 등록 완료: {}", maskEmail(request.getEmail()));
     }
 
     /**
@@ -142,7 +183,7 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public void requestEmailVerification(String email) {
-        log.info("이메일 인증 요청: {}", email);
+        log.info("이메일 인증 요청: {}", maskEmail(email));
 
         // 1. 이메일 형식 검사
         if (!validationService.isValidEmail(email)) {
@@ -154,7 +195,7 @@ public class UserServiceImpl implements UserService {
         emailService.storeVerificationCode(email, verificationCode);
         emailService.sendVerificationEmail(email, verificationCode);
 
-        log.info("이메일 인증 코드 발송 완료: {}", email);
+        log.info("이메일 인증 코드 발송 완료: {}", maskEmail(email));
     }
 
     /**
@@ -270,7 +311,7 @@ public class UserServiceImpl implements UserService {
      * @param hashtagNames 새로운 해시태그 이름 목록
      */
     private void updateUserHashtags(Account account, List<String> hashtagNames) {
-        log.debug("해시태그 업데이트 시작: userId={}, hashtags={}", account.getId(), hashtagNames);
+        log.debug("해시태그 업데이트 시작: userId={}, hashtags={}", account.getId(), maskHashtags(hashtagNames));
 
         // 1. 해시태그 전처리 및 중복 제거
         List<String> validHashtags = hashtagNames.stream()
@@ -326,13 +367,13 @@ public class UserServiceImpl implements UserService {
 
         // 해시태그 길이 검증 (최대 50자)
         if (hashtagName.length() > 50) {
-            log.debug("해시태그 길이 초과: {}", hashtagName);
+            log.debug("해시태그 길이 초과: [MASKED]");
             return false;
         }
 
         // 특수문자 제거 (알파벳, 숫자, 한글만 허용)
         if (!hashtagName.matches("^[a-zA-Z0-9가-힣]*$")) {
-            log.debug("유효하지 않은 해시태그 문자: {}", hashtagName);
+            log.debug("유효하지 않은 해시태그 문자: [MASKED]");
             return false;
         }
 
@@ -545,7 +586,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public List<HashtagResponse> searchHashtags(String keyword) {
-        log.debug("해시태그 검색 시작: keyword={}", keyword);
+        log.debug("해시태그 검색 시작: [KEYWORD_LENGTH={}]", keyword.length());
 
         if (keyword == null || keyword.trim().isEmpty()) {
             return List.of();
@@ -558,7 +599,7 @@ public class UserServiceImpl implements UserService {
                 .map(HashtagResponse::from)
                 .collect(Collectors.toList());
 
-        log.debug("해시태그 검색 완료: keyword={}, 결과 수={}", cleanedKeyword, results.size());
+        log.debug("해시태그 검색 완료: [KEYWORD_LENGTH={}], 결과 수={}", cleanedKeyword.length(), results.size());
         return results;
     }
 }

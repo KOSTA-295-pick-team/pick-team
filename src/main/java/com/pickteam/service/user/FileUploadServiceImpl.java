@@ -46,7 +46,7 @@ public class FileUploadServiceImpl implements FileUploadService {
 
     @Override
     public String uploadProfileImage(MultipartFile file, Long userId) {
-        log.info("프로필 이미지 업로드 시작: userId={}, fileName={}", userId, file.getOriginalFilename());
+        log.info("프로필 이미지 업로드 시작: userId={}, fileSize={}", userId, file.getSize());
 
         // 1. 파일 유효성 검증
         if (!isValidImageFile(file)) {
@@ -96,7 +96,7 @@ public class FileUploadServiceImpl implements FileUploadService {
 
             // 7. 접근 URL 생성
             String fileUrl = baseUrl + "/uploads/" + fileName;
-            log.info("프로필 이미지 업로드 완료: userId={}, fileName={}", userId, fileName); // URL 대신 파일명만 로깅
+            log.info("프로필 이미지 업로드 완료: userId={}, fileSize={}", userId, file.getSize());
 
             return fileUrl;
 
@@ -118,13 +118,13 @@ public class FileUploadServiceImpl implements FileUploadService {
 
     @Override
     public void deleteProfileImage(String imageUrl, Long userId) {
-        log.info("프로필 이미지 삭제 시작: userId={}, imageUrl={}", userId, imageUrl);
+        log.info("프로필 이미지 삭제 시작: userId={}", userId);
 
         try {
             // URL에서 파일명 추출
             String fileName = extractFileNameFromUrl(imageUrl);
             if (fileName == null) {
-                log.warn("유효하지 않은 이미지 URL: {}", imageUrl);
+                log.warn("유효하지 않은 이미지 URL 형식");
                 return;
             }
 
@@ -134,9 +134,9 @@ public class FileUploadServiceImpl implements FileUploadService {
             // 파일 존재 여부 확인 후 삭제
             if (Files.exists(filePath)) {
                 Files.delete(filePath);
-                log.info("프로필 이미지 삭제 완료: userId={}, fileName={}", userId, fileName);
+                log.info("프로필 이미지 삭제 완료: userId={}", userId);
             } else {
-                log.warn("삭제할 파일이 존재하지 않음: userId={}, fileName={}", userId, fileName);
+                log.warn("삭제할 파일이 존재하지 않음: userId={}", userId);
             }
 
         } catch (IOException e) {
@@ -223,7 +223,7 @@ public class FileUploadServiceImpl implements FileUploadService {
 
         // 보안: 파일명 검증 (경로 조작 공격 방지)
         if (!isSecureFileName(fileName)) {
-            log.warn("보안 위험이 있는 파일명 감지: {}", fileName);
+            log.warn("보안 위험이 있는 파일명 감지: [FILENAME_MASKED]");
             return null;
         }
 

@@ -38,25 +38,25 @@ public class UserController {
     // 간소화된 회원가입
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<Void>> registerUser(@Valid @RequestBody SignupRequest request) {
-        log.info("간소화된 회원가입 요청 - 이메일: {}", request.getEmail());
+        log.info("간소화된 회원가입 요청 - 이메일: {}", maskEmail(request.getEmail()));
 
         // 추가 검증: 이메일 도메인 블랙리스트 체크 (보안 강화)
         if (request.getEmail() != null && isBlockedEmailDomain(request.getEmail())) {
-            log.warn("차단된 이메일 도메인 회원가입 시도: {}", request.getEmail());
+            log.warn("차단된 이메일 도메인 회원가입 시도: {}", maskEmail(request.getEmail()));
             throw new ValidationException("지원하지 않는 이메일 도메인입니다.");
         }
 
         userService.registerUser(request);
-        log.info("간소화된 회원가입 완료 - 이메일: {}", request.getEmail());
+        log.info("간소화된 회원가입 완료 - 이메일: {}", maskEmail(request.getEmail()));
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.REGISTER_SUCCESS, null));
     }
 
     // ID 중복검사
     @PostMapping("/check-id")
     public ResponseEntity<ApiResponse<Boolean>> checkDuplicateId(@Valid @RequestBody CheckDuplicateIdRequest request) {
-        log.debug("이메일 중복 검사 요청 - 이메일: {}", request.getEmail());
+        log.debug("이메일 중복 검사 요청 - 이메일: {}", maskEmail(request.getEmail()));
         boolean isDuplicate = userService.checkDuplicateId(request.getEmail());
-        log.debug("이메일 중복 검사 결과 - 이메일: {}, 중복여부: {}", request.getEmail(), isDuplicate);
+        log.debug("이메일 중복 검사 결과 - 이메일: {}, 중복여부: {}", maskEmail(request.getEmail()), isDuplicate);
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.CHECK_DUPLICATE_SUCCESS, !isDuplicate));
     }
 
@@ -73,18 +73,18 @@ public class UserController {
     @PostMapping("/email/request")
     public ResponseEntity<ApiResponse<Void>> requestEmailVerification(
             @Valid @RequestBody EmailVerificationRequest request) {
-        log.info("이메일 인증 요청 - 이메일: {}", request.getEmail());
+        log.info("이메일 인증 요청 - 이메일: {}", maskEmail(request.getEmail()));
 
         // 추가 검증: 이메일 형식 및 도메인 체크
         if (request.getEmail() != null) {
             if (isBlockedEmailDomain(request.getEmail())) {
-                log.warn("차단된 도메인으로 이메일 인증 요청: {}", request.getEmail());
+                log.warn("차단된 도메인으로 이메일 인증 요청: {}", maskEmail(request.getEmail()));
                 throw new ValidationException("지원하지 않는 이메일 도메인입니다.");
             }
         }
 
         userService.requestEmailVerification(request.getEmail());
-        log.info("이메일 인증 메일 발송 완료 - 이메일: {}", request.getEmail());
+        log.info("이메일 인증 메일 발송 완료 - 이메일: {}", maskEmail(request.getEmail()));
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.EMAIL_VERIFICATION_SENT, null));
     }
 
@@ -92,32 +92,32 @@ public class UserController {
     @PostMapping("/email/verify")
     public ResponseEntity<ApiResponse<Boolean>> verifyEmail(
             @Valid @RequestBody EmailVerificationConfirmRequest request) {
-        log.info("이메일 인증 확인 요청 - 이메일: {}", request.getEmail());
+        log.info("이메일 인증 확인 요청 - 이메일: {}", maskEmail(request.getEmail()));
 
         // 추가 검증: 인증 코드 형식 체크
         if (request.getVerificationCode() != null && !isValidVerificationCode(request.getVerificationCode())) {
-            log.warn("잘못된 인증 코드 형식: 이메일={}", request.getEmail());
+            log.warn("잘못된 인증 코드 형식: 이메일={}", maskEmail(request.getEmail()));
             throw new ValidationException("유효하지 않은 인증 코드 형식입니다.");
         }
 
         boolean isVerified = userService.verifyEmail(request.getEmail(), request.getVerificationCode());
-        log.info("이메일 인증 확인 결과 - 이메일: {}, 인증성공: {}", request.getEmail(), isVerified);
+        log.info("이메일 인증 확인 결과 - 이메일: {}, 인증성공: {}", maskEmail(request.getEmail()), isVerified);
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.EMAIL_VERIFICATION_SUCCESS, isVerified));
     }
 
     // 로그인
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> login(@Valid @RequestBody UserLoginRequest request) {
-        log.info("로그인 시도 - 이메일: {}", request.getEmail());
+        log.info("로그인 시도 - 이메일: {}", maskEmail(request.getEmail()));
 
         // 추가 검증: 비밀번호 최소 길이 체크 (보안 강화)
         if (request.getPassword() != null && request.getPassword().length() < 8) {
-            log.warn("너무 짧은 비밀번호로 로그인 시도: 이메일={}", request.getEmail());
+            log.warn("너무 짧은 비밀번호로 로그인 시도: 이메일={}", maskEmail(request.getEmail()));
             throw new ValidationException("비밀번호는 최소 8자 이상이어야 합니다.");
         }
 
         JwtAuthenticationResponse response = userService.login(request);
-        log.info("로그인 성공 - 이메일: {}", request.getEmail());
+        log.info("로그인 성공 - 이메일: {}", maskEmail(request.getEmail()));
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGIN_SUCCESS, response));
     }
 
@@ -127,16 +127,16 @@ public class UserController {
             @Valid @RequestBody UserLoginRequest request,
             @RequestBody(required = false) SessionInfoRequest sessionInfo,
             jakarta.servlet.http.HttpServletRequest httpRequest) {
-        log.info("개선된 로그인 시도 - 이메일: {}", request.getEmail());
+        log.info("개선된 로그인 시도 - 이메일: {}", maskEmail(request.getEmail()));
 
         // 추가 검증: 비밀번호 최소 길이 체크 (보안 강화)
         if (request.getPassword() != null && request.getPassword().length() < 8) {
-            log.warn("너무 짧은 비밀번호로 로그인 시도: 이메일={}", request.getEmail());
+            log.warn("너무 짧은 비밀번호로 로그인 시도: 이메일={}", maskEmail(request.getEmail()));
             throw new ValidationException("비밀번호는 최소 8자 이상이어야 합니다.");
         }
 
         JwtAuthenticationResponse response = authService.authenticateWithClientInfo(request, sessionInfo, httpRequest);
-        log.info("개선된 로그인 성공 - 이메일: {}", request.getEmail());
+        log.info("개선된 로그인 성공 - 이메일: {}", maskEmail(request.getEmail()));
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGIN_SUCCESS, response));
     }
 
@@ -342,7 +342,7 @@ public class UserController {
     @GetMapping("/hashtags/search")
     public ResponseEntity<ApiResponse<List<HashtagResponse>>> searchHashtags(
             @RequestParam String keyword) {
-        log.debug("해시태그 검색 요청 - 키워드: {}", keyword);
+        log.debug("해시태그 검색 요청 - 키워드 길이: {}", keyword != null ? keyword.length() : 0);
 
         // 추가 검증: 키워드 길이 및 형식 체크
         if (keyword == null || keyword.trim().isEmpty()) {
@@ -350,12 +350,12 @@ public class UserController {
             throw new ValidationException("검색 키워드는 필수입니다.");
         }
         if (keyword.length() > 50) {
-            log.warn("너무 긴 키워드로 해시태그 검색 시도: {}", keyword);
+            log.warn("너무 긴 키워드로 해시태그 검색 시도: 길이={}", keyword.length());
             throw new ValidationException("검색 키워드는 50자 이하여야 합니다.");
         }
 
         List<HashtagResponse> hashtags = userService.searchHashtags(keyword.trim());
-        log.info("해시태그 검색 완료 - 키워드: {}, 결과 수: {}", keyword, hashtags.size());
+        log.info("해시태그 검색 완료 - 키워드 길이: {}, 결과 수: {}", keyword.length(), hashtags.size());
         return ResponseEntity.ok(ApiResponse.success("해시태그 검색 성공", hashtags));
     }
 
@@ -365,7 +365,7 @@ public class UserController {
     @PostMapping("/me/profile-image")
     public ResponseEntity<ApiResponse<String>> uploadProfileImage(
             @RequestParam("file") MultipartFile file) {
-        log.debug("프로필 이미지 업로드 요청 - 파일명: {}", file.getOriginalFilename());
+        log.debug("프로필 이미지 업로드 요청 - 파일크기: {}", file.getSize());
         // 인증 확인 및 사용자 ID 추출
         Long currentUserId = authService.requireAuthentication();
 
@@ -375,9 +375,9 @@ public class UserController {
             throw new ValidationException("업로드할 파일을 선택해주세요.");
         }
 
-        log.info("프로필 이미지 업로드 - 사용자 ID: {}, 파일: {}", currentUserId, file.getOriginalFilename());
+        log.info("프로필 이미지 업로드 - 사용자 ID: {}, 파일크기: {}", currentUserId, file.getSize());
         String imageUrl = fileUploadService.uploadProfileImage(file, currentUserId);
-        log.info("프로필 이미지 업로드 완료 - 사용자 ID: {}, URL: {}", currentUserId, imageUrl);
+        log.info("프로필 이미지 업로드 완료 - 사용자 ID: {}", currentUserId);
 
         return ResponseEntity.ok(ApiResponse.success("프로필 이미지 업로드 성공", imageUrl));
     }
@@ -396,7 +396,7 @@ public class UserController {
             throw new ValidationException("삭제할 프로필 이미지가 없습니다.");
         }
 
-        log.info("프로필 이미지 삭제 - 사용자 ID: {}, URL: {}", currentUserId, profile.getProfileImageUrl());
+        log.info("프로필 이미지 삭제 - 사용자 ID: {}", currentUserId);
 
         // 파일 삭제
         fileUploadService.deleteProfileImage(profile.getProfileImageUrl(), currentUserId);
@@ -411,5 +411,28 @@ public class UserController {
     }
 
     // ==================== 유효성 검증 헬퍼 메서드들 ====================
+
+    /**
+     * 로깅용 이메일 마스킹 (개인정보 보호)
+     */
+    private String maskEmail(String email) {
+        if (email == null || email.isEmpty()) {
+            return "[EMPTY]";
+        }
+        
+        int atIndex = email.indexOf('@');
+        if (atIndex <= 0) {
+            return "[INVALID_EMAIL]";
+        }
+        
+        String localPart = email.substring(0, atIndex);
+        String domain = email.substring(atIndex);
+        
+        if (localPart.length() <= 2) {
+            return "**" + domain;
+        } else {
+            return localPart.substring(0, 2) + "***" + domain;
+        }
+    }
 
 }

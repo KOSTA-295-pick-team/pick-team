@@ -548,6 +548,19 @@ public class UserController {
     }
 
     /**
+     * 계정 탈퇴 관련 예외 처리
+     * - 탈퇴 유예 기간 중인 계정으로 작업 시도 시 발생
+     * - 409 Conflict로 응답
+     */
+    @ExceptionHandler(com.pickteam.exception.AccountWithdrawalException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccountWithdrawalException(
+            com.pickteam.exception.AccountWithdrawalException ex) {
+        log.warn("탈퇴 계정 관련 오류: {}", ex.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ex.getDetailedMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    /**
      * DataIntegrityViolationException 처리
      * - 데이터베이스 제약 조건 위반 시 발생
      * - 이메일 인증 중복 요청, 중복 이메일 등의 경우

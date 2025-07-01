@@ -3,6 +3,7 @@ package com.pickteam.exception;
 import com.pickteam.dto.ApiResponse;
 import com.pickteam.constants.SessionErrorCode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -155,6 +156,43 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /**
+     * 데이터 무결성 위반 예외 처리 (이메일 중복 등)
+     * 
+     * @param ex DataIntegrityViolationException
+     * @return 데이터 무결성 위반 응답
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
+        log.warn("데이터 무결성 위반: {}", ex.getMessage());
+
+        String errorMessage = "데이터 무결성 위반이 발생했습니다.";
+
+        // 이메일 중복 관련 오류인지 확인
+        if (ex.getMessage() != null && ex.getMessage().contains("email")) {
+            errorMessage = "이미 사용 중인 이메일입니다. 탈퇴한 계정의 경우 완전 삭제 후 재사용 가능합니다.";
+        }
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(errorMessage));
+    }
+
+    /**
+     * 계정 탈퇴 관련 예외 처리
+     * 
+     * @param ex AccountWithdrawalException
+     * @return 탈퇴 계정 관련 응답
+     */
+    @ExceptionHandler(AccountWithdrawalException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccountWithdrawalException(AccountWithdrawalException ex) {
+        log.warn("탈퇴 계정 관련 오류: {}", ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getDetailedMessage()));
     }
 
     /**

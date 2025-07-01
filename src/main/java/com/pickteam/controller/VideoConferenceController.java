@@ -83,12 +83,12 @@ public class VideoConferenceController {
         ProblemDetail problemDetail = null;
         if (e instanceof VideoConferenceException ve) {
 
-            log.error(ve.getErrorCode().getMessage());
+            log.error(ve.getVideoConferenceErrorCode().getMessage());
 
-            problemDetail = ProblemDetail.forStatus(ve.getErrorCode().getHttpStatus());
+            problemDetail = ProblemDetail.forStatus(ve.getVideoConferenceErrorCode().getHttpStatus());
 
-            problemDetail.setTitle(ve.getErrorCode().getTitle());
-            problemDetail.setDetail(ve.getErrorCode().getMessage());
+            problemDetail.setTitle(ve.getVideoConferenceErrorCode().getTitle());
+            problemDetail.setDetail(ve.getVideoConferenceErrorCode().getMessage());
             problemDetail.setProperty("timestamp", LocalDateTime.now());
 
         } else if (e instanceof MethodArgumentNotValidException me) {

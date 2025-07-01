@@ -2,12 +2,11 @@ package com.pickteam.exception;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.graphql.GraphQlProperties;
 import org.springframework.http.HttpStatus;
 
 @RequiredArgsConstructor
 @Getter
-public enum ErrorCode {
+public enum VideoConferenceErrorCode {
 
     CHANNELS_NOT_FOUND(HttpStatus.NOT_FOUND, "channels not found", "채널을 찾지 못했습니다"),
     CHANNEL_NOT_FOUND(HttpStatus.NOT_FOUND, "channel not found", "해당하는 채널을 찾지 못했습니다"),

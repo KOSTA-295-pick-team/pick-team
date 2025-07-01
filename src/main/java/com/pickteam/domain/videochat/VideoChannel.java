@@ -1,6 +1,7 @@
 package com.pickteam.domain.videochat;
 
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
+import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.common.BaseTimeEntity;
 import com.pickteam.domain.workspace.Workspace;
 import jakarta.persistence.*;
@@ -17,7 +18,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class VideoChannel extends BaseSoftDeleteByAnnotation {
+public class VideoChannel extends BaseSoftDeleteSupportEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

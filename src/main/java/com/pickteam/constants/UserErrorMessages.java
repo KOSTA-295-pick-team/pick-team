@@ -25,6 +25,11 @@ public class UserErrorMessages {
     public static final String EMAIL_NOT_VERIFIED = "이메일 인증이 완료되지 않았습니다.";
     public static final String INVALID_CURRENT_PASSWORD = "현재 비밀번호가 올바르지 않습니다.";
 
+    // 탈퇴 관련 메시지
+    public static final String ACCOUNT_UNDER_WITHDRAWAL = "해당 이메일은 탈퇴 처리 중입니다. 완전 삭제 예정일: %s (남은 일수: %d일)";
+    public static final String ACCOUNT_WITHDRAWAL_GRACE_PERIOD = "탈퇴한 계정의 유예 기간 중에는 동일한 이메일로 가입할 수 없습니다.";
+    public static final String EMAIL_VERIFICATION_BLOCKED_WITHDRAWAL = "탈퇴 처리 중인 계정의 이메일로는 인증을 진행할 수 없습니다.";
+
     // Private 생성자로 인스턴스화 방지
     private UserErrorMessages() {
         throw new AssertionError("상수 클래스는 인스턴스화할 수 없습니다.");

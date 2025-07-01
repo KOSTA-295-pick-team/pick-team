@@ -1,6 +1,7 @@
 package com.pickteam.domain.schedule;
 
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
+import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.team.Team;
 import com.pickteam.domain.user.Account;
 import jakarta.persistence.*;
@@ -14,7 +15,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Schedule extends BaseSoftDeleteByAnnotation {
+public class Schedule extends BaseSoftDeleteSupportEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

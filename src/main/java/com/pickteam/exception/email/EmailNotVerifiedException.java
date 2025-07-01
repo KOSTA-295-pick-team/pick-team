@@ -1,4 +1,4 @@
-package com.pickteam.exception;
+package com.pickteam.exception.email;
 
 /**
  * 이메일 인증이 완료되지 않은 경우 발생하는 예외
@@ -31,5 +31,14 @@ public class EmailNotVerifiedException extends RuntimeException {
      */
     public EmailNotVerifiedException(String message, Throwable cause) {
         super(message, cause);
+    }
+
+    /**
+     * 원인이 포함된 생성자
+     * 
+     * @param cause 예외 원인
+     */
+    public EmailNotVerifiedException(Throwable cause) {
+        super(cause);
     }
 }

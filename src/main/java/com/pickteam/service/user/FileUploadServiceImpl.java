@@ -34,13 +34,15 @@ public class FileUploadServiceImpl implements FileUploadService {
     @Value("${app.file.base-url}")
     private String baseUrl;
 
-    // 허용되는 이미지 파일 확장자
-    private static final String[] ALLOWED_IMAGE_EXTENSIONS = { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+    // 프로필 이미지 전용 설정 (환경변수에서 주입)
+    @Value("${app.profile-image.allowed-extensions}")
+    private String allowedExtensionsConfig;
 
-    // 허용되는 MIME 타입
-    private static final String[] ALLOWED_MIME_TYPES = {
-            "image/jpeg", "image/png", "image/gif", "image/webp"
-    };
+    @Value("${app.profile-image.allowed-mime-types}")
+    private String allowedMimeTypesConfig;
+
+    @Value("${app.profile-image.max-size}")
+    private long profileImageMaxSize;
 
     @Override
     public String uploadProfileImage(MultipartFile file, Long userId) {
@@ -51,9 +53,10 @@ public class FileUploadServiceImpl implements FileUploadService {
             throw new ValidationException("지원하지 않는 파일 형식입니다. JPG, PNG, GIF, WEBP 파일만 업로드 가능합니다.");
         }
 
-        // 2. 파일 크기 검증
-        if (file.getSize() > maxFileSize) {
-            throw new ValidationException("파일 크기가 너무 큽니다. 최대 " + (maxFileSize / 1024 / 1024) + "MB까지 업로드 가능합니다.");
+        // 2. 파일 크기 검증 (프로필 이미지 전용 크기 사용)
+        if (file.getSize() > profileImageMaxSize) {
+            throw new ValidationException(
+                    "파일 크기가 너무 큽니다. 최대 " + (profileImageMaxSize / 1024 / 1024) + "MB까지 업로드 가능합니다.");
         }
 
         try {
@@ -126,9 +129,15 @@ public class FileUploadServiceImpl implements FileUploadService {
         }
 
         String fileExtension = getFileExtension(originalFileName).toLowerCase();
+        if (fileExtension.startsWith(".")) {
+            fileExtension = fileExtension.substring(1); // . 제거
+        }
+
+        // 환경변수에서 허용 확장자 배열 생성
+        String[] allowedExtensions = allowedExtensionsConfig.split(",");
         boolean validExtension = false;
-        for (String allowedExt : ALLOWED_IMAGE_EXTENSIONS) {
-            if (fileExtension.equals(allowedExt)) {
+        for (String allowedExt : allowedExtensions) {
+            if (fileExtension.equals(allowedExt.trim())) {
                 validExtension = true;
                 break;
             }
@@ -144,9 +153,11 @@ public class FileUploadServiceImpl implements FileUploadService {
             return false;
         }
 
+        // 환경변수에서 허용 MIME 타입 배열 생성
+        String[] allowedMimeTypes = allowedMimeTypesConfig.split(",");
         boolean validMimeType = false;
-        for (String allowedMime : ALLOWED_MIME_TYPES) {
-            if (contentType.equals(allowedMime)) {
+        for (String allowedMime : allowedMimeTypes) {
+            if (contentType.equals(allowedMime.trim())) {
                 validMimeType = true;
                 break;
             }

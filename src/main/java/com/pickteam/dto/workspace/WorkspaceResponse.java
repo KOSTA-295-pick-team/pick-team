@@ -17,6 +17,7 @@ public class WorkspaceResponse {
     private UserSummaryResponse owner;
     private boolean passwordProtected;
     private String inviteCode;
+    private String url; // 초대 링크용 URL
     private int memberCount;
     private List<UserSummaryResponse> members;
     private LocalDateTime createdAt;

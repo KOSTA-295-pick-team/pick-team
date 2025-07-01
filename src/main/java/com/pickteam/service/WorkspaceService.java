@@ -3,9 +3,11 @@ package com.pickteam.service;
 import com.pickteam.dto.user.UserSummaryResponse;
 import com.pickteam.dto.workspace.*;
 import com.pickteam.domain.user.Account;
+import com.pickteam.domain.workspace.Blacklist;
 import com.pickteam.domain.workspace.Workspace;
 import com.pickteam.domain.workspace.WorkspaceMember;
 import com.pickteam.repository.user.AccountRepository;
+import com.pickteam.repository.workspace.BlacklistRepository;
 import com.pickteam.repository.workspace.WorkspaceMemberRepository;
 import com.pickteam.repository.workspace.WorkspaceRepository;
 
@@ -25,6 +27,7 @@ public class WorkspaceService {
     
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final BlacklistRepository blacklistRepository;
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
     
@@ -70,32 +73,73 @@ public class WorkspaceService {
         Workspace workspace = workspaceRepository.findByUrl(request.getInviteCode())
                 .orElseThrow(() -> new RuntimeException("유효하지 않은 초대 코드입니다."));
         
+        return joinWorkspaceInternal(accountId, workspace, request.getPassword());
+    }
+    
+    /**
+     * 워크스페이스 ID로 직접 참여
+     */
+    @Transactional
+    public WorkspaceResponse joinWorkspaceById(Long accountId, Long workspaceId, String password) {
+        Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(workspaceId)
+                .orElseThrow(() -> new RuntimeException("워크스페이스를 찾을 수 없습니다."));
+        
+        return joinWorkspaceInternal(accountId, workspace, password);
+    }
+    
+    /**
+     * 워크스페이스 참여 공통 로직
+     */
+    private WorkspaceResponse joinWorkspaceInternal(Long accountId, Workspace workspace, String password) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+        
         if (workspace.getIsDeleted()) {
             throw new RuntimeException("삭제된 워크스페이스입니다.");
         }
         
-        // 이미 멤버인지 확인
-        if (workspaceMemberRepository.existsByWorkspaceIdAndAccountId(workspace.getId(), accountId)) {
-            throw new RuntimeException("이미 워크스페이스의 멤버입니다.");
+        // 기존 멤버십 확인
+        WorkspaceMember existingMember = workspaceMemberRepository.findByWorkspaceIdAndAccountId(workspace.getId(), accountId)
+                .orElse(null);
+        
+        if (existingMember != null) {
+            if (existingMember.getStatus() == WorkspaceMember.MemberStatus.ACTIVE) {
+                throw new RuntimeException("이미 워크스페이스의 활성 멤버입니다.");
+            } else if (existingMember.getStatus() == WorkspaceMember.MemberStatus.BANNED) {
+                throw new RuntimeException("차단된 사용자는 워크스페이스에 참여할 수 없습니다.");
+            }
+            // LEFT 상태인 경우는 재참여 허용 (아래에서 상태 변경)
+        }
+        
+        // 블랙리스트 확인 (추가 보안)
+        if (blacklistRepository.existsByWorkspaceIdAndAccountId(workspace.getId(), accountId)) {
+            throw new RuntimeException("차단된 사용자는 워크스페이스에 참여할 수 없습니다.");
         }
         
         // 비밀번호 확인
         if (workspace.getPassword() != null) {
-            if (request.getPassword() == null || 
-                !passwordEncoder.matches(request.getPassword(), workspace.getPassword())) {
+            if (password == null || 
+                !passwordEncoder.matches(password, workspace.getPassword())) {
                 throw new RuntimeException("워크스페이스 비밀번호가 틀렸습니다.");
             }
         }
         
-        // 멤버 추가
-        WorkspaceMember member = WorkspaceMember.builder()
-                .workspace(workspace)
-                .account(account)
-                .role(WorkspaceMember.MemberRole.MEMBER)
-                .status(WorkspaceMember.MemberStatus.ACTIVE)
-                .build();
-        
-        workspaceMemberRepository.save(member);
+        // 멤버 처리 (신규 추가 또는 재참여)
+        WorkspaceMember member;
+        if (existingMember != null && existingMember.getStatus() == WorkspaceMember.MemberStatus.LEFT) {
+            // 기존 LEFT 멤버를 ACTIVE로 복귀
+            existingMember.setStatus(WorkspaceMember.MemberStatus.ACTIVE);
+            member = workspaceMemberRepository.save(existingMember);
+        } else {
+            // 새로운 멤버 추가
+            member = WorkspaceMember.builder()
+                    .workspace(workspace)
+                    .account(account)
+                    .role(WorkspaceMember.MemberRole.MEMBER)
+                    .status(WorkspaceMember.MemberStatus.ACTIVE)
+                    .build();
+            workspaceMemberRepository.save(member);
+        }
         
         return convertToResponse(workspace);
     }
@@ -104,7 +148,15 @@ public class WorkspaceService {
      * 워크스페이스 목록 조회 (사용자가 속한)
      */
     public List<WorkspaceResponse> getUserWorkspaces(Long accountId) {
-        List<Workspace> workspaces = workspaceRepository.findByAccountId(accountId);
+        // WorkspaceMember를 통해 사용자가 속한 활성 멤버십 조회
+        List<WorkspaceMember> activeMembers = workspaceMemberRepository.findByAccountIdAndStatus(accountId, WorkspaceMember.MemberStatus.ACTIVE);
+        
+        // 멤버십에서 워크스페이스 추출 (삭제되지 않은 것만)
+        List<Workspace> workspaces = activeMembers.stream()
+                .map(WorkspaceMember::getWorkspace)
+                .filter(workspace -> !workspace.getIsDeleted())
+                .collect(Collectors.toList());
+        
         return workspaces.stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
@@ -113,12 +165,13 @@ public class WorkspaceService {
     /**
      * 워크스페이스 상세 조회
      */
+    @Transactional(readOnly = true)
     public WorkspaceResponse getWorkspace(Long workspaceId, Long accountId) {
         Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(workspaceId)
                 .orElseThrow(() -> new RuntimeException("워크스페이스를 찾을 수 없습니다."));
         
-        // 멤버인지 확인
-        if (!workspaceMemberRepository.existsByWorkspaceIdAndAccountId(workspaceId, accountId)) {
+        // 활성 멤버인지 확인
+        if (!workspaceMemberRepository.existsActiveByWorkspaceIdAndAccountId(workspaceId, accountId)) {
             throw new RuntimeException("워크스페이스 접근 권한이 없습니다.");
         }
         
@@ -128,9 +181,10 @@ public class WorkspaceService {
     /**
      * 워크스페이스 멤버 목록 조회
      */
+    @Transactional(readOnly = true)
     public List<UserSummaryResponse> getWorkspaceMembers(Long workspaceId, Long accountId) {
-        // 멤버인지 확인
-        if (!workspaceMemberRepository.existsByWorkspaceIdAndAccountId(workspaceId, accountId)) {
+        // 활성 멤버인지 확인
+        if (!workspaceMemberRepository.existsActiveByWorkspaceIdAndAccountId(workspaceId, accountId)) {
             throw new RuntimeException("워크스페이스 접근 권한이 없습니다.");
         }
         
@@ -152,8 +206,9 @@ public class WorkspaceService {
         WorkspaceMember member = workspaceMemberRepository.findByWorkspaceIdAndAccountId(workspaceId, accountId)
                 .orElseThrow(() -> new RuntimeException("워크스페이스 접근 권한이 없습니다."));
         
-        if (member.getRole() != WorkspaceMember.MemberRole.OWNER && 
-            member.getRole() != WorkspaceMember.MemberRole.ADMIN) {
+        if (member.getStatus() != WorkspaceMember.MemberStatus.ACTIVE ||
+            (member.getRole() != WorkspaceMember.MemberRole.OWNER && 
+             member.getRole() != WorkspaceMember.MemberRole.ADMIN)) {
             throw new RuntimeException("워크스페이스 수정 권한이 없습니다.");
         }
         
@@ -184,8 +239,9 @@ public class WorkspaceService {
         WorkspaceMember member = workspaceMemberRepository.findByWorkspaceIdAndAccountId(workspaceId, accountId)
                 .orElseThrow(() -> new RuntimeException("워크스페이스 접근 권한이 없습니다."));
         
-        if (member.getRole() != WorkspaceMember.MemberRole.OWNER && 
-            member.getRole() != WorkspaceMember.MemberRole.ADMIN) {
+        if (member.getStatus() != WorkspaceMember.MemberStatus.ACTIVE ||
+            (member.getRole() != WorkspaceMember.MemberRole.OWNER && 
+             member.getRole() != WorkspaceMember.MemberRole.ADMIN)) {
             throw new RuntimeException("초대 링크 생성 권한이 없습니다.");
         }
         
@@ -205,8 +261,9 @@ public class WorkspaceService {
         WorkspaceMember requestMember = workspaceMemberRepository.findByWorkspaceIdAndAccountId(workspaceId, requestAccountId)
                 .orElseThrow(() -> new RuntimeException("워크스페이스 접근 권한이 없습니다."));
         
-        if (requestMember.getRole() != WorkspaceMember.MemberRole.OWNER &&
-            requestMember.getRole() != WorkspaceMember.MemberRole.ADMIN) {
+        if (requestMember.getStatus() != WorkspaceMember.MemberStatus.ACTIVE ||
+            (requestMember.getRole() != WorkspaceMember.MemberRole.OWNER &&
+             requestMember.getRole() != WorkspaceMember.MemberRole.ADMIN)) {
             throw new RuntimeException("멤버 내보내기 권한이 없습니다.");
         }
         
@@ -217,6 +274,14 @@ public class WorkspaceService {
         // 소유자는 내보낼 수 없음
         if (targetMember.getRole() == WorkspaceMember.MemberRole.OWNER) {
             throw new RuntimeException("소유자는 내보낼 수 없습니다.");
+        }
+        
+        // 현재 상태 확인
+        if (targetMember.getStatus() == WorkspaceMember.MemberStatus.LEFT) {
+            throw new RuntimeException("이미 내보낸 멤버입니다.");
+        }
+        if (targetMember.getStatus() == WorkspaceMember.MemberStatus.BANNED) {
+            throw new RuntimeException("이미 차단된 멤버입니다. 차단을 해제한 후 다시 시도해주세요.");
         }
         
         // 상태 변경
@@ -233,8 +298,9 @@ public class WorkspaceService {
         WorkspaceMember requestMember = workspaceMemberRepository.findByWorkspaceIdAndAccountId(workspaceId, requestAccountId)
                 .orElseThrow(() -> new RuntimeException("워크스페이스 접근 권한이 없습니다."));
         
-        if (requestMember.getRole() != WorkspaceMember.MemberRole.OWNER &&
-            requestMember.getRole() != WorkspaceMember.MemberRole.ADMIN) {
+        if (requestMember.getStatus() != WorkspaceMember.MemberStatus.ACTIVE ||
+            (requestMember.getRole() != WorkspaceMember.MemberRole.OWNER &&
+             requestMember.getRole() != WorkspaceMember.MemberRole.ADMIN)) {
             throw new RuntimeException("멤버 차단 권한이 없습니다.");
         }
         
@@ -247,9 +313,85 @@ public class WorkspaceService {
             throw new RuntimeException("소유자는 차단할 수 없습니다.");
         }
         
-        // 상태 변경
+        // 현재 상태 확인
+        if (targetMember.getStatus() == WorkspaceMember.MemberStatus.BANNED) {
+            throw new RuntimeException("이미 차단된 멤버입니다.");
+        }
+        if (targetMember.getStatus() == WorkspaceMember.MemberStatus.LEFT) {
+            throw new RuntimeException("이미 워크스페이스를 나간 멤버입니다.");
+        }
+        
+        // 워크스페이스와 대상 계정 조회
+        Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(workspaceId)
+                .orElseThrow(() -> new RuntimeException("워크스페이스를 찾을 수 없습니다."));
+        
+        Account targetAccount = accountRepository.findById(targetAccountId)
+                .orElseThrow(() -> new RuntimeException("대상 사용자를 찾을 수 없습니다."));
+        
+        // 멤버 상태 변경
         targetMember.setStatus(WorkspaceMember.MemberStatus.BANNED);
         workspaceMemberRepository.save(targetMember);
+        
+        // 블랙리스트에 추가 (이미 있으면 무시)
+        if (!blacklistRepository.existsByWorkspaceIdAndAccountId(workspaceId, targetAccountId)) {
+            Blacklist blacklist = Blacklist.builder()
+                    .workspace(workspace)
+                    .account(targetAccount)
+                    .build();
+            blacklistRepository.save(blacklist);
+        }
+    }
+    
+    /**
+     * 멤버 차단 해제
+     */
+    @Transactional
+    public void unbanMember(Long workspaceId, Long targetAccountId, Long requestAccountId) {
+        // 권한 확인
+        WorkspaceMember requestMember = workspaceMemberRepository.findByWorkspaceIdAndAccountId(workspaceId, requestAccountId)
+                .orElseThrow(() -> new RuntimeException("워크스페이스 접근 권한이 없습니다."));
+        
+        if (requestMember.getStatus() != WorkspaceMember.MemberStatus.ACTIVE ||
+            (requestMember.getRole() != WorkspaceMember.MemberRole.OWNER &&
+             requestMember.getRole() != WorkspaceMember.MemberRole.ADMIN)) {
+            throw new RuntimeException("멤버 차단 해제 권한이 없습니다.");
+        }
+        
+        // 블랙리스트에서 제거
+        blacklistRepository.findByWorkspaceIdAndAccountId(workspaceId, targetAccountId)
+                .ifPresent(blacklist -> {
+                    blacklist.markDeleted(); // soft delete
+                    blacklistRepository.save(blacklist);
+                });
+        
+        // 차단된 멤버의 상태를 LEFT로 변경 (재참여 가능하도록)
+        workspaceMemberRepository.findByWorkspaceIdAndAccountId(workspaceId, targetAccountId)
+                .ifPresent(member -> {
+                    if (member.getStatus() == WorkspaceMember.MemberStatus.BANNED) {
+                        member.setStatus(WorkspaceMember.MemberStatus.LEFT);
+                        workspaceMemberRepository.save(member);
+                    }
+                });
+    }
+    
+    /**
+     * 워크스페이스 블랙리스트 목록 조회
+     */
+    public List<UserSummaryResponse> getBlacklistedMembers(Long workspaceId, Long accountId) {
+        // 권한 확인
+        WorkspaceMember requestMember = workspaceMemberRepository.findByWorkspaceIdAndAccountId(workspaceId, accountId)
+                .orElseThrow(() -> new RuntimeException("워크스페이스 접근 권한이 없습니다."));
+        
+        if (requestMember.getStatus() != WorkspaceMember.MemberStatus.ACTIVE ||
+            (requestMember.getRole() != WorkspaceMember.MemberRole.OWNER &&
+             requestMember.getRole() != WorkspaceMember.MemberRole.ADMIN)) {
+            throw new RuntimeException("블랙리스트 조회 권한이 없습니다.");
+        }
+        
+        List<Blacklist> blacklists = blacklistRepository.findByWorkspaceId(workspaceId);
+        return blacklists.stream()
+                .map(blacklist -> convertToUserSummary(blacklist.getAccount()))
+                .collect(Collectors.toList());
     }
     
     /**
@@ -317,7 +459,8 @@ public class WorkspaceService {
                 .iconUrl(workspace.getIconUrl())
                 .owner(convertToUserSummary(workspace.getAccount()))
                 .passwordProtected(workspace.getPassword() != null)
-                .inviteCode(workspace.getUrl())
+                .inviteCode(workspace.getUrl()) // 하위 호환성을 위해 유지
+                .url(workspace.getUrl()) // 초대 링크용 URL 필드
                 .memberCount(members.size())
                 .members(members.stream().map(this::convertToUserSummary).collect(Collectors.toList()))
                 .createdAt(workspace.getCreatedAt())
@@ -330,6 +473,16 @@ public class WorkspaceService {
         return UserSummaryResponse.builder()
                 .id(account.getId())
                 .name(account.getName())
+                .email(account.getEmail())
+                .age(account.getAge())
+                .mbti(account.getMbti())
+                .disposition(account.getDisposition())
+                .introduction(account.getIntroduction())
+                .portfolio(account.getPortfolio())
+                .preferWorkstyle(account.getPreferWorkstyle())
+                .dislikeWorkstyle(account.getDislikeWorkstyle())
+                .likes(account.getLikes())
+                .dislikes(account.getDislikes())
                 .profileImage(account.getProfileImage())
                 .role(member.getRole().toString())
                 .build();
@@ -339,6 +492,16 @@ public class WorkspaceService {
         return UserSummaryResponse.builder()
                 .id(account.getId())
                 .name(account.getName())
+                .email(account.getEmail())
+                .age(account.getAge())
+                .mbti(account.getMbti())
+                .disposition(account.getDisposition())
+                .introduction(account.getIntroduction())
+                .portfolio(account.getPortfolio())
+                .preferWorkstyle(account.getPreferWorkstyle())
+                .dislikeWorkstyle(account.getDislikeWorkstyle())
+                .likes(account.getLikes())
+                .dislikes(account.getDislikes())
                 .profileImage(account.getProfileImage())
                 .role(account.getRole().toString())
                 .build();

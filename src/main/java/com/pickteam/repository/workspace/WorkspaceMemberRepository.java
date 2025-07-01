@@ -12,12 +12,28 @@ import java.util.Optional;
 @Repository
 public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember, Long> {
     
+    /**
+     * 워크스페이스 멤버 존재 여부 확인 (모든 상태 포함)
+     */
     boolean existsByWorkspaceIdAndAccountId(Long workspaceId, Long accountId);
     
+    /**
+     * 활성 워크스페이스 멤버 존재 여부 확인
+     */
+    @Query("SELECT COUNT(wm) > 0 FROM WorkspaceMember wm WHERE wm.workspace.id = :workspaceId AND wm.account.id = :accountId AND wm.status = 'ACTIVE'")
+    boolean existsActiveByWorkspaceIdAndAccountId(@Param("workspaceId") Long workspaceId, @Param("accountId") Long accountId);
+    
+    /**
+     * 워크스페이스 멤버 찾기 (모든 상태 포함)
+     */
     Optional<WorkspaceMember> findByWorkspaceIdAndAccountId(Long workspaceId, Long accountId);
     
-    @Query("SELECT wm FROM WorkspaceMember wm WHERE wm.workspace.id = :workspaceId AND wm.status = 'ACTIVE' AND wm.isDeleted = false")
+    @Query("SELECT wm FROM WorkspaceMember wm WHERE wm.workspace.id = :workspaceId AND wm.status = 'ACTIVE'")
     List<WorkspaceMember> findActiveMembers(@Param("workspaceId") Long workspaceId);
     
-    List<WorkspaceMember> findByAccountIdAndIsDeletedFalse(Long accountId);
+    @Query("SELECT wm FROM WorkspaceMember wm WHERE wm.account.id = :accountId")
+    List<WorkspaceMember> findByAccountId(@Param("accountId") Long accountId);
+    
+    @Query("SELECT wm FROM WorkspaceMember wm WHERE wm.account.id = :accountId AND wm.status = :status")
+    List<WorkspaceMember> findByAccountIdAndStatus(@Param("accountId") Long accountId, @Param("status") WorkspaceMember.MemberStatus status);
 } 

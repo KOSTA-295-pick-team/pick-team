@@ -6,7 +6,7 @@ import com.pickteam.dto.ApiResponse;
 import com.pickteam.domain.enums.UserRole;
 import com.pickteam.service.user.UserService;
 import com.pickteam.service.user.AuthService;
-import com.pickteam.service.user.FileUploadService;
+// import com.pickteam.service.user.FileUploadService; // TODO: 통합 파일 시스템 구축 후 활성화
 import com.pickteam.constants.UserControllerMessages;
 import com.pickteam.exception.validation.ValidationException;
 import jakarta.validation.Valid;
@@ -29,7 +29,8 @@ public class UserController {
 
     private final UserService userService;
     private final AuthService authService;
-    private final FileUploadService fileUploadService;
+    // private final FileUploadService fileUploadService; // TODO: 통합 파일 시스템 구축 후
+    // 활성화
 
     // 환경변수에서 주입받는 설정들
     @Value("${app.email.blocked-domains}")
@@ -360,55 +361,64 @@ public class UserController {
     }
 
     // ==================== 프로필 이미지 관리 API ====================
+    // TODO: 통합 파일 시스템 구축 후 활성화 예정
 
-    // 프로필 이미지 업로드
-    @PostMapping("/me/profile-image")
-    public ResponseEntity<ApiResponse<String>> uploadProfileImage(
-            @RequestParam("file") MultipartFile file) {
-        log.debug("프로필 이미지 업로드 요청 - 파일크기: {}", file.getSize());
-        // 인증 확인 및 사용자 ID 추출
-        Long currentUserId = authService.requireAuthentication();
-
-        // 추가 검증: 파일 존재 여부 확인
-        if (file.isEmpty()) {
-            log.warn("빈 파일 업로드 시도 - 사용자 ID: {}", currentUserId);
-            throw new ValidationException("업로드할 파일을 선택해주세요.");
-        }
-
-        log.info("프로필 이미지 업로드 - 사용자 ID: {}, 파일크기: {}", currentUserId, file.getSize());
-        String imageUrl = fileUploadService.uploadProfileImage(file, currentUserId);
-        log.info("프로필 이미지 업로드 완료 - 사용자 ID: {}", currentUserId);
-
-        return ResponseEntity.ok(ApiResponse.success("프로필 이미지 업로드 성공", imageUrl));
-    }
-
-    // 프로필 이미지 삭제
-    @DeleteMapping("/me/profile-image")
-    public ResponseEntity<ApiResponse<Void>> deleteProfileImage() {
-        log.debug("프로필 이미지 삭제 요청");
-        // 인증 확인 및 사용자 ID 추출
-        Long currentUserId = authService.requireAuthentication();
-
-        // 현재 프로필 정보 조회
-        UserProfileResponse profile = userService.getMyProfile(currentUserId);
-        if (profile.getProfileImageUrl() == null || profile.getProfileImageUrl().trim().isEmpty()) {
-            log.warn("삭제할 프로필 이미지가 없음 - 사용자 ID: {}", currentUserId);
-            throw new ValidationException("삭제할 프로필 이미지가 없습니다.");
-        }
-
-        log.info("프로필 이미지 삭제 - 사용자 ID: {}", currentUserId);
-
-        // 파일 삭제
-        fileUploadService.deleteProfileImage(profile.getProfileImageUrl(), currentUserId);
-
-        // DB에서 프로필 이미지 URL 제거
-        UserProfileUpdateRequest updateRequest = new UserProfileUpdateRequest();
-        updateRequest.setProfileImageUrl(null);
-        userService.updateMyProfile(currentUserId, updateRequest);
-
-        log.info("프로필 이미지 삭제 완료 - 사용자 ID: {}", currentUserId);
-        return ResponseEntity.ok(ApiResponse.success("프로필 이미지 삭제 성공", null));
-    }
+    /*
+     * // 프로필 이미지 업로드
+     * 
+     * @PostMapping("/me/profile-image")
+     * public ResponseEntity<ApiResponse<String>> uploadProfileImage(
+     * 
+     * @RequestParam("file") MultipartFile file) {
+     * log.debug("프로필 이미지 업로드 요청 - 파일크기: {}", file.getSize());
+     * // 인증 확인 및 사용자 ID 추출
+     * Long currentUserId = authService.requireAuthentication();
+     * 
+     * // 추가 검증: 파일 존재 여부 확인
+     * if (file.isEmpty()) {
+     * log.warn("빈 파일 업로드 시도 - 사용자 ID: {}", currentUserId);
+     * throw new ValidationException("업로드할 파일을 선택해주세요.");
+     * }
+     * 
+     * log.info("프로필 이미지 업로드 - 사용자 ID: {}, 파일크기: {}", currentUserId,
+     * file.getSize());
+     * String imageUrl = fileUploadService.uploadProfileImage(file, currentUserId);
+     * log.info("프로필 이미지 업로드 완료 - 사용자 ID: {}", currentUserId);
+     * 
+     * return ResponseEntity.ok(ApiResponse.success("프로필 이미지 업로드 성공", imageUrl));
+     * }
+     * 
+     * // 프로필 이미지 삭제
+     * 
+     * @DeleteMapping("/me/profile-image")
+     * public ResponseEntity<ApiResponse<Void>> deleteProfileImage() {
+     * log.debug("프로필 이미지 삭제 요청");
+     * // 인증 확인 및 사용자 ID 추출
+     * Long currentUserId = authService.requireAuthentication();
+     * 
+     * // 현재 프로필 정보 조회
+     * UserProfileResponse profile = userService.getMyProfile(currentUserId);
+     * if (profile.getProfileImageUrl() == null ||
+     * profile.getProfileImageUrl().trim().isEmpty()) {
+     * log.warn("삭제할 프로필 이미지가 없음 - 사용자 ID: {}", currentUserId);
+     * throw new ValidationException("삭제할 프로필 이미지가 없습니다.");
+     * }
+     * 
+     * log.info("프로필 이미지 삭제 - 사용자 ID: {}", currentUserId);
+     * 
+     * // 파일 삭제
+     * fileUploadService.deleteProfileImage(profile.getProfileImageUrl(),
+     * currentUserId);
+     * 
+     * // DB에서 프로필 이미지 URL 제거
+     * UserProfileUpdateRequest updateRequest = new UserProfileUpdateRequest();
+     * updateRequest.setProfileImageUrl(null);
+     * userService.updateMyProfile(currentUserId, updateRequest);
+     * 
+     * log.info("프로필 이미지 삭제 완료 - 사용자 ID: {}", currentUserId);
+     * return ResponseEntity.ok(ApiResponse.success("프로필 이미지 삭제 성공", null));
+     * }
+     */
 
     // ==================== 유효성 검증 헬퍼 메서드들 ====================
 

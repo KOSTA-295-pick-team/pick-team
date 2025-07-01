@@ -39,10 +39,12 @@ public class UserProfileUpdateRequest {
     @Size(max = 200, message = "포트폴리오 링크는 200자 이하여야 합니다")
     private String portfolio;
 
-    /** 프로필 이미지 URL (파일 업로드 후 받은 URL) */
-    @Size(max = 500, message = "프로필 이미지 URL은 500자 이하여야 합니다")
-    @Pattern(regexp = "^$|^https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=]+\\.(jpg|jpeg|png|gif|webp)(\\?[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=]*)?$", message = "올바른 이미지 URL 형식이 아닙니다 (http/https + jpg/jpeg/png/gif/webp)")
-    private String profileImageUrl;
+    /** 프로필 이미지 URL (파일 업로드 후 받은 URL) - TODO: 통합 파일 시스템 구축 후 활성화 */
+    // @Size(max = 500, message = "프로필 이미지 URL은 500자 이하여야 합니다")
+    // @Pattern(regexp =
+    // "^$|^https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=]+\\.(jpg|jpeg|png|gif|webp)(\\?[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=]*)?$",
+    // message = "올바른 이미지 URL 형식이 아닙니다 (http/https + jpg/jpeg/png/gif/webp)")
+    // private String profileImageUrl;
 
     /** 선호하는 작업 스타일 (팀 매칭 알고리즘에 활용) */
     @Size(max = 100, message = "선호 작업 스타일은 100자 이하여야 합니다")

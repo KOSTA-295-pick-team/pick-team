@@ -288,8 +288,10 @@ public class UserServiceImpl implements UserService {
             account.setIntroduction(request.getIntroduction().trim());
         if (request.getPortfolio() != null && !request.getPortfolio().trim().isEmpty())
             account.setPortfolio(request.getPortfolio().trim());
-        if (request.getProfileImageUrl() != null && !request.getProfileImageUrl().trim().isEmpty())
-            account.setProfileImageUrl(request.getProfileImageUrl().trim());
+        // TODO: 통합 파일 시스템 구축 후 활성화
+        // if (request.getProfileImageUrl() != null &&
+        // !request.getProfileImageUrl().trim().isEmpty())
+        // account.setProfileImageUrl(request.getProfileImageUrl().trim());
         if (request.getPreferWorkstyle() != null && !request.getPreferWorkstyle().trim().isEmpty())
             account.setPreferWorkstyle(request.getPreferWorkstyle().trim());
         if (request.getDislikeWorkstyle() != null && !request.getDislikeWorkstyle().trim().isEmpty())
@@ -574,7 +576,10 @@ public class UserServiceImpl implements UserService {
         response.setDisposition(account.getDisposition()); // 엔티티 기본값: "정보없음"
         response.setIntroduction(account.getIntroduction()); // 엔티티 기본값: "정보없음"
         response.setPortfolio(account.getPortfolio()); // 엔티티 기본값: "https://github.com/myportfolio"
-        response.setProfileImageUrl(account.getProfileImageUrl()); // 프로필 이미지는 null 유지
+        // TODO: 통합 파일 시스템 구축 후 활성화
+        // response.setProfileImageUrl(account.getProfileImageUrl()); // 프로필 이미지는 null
+        // 유지
+        // response.setProfileImageUrl(null); // 임시로 null 설정
         response.setPreferWorkstyle(account.getPreferWorkstyle()); // 엔티티 기본값: "정보없음"
         response.setDislikeWorkstyle(account.getDislikeWorkstyle()); // 엔티티 기본값: "정보없음"
 

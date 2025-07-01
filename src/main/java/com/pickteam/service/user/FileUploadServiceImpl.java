@@ -1,6 +1,7 @@
 package com.pickteam.service.user;
 
 import com.pickteam.exception.validation.ValidationException;
+import com.pickteam.constants.FileUploadErrorMessages;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,13 +51,13 @@ public class FileUploadServiceImpl implements FileUploadService {
 
         // 1. 파일 유효성 검증
         if (!isValidImageFile(file)) {
-            throw new ValidationException("지원하지 않는 파일 형식입니다. JPG, PNG, GIF, WEBP 파일만 업로드 가능합니다.");
+            throw new ValidationException(FileUploadErrorMessages.UNSUPPORTED_FILE_FORMAT);
         }
 
         // 2. 파일 크기 검증 (프로필 이미지 전용 크기 사용)
         if (file.getSize() > profileImageMaxSize) {
-            throw new ValidationException(
-                    "파일 크기가 너무 큽니다. 최대 " + (profileImageMaxSize / 1024 / 1024) + "MB까지 업로드 가능합니다.");
+            long maxSizeMB = profileImageMaxSize / 1024 / 1024;
+            throw new ValidationException(String.format(FileUploadErrorMessages.FILE_SIZE_EXCEEDED, maxSizeMB));
         }
 
         try {
@@ -83,7 +84,7 @@ public class FileUploadServiceImpl implements FileUploadService {
 
         } catch (IOException e) {
             log.error("프로필 이미지 업로드 실패: userId={}, error={}", userId, e.getMessage(), e);
-            throw new ValidationException("파일 업로드 중 오류가 발생했습니다.");
+            throw new ValidationException(FileUploadErrorMessages.FILE_UPLOAD_FAILED);
         }
     }
 

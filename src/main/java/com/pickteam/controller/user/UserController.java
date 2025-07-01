@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import java.util.List;
 
 @Slf4j
@@ -29,6 +30,10 @@ public class UserController {
     private final UserService userService;
     private final AuthService authService;
     private final FileUploadService fileUploadService;
+
+    // 환경변수에서 주입받는 설정들
+    @Value("${app.email.blocked-domains}")
+    private String blockedDomainsConfig;
 
     // 간소화된 회원가입
     @PostMapping("/register")
@@ -301,14 +306,11 @@ public class UserController {
 
         String domain = email.substring(email.lastIndexOf("@") + 1).toLowerCase();
 
-        // 일반적인 임시 이메일 서비스 도메인들
-        String[] blockedDomains = {
-                "10minutemail.com", "guerrillamail.com", "mailinator.com",
-                "tempmail.org", "throwaway.email", "example.com", "test.com"
-        };
+        // 환경변수에서 차단 도메인 목록 읽어오기
+        String[] blockedDomains = blockedDomainsConfig.split(",");
 
         for (String blockedDomain : blockedDomains) {
-            if (domain.equals(blockedDomain)) {
+            if (domain.equals(blockedDomain.trim())) {
                 return true;
             }
         }

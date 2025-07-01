@@ -50,6 +50,16 @@ public class UserServiceImpl implements UserService {
     @Value("${app.account.default-grace-period-days}")
     private int defaultGracePeriodDays;
 
+    /** 해시태그 관련 설정 - 환경변수에서 주입 */
+    @Value("${app.hashtag.max-count}")
+    private int hashtagMaxCount;
+
+    @Value("${app.hashtag.max-length}")
+    private int hashtagMaxLength;
+
+    @Value("${app.hashtag.valid-pattern}")
+    private String hashtagValidPattern;
+
     /**
      * 간소화된 회원가입 처리
      * - 이메일과 패스워드만으로 기본 계정 생성
@@ -272,6 +282,12 @@ public class UserServiceImpl implements UserService {
     private void updateUserHashtags(Account account, List<String> hashtagNames) {
         log.debug("해시태그 업데이트 시작: userId={}, hashtags={}", account.getId(), hashtagNames);
 
+        // 해시태그 개수 제한 (환경변수에서 설정값 사용)
+        if (hashtagNames.size() > hashtagMaxCount) {
+            log.warn("해시태그 개수 초과: userId={}, count={}", account.getId(), hashtagNames.size());
+            throw new ValidationException("해시태그는 최대 " + hashtagMaxCount + "개까지 등록 가능합니다.");
+        }
+
         // 1. 기존 해시태그 연결 모두 삭제
         userHashtagListRepository.deleteByAccount(account);
 
@@ -282,6 +298,18 @@ public class UserServiceImpl implements UserService {
             }
 
             String cleanedName = hashtagName.trim().toLowerCase();
+
+            // 해시태그 길이 검증 (너무 긴 해시태그 방지)
+            if (cleanedName.length() > 50) {
+                log.warn("해시태그 길이 초과: userId={}, hashtag={}", account.getId(), cleanedName);
+                continue; // 너무 긴 해시태그는 무시
+            }
+
+            // 특수문자 제거 (알파벳, 숫자, 한글만 허용)
+            if (!cleanedName.matches("^[a-zA-Z0-9가-힣]*$")) {
+                log.warn("유효하지 않은 해시태그 문자: userId={}, hashtag={}", account.getId(), cleanedName);
+                continue; // 유효하지 않은 문자 포함 해시태그는 무시
+            }
 
             // 3. 해시태그 조회 또는 생성
             UserHashtag userHashtag = userHashtagRepository.findByName(cleanedName)

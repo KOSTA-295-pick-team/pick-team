@@ -198,7 +198,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserProfileResponse getMyProfile(Long userId) {
-        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+        Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         return convertToProfileResponse(account);
@@ -219,7 +219,7 @@ public class UserServiceImpl implements UserService {
     public void updateMyProfile(Long userId, UserProfileUpdateRequest request) {
         log.info("프로필 수정 시작: userId={}", userId);
 
-        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+        Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         // 유효성 검사
@@ -315,7 +315,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserProfileResponse getUserProfile(Long userId) {
-        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+        Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         return convertToProfileResponse(account);
@@ -332,7 +332,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public List<UserProfileResponse> getAllUserProfile() {
-        List<Account> accounts = accountRepository.findAllByDeletedAtIsNull();
+        List<Account> accounts = accountRepository.findAllByIsDeletedFalse();
         return accounts.stream()
                 .map(this::convertToProfileResponse)
                 .collect(Collectors.toList());
@@ -351,7 +351,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public List<UserProfileResponse> getRecommendedTeamMembers(Long userId) {
-        Account currentUser = accountRepository.findByIdAndDeletedAtIsNull(userId)
+        Account currentUser = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         // MBTI와 성향 기반 추천 팀원 조회
@@ -383,7 +383,7 @@ public class UserServiceImpl implements UserService {
     public void changePassword(Long userId, ChangePasswordRequest request) {
         log.info("비밀번호 변경 시작: userId={}", userId);
 
-        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+        Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         // 현재 비밀번호 확인
@@ -416,11 +416,15 @@ public class UserServiceImpl implements UserService {
     public void deleteAccount(Long userId) {
         log.info("계정 삭제 시작: userId={}", userId);
 
-        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+        Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
-        // Soft Delete 실행 (유예기간 설정)
+        // Soft Delete 실행 (수동 방식)
+        account.markDeleted(); // isDeleted = true, deletedAt = now()
+
+        // 유예기간도 설정 (기존 로직 유지)
         account.markDeletedWithGracePeriod(defaultGracePeriodDays);
+
         accountRepository.save(account);
         log.info("계정 삭제 완료 (유예기간 {}일): userId={}, permanentDeletionDate={}",
                 defaultGracePeriodDays, userId, account.getPermanentDeletionDate());
@@ -441,7 +445,7 @@ public class UserServiceImpl implements UserService {
         log.debug("세션 상태 확인 요청: userId={}", userId);
 
         // 사용자 조회
-        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+        Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         // RefreshToken 조회로 세션 유효성 확인
@@ -488,7 +492,7 @@ public class UserServiceImpl implements UserService {
         response.setDislikeWorkstyle(account.getDislikeWorkstyle()); // 엔티티 기본값: "정보없음"
 
         // 해시태그 목록 조회 및 설정
-        List<UserHashtagList> userHashtagLists = userHashtagListRepository.findByAccount(account);
+        List<UserHashtagList> userHashtagLists = userHashtagListRepository.findByAccountAndIsDeletedFalse(account);
         List<String> hashtags = userHashtagLists.stream()
                 .map(userHashtagList -> userHashtagList.getUserHashtag().getName())
                 .collect(Collectors.toList());

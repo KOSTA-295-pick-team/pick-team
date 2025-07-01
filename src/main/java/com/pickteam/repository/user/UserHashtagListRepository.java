@@ -31,4 +31,20 @@ public interface UserHashtagListRepository extends JpaRepository<UserHashtagList
 
     // 특정 사용자 ID의 모든 해시태그 연결 삭제 (계정 삭제 시 사용)
     void deleteByAccountId(Long accountId);
+
+    // === isDeleted 기반 조회 메서드 (수동 Soft Delete 지원) ===
+
+    // 활성 해시태그 연결만 조회 (Account ID로)
+    @Query("SELECT uhl FROM UserHashtagList uhl JOIN FETCH uhl.userHashtag WHERE uhl.account.id = :userId AND uhl.isDeleted = false")
+    List<UserHashtagList> findByAccountIdAndIsDeletedFalse(@Param("userId") Long userId);
+
+    // 활성 해시태그 연결만 조회 (Account 객체로)
+    @Query("SELECT uhl FROM UserHashtagList uhl JOIN FETCH uhl.userHashtag WHERE uhl.account = :account AND uhl.isDeleted = false")
+    List<UserHashtagList> findByAccountAndIsDeletedFalse(@Param("account") Account account);
+
+    // 활성 연결 중에서 사용자와 해시태그로 찾기
+    Optional<UserHashtagList> findByAccountAndUserHashtagAndIsDeletedFalse(Account account, UserHashtag userHashtag);
+
+    // 활성 연결 중에서 사용자가 특정 해시태그를 가지고 있는지 확인
+    boolean existsByAccountAndUserHashtagAndIsDeletedFalse(Account account, UserHashtag userHashtag);
 }

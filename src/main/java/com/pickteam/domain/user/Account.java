@@ -77,7 +77,7 @@ public class Account extends BaseSoftDeleteSupportEntity {
 
     /** 포트폴리오 링크 또는 설명 */
     @Builder.Default
-    private String portfolio = "https://github.com/myportfolio";
+    private String portfolio = null; // 포트폴리오 미등록 상태
 
     /** 프로필 이미지 URL (파일 저장소에 업로드된 이미지 경로) */
     private String profileImageUrl;

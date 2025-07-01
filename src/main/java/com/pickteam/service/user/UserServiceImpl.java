@@ -50,16 +50,6 @@ public class UserServiceImpl implements UserService {
     @Value("${app.account.default-grace-period-days}")
     private int defaultGracePeriodDays;
 
-    /** 해시태그 관련 설정 - 환경변수에서 주입 */
-    @Value("${app.hashtag.max-count}")
-    private int hashtagMaxCount;
-
-    @Value("${app.hashtag.max-length}")
-    private int hashtagMaxLength;
-
-    @Value("${app.hashtag.valid-pattern}")
-    private String hashtagValidPattern;
-
     /**
      * 간소화된 회원가입 처리
      * - 이메일과 패스워드만으로 기본 계정 생성
@@ -282,34 +272,25 @@ public class UserServiceImpl implements UserService {
     private void updateUserHashtags(Account account, List<String> hashtagNames) {
         log.debug("해시태그 업데이트 시작: userId={}, hashtags={}", account.getId(), hashtagNames);
 
-        // 해시태그 개수 제한 (환경변수에서 설정값 사용)
-        if (hashtagNames.size() > hashtagMaxCount) {
-            log.warn("해시태그 개수 초과: userId={}, count={}", account.getId(), hashtagNames.size());
-            throw new ValidationException("해시태그는 최대 " + hashtagMaxCount + "개까지 등록 가능합니다.");
+        // 1. 해시태그 전처리 및 중복 제거
+        List<String> validHashtags = hashtagNames.stream()
+                .filter(name -> name != null && !name.trim().isEmpty()) // null과 빈 문자열 필터링
+                .map(name -> name.trim().toLowerCase()) // 정규화
+                .distinct() // 중복 제거
+                .filter(this::isValidHashtagName) // 유효성 검증
+                .collect(Collectors.toList());
+
+        // 2. 해시태그 개수 제한 검증 (중복 제거 후)
+        if (validHashtags.size() > 20) {
+            log.warn("해시태그 개수 초과: userId={}, count={}", account.getId(), validHashtags.size());
+            throw new ValidationException("해시태그는 최대 20개까지 등록 가능합니다.");
         }
 
-        // 1. 기존 해시태그 연결 모두 삭제
+        // 3. 기존 해시태그 연결 모두 삭제
         userHashtagListRepository.deleteByAccount(account);
 
-        // 2. 새로운 해시태그들 처리
-        for (String hashtagName : hashtagNames) {
-            if (hashtagName == null || hashtagName.trim().isEmpty()) {
-                continue; // 빈 해시태그 무시
-            }
-
-            String cleanedName = hashtagName.trim().toLowerCase();
-
-            // 해시태그 길이 검증 (너무 긴 해시태그 방지)
-            if (cleanedName.length() > 50) {
-                log.warn("해시태그 길이 초과: userId={}, hashtag={}", account.getId(), cleanedName);
-                continue; // 너무 긴 해시태그는 무시
-            }
-
-            // 특수문자 제거 (알파벳, 숫자, 한글만 허용)
-            if (!cleanedName.matches("^[a-zA-Z0-9가-힣]*$")) {
-                log.warn("유효하지 않은 해시태그 문자: userId={}, hashtag={}", account.getId(), cleanedName);
-                continue; // 유효하지 않은 문자 포함 해시태그는 무시
-            }
+        // 4. 새로운 해시태그들 처리
+        for (String cleanedName : validHashtags) {
 
             // 3. 해시태그 조회 또는 생성
             UserHashtag userHashtag = userHashtagRepository.findByName(cleanedName)
@@ -328,7 +309,34 @@ public class UserServiceImpl implements UserService {
             userHashtagListRepository.save(userHashtagList);
         }
 
-        log.info("해시태그 업데이트 완료: userId={}, count={}", account.getId(), hashtagNames.size());
+        log.info("해시태그 업데이트 완료: userId={}, count={}", account.getId(), validHashtags.size());
+    }
+
+    /**
+     * 해시태그 유효성 검증
+     * - 길이 제한 및 허용 문자 검증
+     * 
+     * @param hashtagName 검증할 해시태그 이름
+     * @return 유효한 해시태그면 true
+     */
+    private boolean isValidHashtagName(String hashtagName) {
+        if (hashtagName == null || hashtagName.trim().isEmpty()) {
+            return false;
+        }
+
+        // 해시태그 길이 검증 (최대 50자)
+        if (hashtagName.length() > 50) {
+            log.debug("해시태그 길이 초과: {}", hashtagName);
+            return false;
+        }
+
+        // 특수문자 제거 (알파벳, 숫자, 한글만 허용)
+        if (!hashtagName.matches("^[a-zA-Z0-9가-힣]*$")) {
+            log.debug("유효하지 않은 해시태그 문자: {}", hashtagName);
+            return false;
+        }
+
+        return true;
     }
 
     /**

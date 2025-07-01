@@ -419,15 +419,15 @@ public class UserController {
         if (email == null || email.isEmpty()) {
             return "[EMPTY]";
         }
-        
+
         int atIndex = email.indexOf('@');
         if (atIndex <= 0) {
             return "[INVALID_EMAIL]";
         }
-        
+
         String localPart = email.substring(0, atIndex);
         String domain = email.substring(atIndex);
-        
+
         if (localPart.length() <= 2) {
             return "**" + domain;
         } else {

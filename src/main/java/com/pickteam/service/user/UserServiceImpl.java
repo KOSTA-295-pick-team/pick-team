@@ -509,10 +509,7 @@ public class UserServiceImpl implements UserService {
         Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
-        // Soft Delete 실행 (수동 방식)
-        account.markDeleted(); // isDeleted = true, deletedAt = now()
-
-        // 유예기간도 설정 (기존 로직 유지)
+        // Soft Delete with Grace Period
         account.markDeletedWithGracePeriod(defaultGracePeriodDays);
 
         accountRepository.save(account);

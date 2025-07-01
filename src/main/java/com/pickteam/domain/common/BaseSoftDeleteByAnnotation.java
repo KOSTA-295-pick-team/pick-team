@@ -35,11 +35,4 @@ public abstract class BaseSoftDeleteByAnnotation extends BaseTimeEntity {
         this.deletedAt = null;
         // isDeleted는 Hibernate @SoftDelete가 자동으로 관리
     }
-
-    /** 활성 상태 확인 (Hibernate @SoftDelete 사용 시 이 메서드는 사용하지 않는 것을 권장) */
-    @Deprecated
-    public boolean isActive() {
-        // @SoftDelete 사용 시 Hibernate가 자동으로 필터링하므로 이 메서드는 불필요
-        return true; // 조회된 엔티티는 이미 활성 상태임을 의미
-    }
 }

@@ -5,6 +5,7 @@ import com.pickteam.domain.board.Post;
 import com.pickteam.domain.chat.ChatMember;
 import com.pickteam.domain.chat.ChatMessage;
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
+import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.enums.UserRole;
 import com.pickteam.domain.kanban.KanbanTaskComment;
 import com.pickteam.domain.kanban.KanbanTaskMember;
@@ -32,7 +33,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Account extends BaseSoftDeleteByAnnotation {
+public class Account extends BaseSoftDeleteSupportEntity {
 
     /** 사용자 고유 식별자 */
     @Id

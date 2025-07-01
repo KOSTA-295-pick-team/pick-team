@@ -34,12 +34,20 @@ public class Schedule extends BaseSoftDeleteSupportEntity {
     @Enumerated(EnumType.STRING)
     private ScheduleType type;
 
-    // @SoftDelete 엔티티는 EAGER 로딩 필수
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "user_id")
+    /**
+     * 일정 생성자 (사용자)
+     * - LAZY 로딩으로 성능 최적화 (수동 Soft Delete 방식에서 지원)
+     */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private Account account;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    /**
+     * 소속 팀 정보 (팀 일정인 경우)
+     * - LAZY 로딩으로 성능 최적화
+     * - 개인 일정인 경우 null 가능
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id")
     private Team team;
 }

@@ -44,7 +44,7 @@ public class PostAttachService {
     private String allowedExtensions;
 
     public List<PostAttachResponseDto> getPostAttachments(Long postId) {
-        List<PostAttach> attachments = postAttachRepository.findByPostIdWithFileInfo(postId);
+        List<PostAttach> attachments = postAttachRepository.findByPostIdWithFileInfoAndIsDeletedFalse(postId);
         return attachments.stream()
                 .map(PostAttachResponseDto::from)
                 .collect(Collectors.toList());
@@ -110,7 +110,7 @@ public class PostAttachService {
     public void deletePostAttachment(Long attachId, Long accountId) {
         log.info("파일 삭제 요청 - attachId: {}, accountId: {}", attachId, accountId);
 
-        PostAttach postAttach = postAttachRepository.findByIdWithFileInfo(attachId)
+        PostAttach postAttach = postAttachRepository.findByIdWithFileInfoAndIsDeletedFalse(attachId)
                 .orElseThrow(() -> new IllegalArgumentException("첨부파일을 찾을 수 없습니다."));
 
         validatePostOwner(postAttach.getPost(), accountId);
@@ -122,7 +122,7 @@ public class PostAttachService {
     public void deleteUserPostAttachment(Long attachId) {
         log.info("관리자 파일 삭제 요청 - attachId: {}", attachId);
 
-        PostAttach postAttach = postAttachRepository.findByIdWithFileInfo(attachId)
+        PostAttach postAttach = postAttachRepository.findByIdWithFileInfoAndIsDeletedFalse(attachId)
                 .orElseThrow(() -> new IllegalArgumentException("첨부파일을 찾을 수 없습니다."));
 
         deleteFileAndRecord(postAttach, attachId);
@@ -138,8 +138,8 @@ public class PostAttachService {
                 log.info("실제 파일 삭제 완료 - filePath: {}", filePath);
             }
 
-            // 데이터베이스에서 삭제 (Soft Delete)
-            postAttachRepository.delete(postAttach);
+            // 수동 Soft Delete
+            postAttach.markDeleted();
 
             log.info("첨부파일 삭제 완료 - attachId: {}", attachId);
 

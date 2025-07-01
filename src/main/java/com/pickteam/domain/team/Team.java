@@ -2,6 +2,7 @@ package com.pickteam.domain.team;
 
 import com.pickteam.domain.board.Board;
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
+import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.kanban.Kanban;
 import com.pickteam.domain.workspace.Workspace;
 import jakarta.persistence.*;
@@ -16,7 +17,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Team extends BaseSoftDeleteByAnnotation {
+public class Team extends BaseSoftDeleteSupportEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

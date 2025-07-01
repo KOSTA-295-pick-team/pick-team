@@ -1,7 +1,8 @@
 package com.pickteam.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.pickteam.dto.ApiResponse;
+import com.pickteam.exception.common.ProblemDetail;
+import com.pickteam.exception.common.ProblemType;
 import com.pickteam.constants.SessionErrorCode;
 import com.pickteam.repository.user.RefreshTokenRepository;
 import com.pickteam.repository.user.AccountRepository;
@@ -25,7 +26,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * JWT 인증 필터
@@ -143,7 +147,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
-        ApiResponse<Void> errorResponse = ApiResponse.error(SessionErrorCode.DUPLICATE_LOGIN);
+        // RFC 9457 표준 ProblemDetail 에러 응답 생성
+        Map<String, Object> extensions = new HashMap<>();
+        extensions.put("timestamp", LocalDateTime.now());
+        extensions.put("errorCode", SessionErrorCode.DUPLICATE_LOGIN.getCode());
+        extensions.put("path", request.getRequestURI());
+
+        ProblemDetail errorResponse = ProblemDetail.builder()
+                .type(ProblemType.SESSION_EXPIRED.getType())
+                .title(ProblemType.SESSION_EXPIRED.getTitle())
+                .status(HttpServletResponse.SC_UNAUTHORIZED)
+                .detail("다른 기기에서 로그인되어 현재 세션이 만료되었습니다. 다시 로그인해주세요.")
+                .instance("/session-expired")
+                .extensions(extensions)
+                .build();
+
         response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
     }
 }

@@ -1,9 +1,12 @@
 package com.pickteam.service.user;
 
 import com.pickteam.domain.user.EmailVerification;
-import com.pickteam.exception.EmailSendException;
+import com.pickteam.exception.email.EmailSendException;
+import com.pickteam.exception.user.AccountWithdrawalException;
 import com.pickteam.constants.EmailErrorMessages;
+import com.pickteam.constants.UserErrorMessages;
 import com.pickteam.repository.user.EmailVerificationRepository;
+import com.pickteam.repository.user.AccountRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -15,7 +18,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import java.io.UnsupportedEncodingException;
 import java.time.LocalDateTime;
-import java.util.Random;
+import java.security.SecureRandom;
 
 /**
  * 이메일 서비스 구현체
@@ -32,6 +35,7 @@ public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
     private final EmailVerificationRepository emailVerificationRepository;
+    private final AccountRepository accountRepository;
 
     /** 이메일 발신자 주소 */
     @Value("${app.mail.from}")
@@ -43,6 +47,9 @@ public class EmailServiceImpl implements EmailService {
 
     /** 인증 코드 유효 시간 (5분) */
     private static final int VERIFICATION_CODE_EXPIRY_MINUTES = 5;
+
+    /** 인증 코드 생성용 보안 랜덤 객체 (스레드 안전) */
+    private static final SecureRandom secureRandom = new SecureRandom();
 
     /**
      * 이메일 인증 코드 발송
@@ -76,13 +83,13 @@ public class EmailServiceImpl implements EmailService {
      * 6자리 랜덤 인증 코드 생성
      * - 000000 ~ 999999 범위의 6자리 숫자 코드 생성
      * - 앞자리가 0인 경우도 6자리로 포맷팅
+     * - SecureRandom 사용으로 보안성 강화 및 동일 코드 생성 방지
      * 
      * @return 6자리 숫자 문자열 인증 코드
      */
     @Override
     public String generateVerificationCode() {
-        Random random = new Random();
-        String code = String.format("%06d", random.nextInt(1000000));
+        String code = String.format("%06d", secureRandom.nextInt(1000000));
         log.debug("인증 코드 생성 완료");
         return code;
     }
@@ -98,6 +105,14 @@ public class EmailServiceImpl implements EmailService {
     @Override
     public void storeVerificationCode(String email, String code) {
         log.info("인증 코드 저장 시작: {}", email);
+
+        // 탈퇴 계정 검증 (유예 기간 중인 계정 확인)
+        accountRepository.findWithdrawnAccountByEmail(email)
+                .ifPresent(withdrawnAccount -> {
+                    throw new AccountWithdrawalException(
+                            UserErrorMessages.EMAIL_VERIFICATION_BLOCKED_WITHDRAWAL,
+                            withdrawnAccount.getPermanentDeletionDate());
+                });
 
         // 기존 미인증 코드 삭제
         emailVerificationRepository.deleteByEmail(email);

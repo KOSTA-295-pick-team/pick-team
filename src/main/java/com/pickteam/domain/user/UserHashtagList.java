@@ -1,6 +1,7 @@
 package com.pickteam.domain.user;
 
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
+import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.team.TeamMember;
 import com.pickteam.domain.workspace.WorkspaceMember;
 import jakarta.persistence.*;
@@ -19,7 +20,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class UserHashtagList extends BaseSoftDeleteByAnnotation {
+public class UserHashtagList extends BaseSoftDeleteSupportEntity {
 
     /** 사용자-해시태그 연결 고유 식별자 */
     @Id

@@ -1,4 +1,4 @@
-package com.pickteam.exception;
+package com.pickteam.exception.user;
 
 /**
  * 이메일 중복 시 발생하는 예외

@@ -1,4 +1,4 @@
-package com.pickteam.exception;
+package com.pickteam.exception.email;
 
 /**
  * 이메일 발송 실패 시 발생하는 예외
@@ -32,5 +32,14 @@ public class EmailSendException extends RuntimeException {
      */
     public EmailSendException(String message, Throwable cause) {
         super(message, cause);
+    }
+
+    /**
+     * 원인이 포함된 생성자
+     * 
+     * @param cause 예외 원인
+     */
+    public EmailSendException(Throwable cause) {
+        super(cause);
     }
 }

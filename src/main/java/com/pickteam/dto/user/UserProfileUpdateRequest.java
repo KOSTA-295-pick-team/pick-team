@@ -54,5 +54,5 @@ public class UserProfileUpdateRequest {
 
     /** 사용자 해시태그 목록 (전체 교체) */
     @Size(max = 20, message = "해시태그는 최대 20개까지 가능합니다")
-    private List<@Valid @Size(min = 2, max = 20, message = "해시태그는 2자 이상 20자 이하여야 합니다") String> hashtags;
+    private List<@Valid @NotBlank(message = "해시태그는 공백일 수 없습니다") @Size(min = 2, max = 20, message = "해시태그는 2자 이상 20자 이하여야 합니다") @Pattern(regexp = "^[가-힣a-zA-Z0-9_]+$", message = "해시태그는 한글, 영문, 숫자, 언더스코어만 허용됩니다") String> hashtags;
 }

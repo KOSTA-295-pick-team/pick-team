@@ -73,6 +73,9 @@ public class Announcement extends BaseSoftDeleteSupportEntity {
      * @return 작성자 여부
      */
     public boolean isAuthor(Long accountId) {
+        if (accountId == null) {
+            return false;
+        }
         return this.account.getId().equals(accountId);
     }
 

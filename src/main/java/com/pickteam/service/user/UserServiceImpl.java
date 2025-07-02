@@ -289,10 +289,8 @@ public class UserServiceImpl implements UserService {
             account.setIntroduction(request.getIntroduction().trim());
         if (request.getPortfolio() != null && !request.getPortfolio().trim().isEmpty())
             account.setPortfolio(request.getPortfolio().trim());
-        // TODO: 통합 파일 시스템 구축 후 활성화
-        // if (request.getProfileImageUrl() != null &&
-        // !request.getProfileImageUrl().trim().isEmpty())
-        // account.setProfileImageUrl(request.getProfileImageUrl().trim());
+        if (request.getProfileImageUrl() != null)
+            account.setProfileImageUrl(request.getProfileImageUrl());
         if (request.getPreferWorkstyle() != null && !request.getPreferWorkstyle().trim().isEmpty())
             account.setPreferWorkstyle(request.getPreferWorkstyle().trim());
         if (request.getDislikeWorkstyle() != null && !request.getDislikeWorkstyle().trim().isEmpty())

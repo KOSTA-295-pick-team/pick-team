@@ -30,9 +30,6 @@ public class AnnouncementCreateRequest {
      * 요청 데이터 유효성 검증
      */
     public void validate() {
-        if (title == null || title.trim().isEmpty()) {
-            throw new IllegalArgumentException("제목은 필수입니다.");
-        }
         if (teamId == null || teamId <= 0) {
             throw new IllegalArgumentException("유효한 팀 ID가 필요합니다.");
         }

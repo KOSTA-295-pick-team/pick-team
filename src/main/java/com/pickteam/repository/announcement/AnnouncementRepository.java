@@ -80,7 +80,10 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, Long
      * @param teamId 팀 ID
      * @return 공지사항 개수
      */
-    long countByTeamIdAndIsDeletedFalse(Long teamId);
+    @Query("SELECT COUNT(a) FROM Announcement a " +
+            "WHERE a.team.id = :teamId " +
+            "AND a.isDeleted = false")
+    long countByTeamIdAndIsDeletedFalse(@Param("teamId") Long teamId);
 
     /**
      * 제목 또는 내용으로 공지사항 검색 (워크스페이스 내)
@@ -92,7 +95,7 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, Long
             "JOIN FETCH a.account acc " +
             "JOIN FETCH a.team t " +
             "WHERE t.workspace.id = :workspaceId " +
-            "AND (a.title LIKE %:keyword% OR a.content LIKE %:keyword%) " +
+            "AND (a.title LIKE CONCAT('%', :keyword, '%') OR a.content LIKE CONCAT('%', :keyword, '%')) " +
             "AND a.isDeleted = false " +
             "ORDER BY a.createdAt DESC")
     List<Announcement> findByWorkspaceIdAndKeywordAndIsDeletedFalse(@Param("workspaceId") Long workspaceId,

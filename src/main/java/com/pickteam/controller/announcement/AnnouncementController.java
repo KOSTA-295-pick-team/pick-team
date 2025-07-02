@@ -37,7 +37,7 @@ public class AnnouncementController {
     public ResponseEntity<?> createAnnouncement(
             @PathVariable Long workspaceId,
             @Valid @RequestBody AnnouncementCreateRequest request,
-            @RequestHeader(value = "Account-Id", defaultValue = "1") Long accountId) {
+            @RequestHeader(value = "Account-Id") Long accountId) {
         
         log.info("공지사항 생성 API 호출 - 워크스페이스 ID: {}, 계정 ID: {}", workspaceId, accountId);
         

@@ -45,4 +45,8 @@ public interface UserService {
 
     // 계정 삭제
     void deleteAccount(Long userId);
+
+    // === 해시태그 관리 ===
+    // 해시태그 검색 (다른 사용자들의 해시태그 포함)
+    java.util.List<HashtagResponse> searchHashtags(String keyword);
 }

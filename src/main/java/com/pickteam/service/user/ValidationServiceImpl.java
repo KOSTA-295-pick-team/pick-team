@@ -20,9 +20,10 @@ public class ValidationServiceImpl implements ValidationService {
      * - 최소 8자리 이상
      * - 대문자, 소문자, 숫자, 특수문자 각각 1개 이상 포함
      * - 공백 문자 불허
+     * - 허용 특수문자: @#$%^&+=!
      */
     private static final Pattern PASSWORD_PATTERN = Pattern
-            .compile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=])(?=\\S+$).{8,}$");
+            .compile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!])(?=\\S+$).{8,}$");
 
     /** 이름 형식 검증을 위한 정규표현식 (한글, 영문, 공백 허용, 2-50자) */
     private static final Pattern NAME_PATTERN = Pattern.compile("^[가-힣a-zA-Z\\s]{2,50}$");

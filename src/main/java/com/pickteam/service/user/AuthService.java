@@ -64,14 +64,15 @@ public interface AuthService {
         boolean matchesPassword(String rawPassword, String encodedPassword);
 
         /**
-         * 사용자를 위한 JWT Access Token을 생성합니다.
+         * 사용자를 위한 JWT Access Token을 생성합니다 (이름 포함).
          *
          * @param userId 사용자 ID
          * @param email  사용자 이메일
+         * @param name   사용자 이름
          * @return 생성된 Access Token
          * @throws IllegalArgumentException 매개변수가 유효하지 않은 경우
          */
-        String generateAccessToken(Long userId, String email);
+        String generateAccessToken(Long userId, String email, String name);
 
         /**
          * 사용자를 위한 Refresh Token을 생성하고 저장합니다.

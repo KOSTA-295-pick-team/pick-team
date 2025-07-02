@@ -2,6 +2,8 @@ package com.pickteam.dto.user;
 
 import lombok.Data;
 import jakarta.validation.constraints.*;
+import jakarta.validation.Valid;
+import java.util.List;
 
 /**
  * 사용자 프로필 수정 요청 DTO
@@ -37,6 +39,13 @@ public class UserProfileUpdateRequest {
     @Size(max = 200, message = "포트폴리오 링크는 200자 이하여야 합니다")
     private String portfolio;
 
+    /** 프로필 이미지 URL (파일 업로드 후 받은 URL) - TODO: 통합 파일 시스템 구축 후 활성화 */
+    // @Size(max = 500, message = "프로필 이미지 URL은 500자 이하여야 합니다")
+    // @Pattern(regexp =
+    // "^$|^https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=]+\\.(jpg|jpeg|png|gif|webp)(\\?[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=]*)?$",
+    // message = "올바른 이미지 URL 형식이 아닙니다 (http/https + jpg/jpeg/png/gif/webp)")
+    // private String profileImageUrl;
+
     /** 선호하는 작업 스타일 (팀 매칭 알고리즘에 활용) */
     @Size(max = 100, message = "선호 작업 스타일은 100자 이하여야 합니다")
     private String preferWorkstyle;
@@ -44,4 +53,8 @@ public class UserProfileUpdateRequest {
     /** 기피하는 작업 스타일 (팀 매칭 알고리즘에서 제외) */
     @Size(max = 100, message = "기피 작업 스타일은 100자 이하여야 합니다")
     private String dislikeWorkstyle;
+
+    /** 사용자 해시태그 목록 (전체 교체) */
+    @Size(max = 20, message = "해시태그는 최대 20개까지 가능합니다")
+    private List<@Valid @NotBlank(message = "해시태그는 공백일 수 없습니다") @Size(min = 2, max = 20, message = "해시태그는 2자 이상 20자 이하여야 합니다") @Pattern(regexp = "^[가-힣a-zA-Z0-9_]+$", message = "해시태그는 한글, 영문, 숫자, 언더스코어만 허용됩니다") String> hashtags;
 }

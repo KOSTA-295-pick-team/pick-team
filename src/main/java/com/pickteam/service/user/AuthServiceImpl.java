@@ -80,8 +80,9 @@ public class AuthServiceImpl implements AuthService {
         // 3. 기존 세션 무효화 (중복 로그인 방지)
         invalidateExistingSessions(account);
 
-        // 4. Access/Refresh 토큰 발급
-        String accessToken = jwtTokenProvider.generateAccessToken(account.getId(), account.getEmail());
+        // 4. Access/Refresh 토큰 발급 (이름 포함)
+        String accessToken = jwtTokenProvider.generateAccessToken(account.getId(), account.getEmail(),
+                account.getName());
         String refreshToken = jwtTokenProvider.generateRefreshToken(account.getId());
 
         // 5. Refresh Token DB 저장
@@ -128,17 +129,18 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * Access Token 생성
+     * Access Token 생성 (이름 포함)
+     * - 실시간 채팅 및 화상회의에서 사용자 이름 표시를 위해 토큰에 이름 정보 포함
      * - 짧은 만료시간을 가진 인증 토큰 생성
-     * - API 요청 시 인증에 사용
      * 
      * @param userId 사용자 ID
      * @param email  사용자 이메일
+     * @param name   사용자 이름
      * @return 생성된 Access Token
      */
     @Override
-    public String generateAccessToken(Long userId, String email) {
-        return jwtTokenProvider.generateAccessToken(userId, email);
+    public String generateAccessToken(Long userId, String email, String name) {
+        return jwtTokenProvider.generateAccessToken(userId, email, name);
     }
 
     /**
@@ -219,8 +221,9 @@ public class AuthServiceImpl implements AuthService {
         refreshToken.updateLastUsedTime();
         refreshTokenRepository.save(refreshToken);
 
-        // 5. 새 Access/Refresh 토큰 발급
-        String newAccessToken = jwtTokenProvider.generateAccessToken(account.getId(), account.getEmail());
+        // 5. 새 Access/Refresh 토큰 발급 (이름 포함)
+        String newAccessToken = jwtTokenProvider.generateAccessToken(account.getId(), account.getEmail(),
+                account.getName());
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(account.getId());
 
         // 6. 기존 토큰 삭제 후 새 토큰 저장
@@ -439,8 +442,8 @@ public class AuthServiceImpl implements AuthService {
             invalidateExistingSessions(account);
         }
 
-        // 3. 새 토큰 생성
-        String accessToken = generateAccessToken(account.getId(), account.getEmail());
+        // 3. 새 토큰 생성 (이름 포함)
+        String accessToken = generateAccessToken(account.getId(), account.getEmail(), account.getName());
         String refreshToken = generateRefreshTokenWithSessionInfo(account.getId(), sessionInfo, httpRequest);
 
         // 4. 로그인 성공 로깅

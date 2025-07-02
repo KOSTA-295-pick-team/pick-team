@@ -4,6 +4,8 @@ import com.pickteam.dto.user.*;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.user.RefreshToken;
+import com.pickteam.domain.user.UserHashtag;
+import com.pickteam.domain.user.UserHashtagList;
 import com.pickteam.domain.enums.UserRole;
 import com.pickteam.exception.email.EmailNotVerifiedException;
 import com.pickteam.exception.user.UserNotFoundException;
@@ -14,12 +16,16 @@ import com.pickteam.exception.user.AccountWithdrawalException;
 import com.pickteam.constants.UserErrorMessages;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.user.RefreshTokenRepository;
+import com.pickteam.repository.user.UserHashtagRepository;
+import com.pickteam.repository.user.UserHashtagListRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -36,6 +42,8 @@ public class UserServiceImpl implements UserService {
 
     private final AccountRepository accountRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserHashtagRepository userHashtagRepository;
+    private final UserHashtagListRepository userHashtagListRepository;
     private final AuthService authService;
     private final EmailService emailService;
     private final ValidationService validationService;
@@ -43,6 +51,47 @@ public class UserServiceImpl implements UserService {
     /** 기본 유예기간 (일) - 환경변수에서 주입 */
     @Value("${app.account.default-grace-period-days}")
     private int defaultGracePeriodDays;
+
+    /**
+     * 이메일 마스킹 (개인정보 보호)
+     * - 로그에 이메일 출력 시 개인정보 보호를 위해 마스킹
+     * 
+     * @param email 원본 이메일
+     * @return 마스킹된 이메일
+     */
+    private String maskEmail(String email) {
+        if (email == null || email.length() < 3) {
+            return "***@***.***";
+        }
+
+        int atIndex = email.indexOf('@');
+        if (atIndex == -1) {
+            return email.substring(0, Math.min(2, email.length())) + "***";
+        }
+
+        String localPart = email.substring(0, atIndex);
+        String domainPart = email.substring(atIndex);
+
+        if (localPart.length() <= 2) {
+            return localPart.charAt(0) + "***" + domainPart;
+        } else {
+            return localPart.substring(0, 2) + "***" + domainPart;
+        }
+    }
+
+    /**
+     * 해시태그 목록 마스킹 (개인정보 보호)
+     * - 해시태그 내용 대신 개수만 로깅
+     * 
+     * @param hashtags 해시태그 목록
+     * @return 마스킹된 정보
+     */
+    private String maskHashtags(List<String> hashtags) {
+        if (hashtags == null || hashtags.isEmpty()) {
+            return "빈 목록";
+        }
+        return hashtags.size() + "개 해시태그";
+    }
 
     /**
      * 간소화된 회원가입 처리
@@ -56,7 +105,7 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public void registerUser(SignupRequest request) {
-        log.info("간소화된 사용자 등록 시작: {}", request.getEmail());
+        log.info("간소화된 사용자 등록 시작: {}", maskEmail(request.getEmail()));
 
         // 1. 기본 유효성 검사
         if (!validationService.isValidEmail(request.getEmail())) {
@@ -97,7 +146,7 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         accountRepository.save(account);
-        log.info("간소화된 사용자 등록 완료: {}", request.getEmail());
+        log.info("간소화된 사용자 등록 완료: {}", maskEmail(request.getEmail()));
     }
 
     /**
@@ -136,7 +185,7 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public void requestEmailVerification(String email) {
-        log.info("이메일 인증 요청: {}", email);
+        log.info("이메일 인증 요청: {}", maskEmail(email));
 
         // 1. 이메일 형식 검사
         if (!validationService.isValidEmail(email)) {
@@ -148,7 +197,7 @@ public class UserServiceImpl implements UserService {
         emailService.storeVerificationCode(email, verificationCode);
         emailService.sendVerificationEmail(email, verificationCode);
 
-        log.info("이메일 인증 코드 발송 완료: {}", email);
+        log.info("이메일 인증 코드 발송 완료: {}", maskEmail(email));
     }
 
     /**
@@ -192,7 +241,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserProfileResponse getMyProfile(Long userId) {
-        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+        Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         return convertToProfileResponse(account);
@@ -213,7 +262,7 @@ public class UserServiceImpl implements UserService {
     public void updateMyProfile(Long userId, UserProfileUpdateRequest request) {
         log.info("프로필 수정 시작: userId={}", userId);
 
-        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+        Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         // 유효성 검사
@@ -227,26 +276,128 @@ public class UserServiceImpl implements UserService {
             throw new ValidationException(UserErrorMessages.INVALID_MBTI);
         }
 
-        // 프로필 업데이트
-        if (request.getName() != null)
-            account.setName(request.getName());
+        // 프로필 업데이트 (null과 빈 문자열 모두 체크)
+        if (request.getName() != null && !request.getName().trim().isEmpty())
+            account.setName(request.getName().trim());
         if (request.getAge() != null)
             account.setAge(request.getAge());
-        if (request.getMbti() != null)
-            account.setMbti(request.getMbti());
-        if (request.getDisposition() != null)
-            account.setDisposition(request.getDisposition());
-        if (request.getIntroduction() != null)
-            account.setIntroduction(request.getIntroduction());
-        if (request.getPortfolio() != null)
-            account.setPortfolio(request.getPortfolio());
-        if (request.getPreferWorkstyle() != null)
-            account.setPreferWorkstyle(request.getPreferWorkstyle());
-        if (request.getDislikeWorkstyle() != null)
-            account.setDislikeWorkstyle(request.getDislikeWorkstyle());
+        if (request.getMbti() != null && !request.getMbti().trim().isEmpty())
+            account.setMbti(request.getMbti().trim());
+        if (request.getDisposition() != null && !request.getDisposition().trim().isEmpty())
+            account.setDisposition(request.getDisposition().trim());
+        if (request.getIntroduction() != null && !request.getIntroduction().trim().isEmpty())
+            account.setIntroduction(request.getIntroduction().trim());
+        if (request.getPortfolio() != null && !request.getPortfolio().trim().isEmpty())
+            account.setPortfolio(request.getPortfolio().trim());
+        // TODO: 통합 파일 시스템 구축 후 활성화
+        // if (request.getProfileImageUrl() != null &&
+        // !request.getProfileImageUrl().trim().isEmpty())
+        // account.setProfileImageUrl(request.getProfileImageUrl().trim());
+        if (request.getPreferWorkstyle() != null && !request.getPreferWorkstyle().trim().isEmpty())
+            account.setPreferWorkstyle(request.getPreferWorkstyle().trim());
+        if (request.getDislikeWorkstyle() != null && !request.getDislikeWorkstyle().trim().isEmpty())
+            account.setDislikeWorkstyle(request.getDislikeWorkstyle().trim());
+
+        // 해시태그 처리 (빈 배열도 허용 - 모든 해시태그 삭제 의미)
+        if (request.getHashtags() != null) {
+            updateUserHashtags(account, request.getHashtags());
+        }
 
         accountRepository.save(account);
         log.info("프로필 수정 완료: userId={}", userId);
+    }
+
+    /**
+     * 사용자 해시태그 업데이트 처리
+     * - 기존 해시태그 연결을 모두 삭제하고 새로운 해시태그들로 재설정
+     * 
+     * @param account      사용자 계정
+     * @param hashtagNames 새로운 해시태그 이름 목록
+     */
+    private void updateUserHashtags(Account account, List<String> hashtagNames) {
+        log.debug("해시태그 업데이트 시작: userId={}, hashtags={}", account.getId(), maskHashtags(hashtagNames));
+
+        // 1. 해시태그 전처리 및 중복 제거
+        List<String> validHashtags = hashtagNames.stream()
+                .filter(name -> name != null && !name.trim().isEmpty()) // null과 빈 문자열 필터링
+                .map(name -> name.trim().toLowerCase()) // 정규화
+                .distinct() // 중복 제거
+                .filter(this::isValidHashtagName) // 유효성 검증
+                .collect(Collectors.toList());
+
+        // 2. 해시태그 개수 제한 검증 (중복 제거 후)
+        if (validHashtags.size() > 20) {
+            log.warn("해시태그 개수 초과: userId={}, count={}", account.getId(), validHashtags.size());
+            throw new ValidationException("해시태그는 최대 20개까지 등록 가능합니다.");
+        }
+
+        // 3. 기존 해시태그 연결 모두 삭제
+        userHashtagListRepository.deleteByAccount(account);
+
+        // 4. 새로운 해시태그들 처리 (배치 작업으로 트랜잭션 안정성 향상)
+        List<UserHashtagList> newHashtagLists = new ArrayList<>();
+        for (String cleanedName : validHashtags) {
+
+            // 해시태그 조회 또는 생성 (활성 해시태그만 우선 조회)
+            UserHashtag userHashtag = userHashtagRepository.findByNameAndIsDeletedFalse(cleanedName)
+                    .orElseGet(() -> {
+                        // 삭제된 해시태그가 있는지 확인하여 복원할지, 새로 생성할지 결정
+                        Optional<UserHashtag> deletedHashtag = userHashtagRepository.findByName(cleanedName);
+                        if (deletedHashtag.isPresent() && deletedHashtag.get().getIsDeleted()) {
+                            // 삭제된 해시태그가 있다면 복원
+                            UserHashtag restored = deletedHashtag.get();
+                            restored.restore();
+                            log.debug("삭제된 해시태그 복원: {}", cleanedName);
+                            return userHashtagRepository.save(restored);
+                        } else {
+                            // 새로운 해시태그 생성
+                            UserHashtag newHashtag = UserHashtag.builder()
+                                    .name(cleanedName)
+                                    .build();
+                            log.debug("새 해시태그 생성: {}", cleanedName);
+                            return userHashtagRepository.save(newHashtag);
+                        }
+                    });
+
+            // 사용자-해시태그 연결 생성 (리스트에 추가만 하고 저장은 나중에 배치로)
+            UserHashtagList userHashtagList = UserHashtagList.builder()
+                    .account(account)
+                    .userHashtag(userHashtag)
+                    .build();
+            newHashtagLists.add(userHashtagList);
+        }
+
+        // 배치로 저장하여 성능 및 트랜잭션 안정성 향상
+        userHashtagListRepository.saveAll(newHashtagLists);
+
+        log.info("해시태그 업데이트 완료: userId={}, count={}", account.getId(), validHashtags.size());
+    }
+
+    /**
+     * 해시태그 유효성 검증
+     * - 길이 제한 및 허용 문자 검증
+     * 
+     * @param hashtagName 검증할 해시태그 이름
+     * @return 유효한 해시태그면 true
+     */
+    private boolean isValidHashtagName(String hashtagName) {
+        if (hashtagName == null || hashtagName.trim().isEmpty()) {
+            return false;
+        }
+
+        // 해시태그 길이 검증 (최대 50자)
+        if (hashtagName.length() > 50) {
+            log.debug("해시태그 길이 초과: [MASKED]");
+            return false;
+        }
+
+        // 특수문자 제거 (알파벳, 숫자, 한글만 허용)
+        if (!hashtagName.matches("^[a-zA-Z0-9가-힣]*$")) {
+            log.debug("유효하지 않은 해시태그 문자: [MASKED]");
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -261,7 +412,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserProfileResponse getUserProfile(Long userId) {
-        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+        Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         return convertToProfileResponse(account);
@@ -278,7 +429,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public List<UserProfileResponse> getAllUserProfile() {
-        List<Account> accounts = accountRepository.findAllByDeletedAtIsNull();
+        List<Account> accounts = accountRepository.findAllByIsDeletedFalse();
         return accounts.stream()
                 .map(this::convertToProfileResponse)
                 .collect(Collectors.toList());
@@ -297,7 +448,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public List<UserProfileResponse> getRecommendedTeamMembers(Long userId) {
-        Account currentUser = accountRepository.findByIdAndDeletedAtIsNull(userId)
+        Account currentUser = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         // MBTI와 성향 기반 추천 팀원 조회
@@ -329,7 +480,7 @@ public class UserServiceImpl implements UserService {
     public void changePassword(Long userId, ChangePasswordRequest request) {
         log.info("비밀번호 변경 시작: userId={}", userId);
 
-        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+        Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         // 현재 비밀번호 확인
@@ -362,11 +513,12 @@ public class UserServiceImpl implements UserService {
     public void deleteAccount(Long userId) {
         log.info("계정 삭제 시작: userId={}", userId);
 
-        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+        Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
-        // Soft Delete 실행 (유예기간 설정)
+        // Soft Delete with Grace Period
         account.markDeletedWithGracePeriod(defaultGracePeriodDays);
+
         accountRepository.save(account);
         log.info("계정 삭제 완료 (유예기간 {}일): userId={}, permanentDeletionDate={}",
                 defaultGracePeriodDays, userId, account.getPermanentDeletionDate());
@@ -387,7 +539,7 @@ public class UserServiceImpl implements UserService {
         log.debug("세션 상태 확인 요청: userId={}", userId);
 
         // 사용자 조회
-        Account account = accountRepository.findByIdAndDeletedAtIsNull(userId)
+        Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
         // RefreshToken 조회로 세션 유효성 확인
@@ -412,6 +564,7 @@ public class UserServiceImpl implements UserService {
      * 계정 정보를 프로필 응답 DTO로 변환하는 헬퍼 메서드
      * - Entity를 API 응답용 DTO로 안전하게 변환
      * - 민감한 정보(비밀번호 등) 제외하고 변환
+     * - 엔티티 레벨에서 기본값이 설정되므로 null 체크 불필요
      * - 코드 중복 제거를 위한 공통 변환 로직
      * 
      * @param account 변환할 계정 엔티티
@@ -421,15 +574,59 @@ public class UserServiceImpl implements UserService {
         UserProfileResponse response = new UserProfileResponse();
         response.setId(account.getId());
         response.setEmail(account.getEmail());
-        response.setName(account.getName());
-        response.setAge(account.getAge());
+        response.setName(account.getName()); // 엔티티 기본값: "신규 사용자"
+        response.setAge(account.getAge()); // 나이는 숫자이므로 null 유지
         response.setRole(account.getRole());
-        response.setMbti(account.getMbti());
-        response.setDisposition(account.getDisposition());
-        response.setIntroduction(account.getIntroduction());
-        response.setPortfolio(account.getPortfolio());
-        response.setPreferWorkstyle(account.getPreferWorkstyle());
-        response.setDislikeWorkstyle(account.getDislikeWorkstyle());
+        response.setMbti(account.getMbti()); // 엔티티 기본값: "정보없음"
+        response.setDisposition(account.getDisposition()); // 엔티티 기본값: "정보없음"
+        response.setIntroduction(account.getIntroduction()); // 엔티티 기본값: "정보없음"
+        response.setPortfolio(account.getPortfolio()); // 엔티티 기본값: "https://github.com/myportfolio"
+        // TODO: 통합 파일 시스템 구축 후 활성화
+        // response.setProfileImageUrl(account.getProfileImageUrl()); // 프로필 이미지는 null
+        // 유지
+        // response.setProfileImageUrl(null); // 임시로 null 설정
+        response.setPreferWorkstyle(account.getPreferWorkstyle()); // 엔티티 기본값: "정보없음"
+        response.setDislikeWorkstyle(account.getDislikeWorkstyle()); // 엔티티 기본값: "정보없음"
+
+        // 해시태그 목록 조회 및 설정
+        List<UserHashtagList> userHashtagLists = userHashtagListRepository.findByAccountAndIsDeletedFalse(account);
+        List<String> hashtags = userHashtagLists.stream()
+                .map(userHashtagList -> userHashtagList.getUserHashtag().getName())
+                .collect(Collectors.toList());
+        response.setHashtags(hashtags);
+
         return response;
+    }
+
+    // === 해시태그 관리 구현 ===
+
+    /**
+     * 해시태그 검색 (자동완성용)
+     * - 성능 최적화: 상위 10개 결과만 반환
+     * - Soft-delete 필터링: 삭제된 해시태그 제외
+     * - 입력 검증 및 정규화 처리
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<HashtagResponse> searchHashtags(String keyword) {
+        log.debug("해시태그 검색 시작: [KEYWORD_LENGTH={}]", keyword.length());
+
+        if (keyword == null || keyword.trim().isEmpty()) {
+            log.debug("빈 키워드로 인한 빈 결과 반환");
+            return List.of();
+        }
+
+        String cleanedKeyword = keyword.trim().toLowerCase();
+
+        // 성능 최적화: Top 10개만 조회, soft-delete 필터링 적용
+        List<UserHashtag> hashtags = userHashtagRepository
+                .findTop10ByIsDeletedFalseAndNameContainingIgnoreCaseOrderByName(cleanedKeyword);
+
+        List<HashtagResponse> results = hashtags.stream()
+                .map(HashtagResponse::from)
+                .collect(Collectors.toList());
+
+        log.debug("해시태그 검색 완료: [KEYWORD_LENGTH={}], 결과 수={} (최대 10개)", cleanedKeyword.length(), results.size());
+        return results;
     }
 }

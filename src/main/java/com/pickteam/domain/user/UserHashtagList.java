@@ -1,9 +1,6 @@
 package com.pickteam.domain.user;
 
-import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
 import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
-import com.pickteam.domain.team.TeamMember;
-import com.pickteam.domain.workspace.WorkspaceMember;
 import jakarta.persistence.*;
 import lombok.*;
 

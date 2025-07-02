@@ -4,7 +4,6 @@ import com.pickteam.domain.board.Comment;
 import com.pickteam.domain.board.Post;
 import com.pickteam.domain.chat.ChatMember;
 import com.pickteam.domain.chat.ChatMessage;
-import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
 import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.enums.UserRole;
 import com.pickteam.domain.kanban.KanbanTaskComment;
@@ -51,11 +50,12 @@ public class Account extends BaseSoftDeleteSupportEntity {
 
     /** 사용자 이름 (프로필 완성 시 입력) */
     @Column(nullable = true)
-    private String name;
+    @Builder.Default
+    private String name = "신규 사용자";
 
     /** 사용자 나이 (탈퇴 시 개인정보보호를 위해 삭제) */
     @Column(nullable = true)
-    private Integer age;
+    private Integer age = 225;
 
     /** 사용자 권한 (ADMIN, USER 등) */
     @Enumerated(EnumType.STRING)
@@ -64,27 +64,32 @@ public class Account extends BaseSoftDeleteSupportEntity {
     private UserRole role = UserRole.USER;
 
     /** MBTI 성격 유형 (팀 매칭 시 참고용, 선택 사항) */
-    @Column(length = 4)
-    private String mbti;
+    @Builder.Default
+    private String mbti = "정보없음";
 
     /** 사용자 성향/특성 설명 (팀 매칭 시 참고용) */
-    @Column(columnDefinition = "TEXT")
-    private String disposition;
+    @Builder.Default
+    private String disposition = "정보없음";
 
     /** 사용자 자기소개 */
-    @Column(columnDefinition = "TEXT")
-    private String introduction;
+    @Builder.Default
+    private String introduction = "정보없음";
 
     /** 포트폴리오 링크 또는 설명 */
-    private String portfolio;
+    @Builder.Default
+    private String portfolio = null; // 포트폴리오 미등록 상태
+
+    /** 프로필 이미지 URL (파일 저장소에 업로드된 이미지 경로) - TODO: 통합 파일 시스템 구축 후 연동 예정 */
+    private String profileImageUrl;
 
     /** 선호하는 작업 스타일 (팀 매칭 알고리즘에 활용) */
-    private String preferWorkstyle;
+    @Builder.Default
+    private String preferWorkstyle = "정보없음";
 
     /** 기피하는 작업 스타일 (팀 매칭 알고리즘에서 제외) */
-    private String dislikeWorkstyle;
+    @Builder.Default
+    private String dislikeWorkstyle = "정보없음";
 
-        // === 연관관계 매핑 ===
     /**
      * 계정 영구 삭제 예정일
      * - soft-delete 시점에서 유예기간을 더한 날짜
@@ -94,17 +99,10 @@ public class Account extends BaseSoftDeleteSupportEntity {
     @Column(name = "permanent_deletion_date")
     private LocalDateTime permanentDeletionDate;
 
-    // mvc 버전에서 추가된 필드들
-    @Column(columnDefinition = "TEXT")
-    private String likes;
+    // === 연관관계 매핑 ===
+    // 사용자가 탈퇴해도 관련 정보가 삭제되면 안 되므로 cascade 없이 조회용으로만 연결
 
-    @Column(columnDefinition = "TEXT")
-    private String dislikes;
-
-    @Column(name = "profile_image")
-    private String profileImage;
-
-    // 사용자가 탈퇴해도 관련 정보가 삭제되면 안 된다. cascade 걸지 않고 OnetoMany로 연결만(조회용)
+    /** 사용자가 작성한 댓글 목록 */
     @OneToMany(mappedBy = "account")
     @Builder.Default
     private List<Comment> comments = new ArrayList<>();

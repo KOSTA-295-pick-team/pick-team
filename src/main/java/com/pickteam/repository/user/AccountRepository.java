@@ -88,4 +88,18 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
                         "AND a.permanentDeletionDate > CURRENT_TIMESTAMP " +
                         "AND a.deletedAt IS NOT NULL")
         boolean existsWithdrawnAccountByEmail(@Param("email") String email);
+
+        // === isDeleted 기반 조회 메서드 (수동 Soft Delete 지원) ===
+
+        // 활성 계정 조회 (isDeleted = false)
+        Optional<Account> findByIdAndIsDeletedFalse(Long id);
+
+        // 활성 계정 전체 조회
+        List<Account> findAllByIsDeletedFalse();
+
+        // 이메일로 활성 계정 조회
+        Optional<Account> findByEmailAndIsDeletedFalse(String email);
+
+        // 이메일 중복 체크 (활성 계정만)
+        boolean existsByEmailAndIsDeletedFalse(String email);
 }

@@ -16,9 +16,6 @@ import java.time.LocalDateTime;
 @SoftDelete(columnName = "is_deleted")
 public abstract class BaseSoftDeleteByAnnotation extends BaseTimeEntity {
 
-    @Column(name = "is_deleted", nullable = false)
-    protected Boolean isDeleted = false;
-
     @Column(name = "deleted_at")
     protected LocalDateTime deletedAt;
 
@@ -27,18 +24,15 @@ public abstract class BaseSoftDeleteByAnnotation extends BaseTimeEntity {
         this.deletedAt = LocalDateTime.now(); // Hibernate가 해주지 않는다.
     }
 
-    /** isDeleted 컬럼의 값을 수동 관리 필요할 경우를 위한 수동설정 메소드 (Hibernate가 관리해주지 않을 경우) */
+    /** 수동 삭제 처리 (필요시 사용) */
     public void markDeleted() {
-        this.isDeleted = true;
         this.deletedAt = LocalDateTime.now();
+        // isDeleted는 Hibernate @SoftDelete가 자동으로 관리
     }
 
+    /** 복구 처리 */
     public void restore() {
-        this.isDeleted = false;
         this.deletedAt = null;
-    }
-
-    public boolean isActive() {
-        return !Boolean.TRUE.equals(this.isDeleted);
+        // isDeleted는 Hibernate @SoftDelete가 자동으로 관리
     }
 }

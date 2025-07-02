@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
+public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
 
     /** 팀 Id 및 계정 Id로 유효성 검사 */
     boolean existsByTeamIdAndAccountIdAndIsDeletedFalse(Long teamId, Long accountId);

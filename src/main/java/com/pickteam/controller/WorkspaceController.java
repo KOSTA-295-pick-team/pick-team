@@ -40,6 +40,7 @@ public class WorkspaceController {
         WorkspaceResponse response = workspaceService.joinWorkspace(userId, request);
         return ResponseEntity.ok(response);
     }
+
     
     /**
      * 사용자가 속한 워크스페이스 목록 조회

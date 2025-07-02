@@ -6,5 +6,5 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public class VideoConferenceException extends Exception {
-    private final ErrorCode errorCode;
+    private final VideoConferenceErrorCode videoConferenceErrorCode;
 }

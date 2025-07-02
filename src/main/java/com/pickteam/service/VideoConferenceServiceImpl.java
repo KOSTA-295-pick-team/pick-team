@@ -6,26 +6,32 @@ import com.pickteam.domain.videochat.VideoMember;
 import com.pickteam.domain.workspace.Workspace;
 import com.pickteam.dto.VideoChannelDTO;
 import com.pickteam.dto.VideoMemberDTO;
-import com.pickteam.exception.ErrorCode;
+import com.pickteam.exception.VideoConferenceErrorCode;
 import com.pickteam.exception.VideoConferenceException;
 import com.pickteam.repository.VideoChannelRepository;
 import com.pickteam.repository.VideoMemberRepository;
+import io.livekit.server.AccessToken;
+import io.livekit.server.RoomJoin;
+import io.livekit.server.RoomName;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class VideoConferenceServiceImpl implements VideoConferenceService {
 
+    @Value("${livekit.api.key:devkey}")
+    private String LIVEKIT_API_KEY;
+
+    @Value("${livekit.api.secret:secret}")
+    private String LIVEKIT_API_SECRET;
 
     private final VideoChannelRepository videoChannelRepository;
 
@@ -43,7 +49,7 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
             channels = videoChannelRepository.selectChannelsByWorkSpaceId(workspaceId, accountId);
         }
         if (channels.isEmpty()) {
-            throw new VideoConferenceException(ErrorCode.CHANNELS_NOT_FOUND);
+            throw new VideoConferenceException(VideoConferenceErrorCode.CHANNELS_NOT_FOUND);
         }
 
         return channels.stream().map(channel -> modelMapper.map(channel, VideoChannelDTO.class)).toList();
@@ -72,7 +78,7 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
     @Override
     public void deleteVideoChannel(Long videoChannelId) throws VideoConferenceException {
 
-        VideoChannel channel = videoChannelRepository.findById(videoChannelId).orElseThrow(() -> new VideoConferenceException(ErrorCode.CHANNEL_NOT_FOUND));
+        VideoChannel channel = videoChannelRepository.findById(videoChannelId).orElseThrow(() -> new VideoConferenceException(VideoConferenceErrorCode.CHANNEL_NOT_FOUND));
 
         videoChannelRepository.delete(channel);
 
@@ -85,7 +91,7 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
         List<VideoMember> members = videoMemberRepository.selectAccountsByChannelId(videoChannelId);
 
         if (members.isEmpty()) {
-            throw new VideoConferenceException(ErrorCode.MEMBERS_NOT_FOUND);
+            throw new VideoConferenceException(VideoConferenceErrorCode.MEMBERS_NOT_FOUND);
         }
 
         return members.stream().map(member -> {
@@ -100,9 +106,30 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
     @Override
     public void deleteVideoChannelParticipant(Long memberId) throws VideoConferenceException {
 
-      VideoMember member = videoMemberRepository.findById(memberId).orElseThrow(()->new VideoConferenceException(ErrorCode.MEMBER_NOT_FOUND));
+        VideoMember member = videoMemberRepository.findById(memberId).orElseThrow(() -> new VideoConferenceException(VideoConferenceErrorCode.MEMBER_NOT_FOUND));
 
-      videoMemberRepository.delete(member);
+        videoMemberRepository.delete(member);
 
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public boolean checkUserInVideoChannel(Long accountId, Long videoChannelId) {
+        VideoMember member = videoMemberRepository.selectAccountByChannelId(videoChannelId, accountId);
+        return member != null;
+    }
+
+
+    @Override
+    public String joinVideoConferenceRoom(Long accountId, Long videoChannelId, String username) throws VideoConferenceException {
+
+        if (!checkUserInVideoChannel(accountId, videoChannelId)) {
+            throw new VideoConferenceException(VideoConferenceErrorCode.MEMBER_NOT_FOUND);
+        }
+        AccessToken token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+        token.setName(username);
+        token.setIdentity(String.valueOf(accountId));
+        token.addGrants(new RoomJoin(true), new RoomName(String.valueOf(videoChannelId)));
+        return token.toJwt();
     }
 }

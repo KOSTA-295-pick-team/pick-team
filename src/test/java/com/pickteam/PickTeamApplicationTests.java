@@ -7,11 +7,14 @@ import com.pickteam.dto.VideoChannelDTO;
 import com.pickteam.exception.VideoConferenceException;
 import com.pickteam.repository.VideoChannelRepository;
 import com.pickteam.repository.VideoMemberRepository;
+import com.pickteam.repository.user.AccountRepository;
+import com.pickteam.repository.workspace.WorkspaceRepository;
 import com.pickteam.service.VideoConferenceService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 
@@ -32,6 +35,9 @@ class PickTeamApplicationTests {
 
     @Autowired
     WorkspaceRepository workspaceRepository;
+
+    @Autowired
+    PasswordEncoder passwordEncoder;
 
     @Test
     void contextLoads() {
@@ -117,7 +123,7 @@ class PickTeamApplicationTests {
     @Test
     @DisplayName("화상회의채널 입장 TEST")
     void joinVideoChannel() throws VideoConferenceException {
-        videoConferenceService.joinVideoChannel(1L,2L);
+        videoConferenceService.joinVideoChannel(1L, 2L);
 
     }
 
@@ -137,6 +143,11 @@ class PickTeamApplicationTests {
     @DisplayName("화상회의채널 참여자삭제 TEST")
     void deleteVideoChannelParticipants() throws VideoConferenceException {
         videoConferenceService.deleteVideoChannelParticipant(1L);
+    }
+
+    @Test
+    void encodeTest() throws VideoConferenceException {
+        System.out.println(passwordEncoder.encode("12345678"));
     }
 
 }

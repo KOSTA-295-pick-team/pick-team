@@ -20,4 +20,7 @@ public interface VideoConferenceService {
 
     public void deleteVideoChannelParticipant(Long memberId) throws VideoConferenceException;
 
+    public boolean checkUserInVideoChannel(Long accountId, Long videoChannelId);
+
+    public String joinVideoConferenceRoom(Long accountId, Long videoChannelId, String username) throws VideoConferenceException;
 }

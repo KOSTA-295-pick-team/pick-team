@@ -32,13 +32,13 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     List<TeamMember> findByTeamIdAndAccountNameContaining(@Param("teamId") Long teamId, @Param("name") String name);
 
     /** 팀의 차단된 멤버 조회 */
-    List<TeamMember> findByTeamIdAndBlockedTrue(Long teamId);
+    List<TeamMember> findByTeamIdAndIsBlockedTrue(Long teamId);
 
     /** 계정이 속한 팀 조회 */
     List<TeamMember> findByAccountIdAndIsDeletedFalse(Long accountId);
 
     /** 특정 팀에서 계정의 차단 여부 확인 */
-    boolean existsByTeamIdAndAccountIdAndBlockedTrue(Long teamId, Long accountId);
+    boolean existsByTeamIdAndAccountIdAndIsBlockedTrue(Long teamId, Long accountId);
 
 
 }

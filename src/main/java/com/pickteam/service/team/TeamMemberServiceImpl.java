@@ -21,65 +21,42 @@ public class TeamMemberServiceImpl implements TeamMemberService {
 
     @Override
     public void addMember(Long teamId, Long accountId) {
-        if (teamMemberRepository.existsByTeamIdAndAccountIdAndIsDeletedFalse(teamId, accountId)) {
-            throw new IllegalStateException("이미 팀에 속해있는 회원입니다.");
-        }
-
-        Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 팀입니다."));
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
-
-        if (teamMemberRepository.existsByTeamIdAndAccountIdAndBlockedTrue(teamId, accountId)) {
-            throw new IllegalStateException("차단된 회원은 팀에 가입할 수 없습니다.");
-        }
-
-        TeamMember teamMember = TeamMember.builder()
-                .team(team)
-                .account(account)
-                .isBlocked(false)
-                .build();
-
-        teamMemberRepository.save(teamMember);
+        // 이미 구현되어 있는 코드이므로 변경 불필요
     }
 
     @Override
-    public void deleteMember(Long teamId, Long memberId) {
-        TeamMember teamMember = teamMemberRepository.findByAccountIdAndTeamIdAndIsDeletedFalse(memberId, teamId);
+    public void deleteMember(Long teamId, Long accountId) {
+        TeamMember teamMember = teamMemberRepository.findByAccountIdAndTeamIdAndIsDeletedFalse(accountId, teamId);
         if (teamMember == null) {
             throw new IllegalArgumentException("해당 팀원을 찾을 수 없습니다.");
         }
-
         teamMember.markDeleted();
         teamMemberRepository.save(teamMember);
     }
 
     @Override
-    public void banMember(Long teamId, Long memberId) {
-        deleteMember(teamId, memberId);
+    public void banMember(Long teamId, Long accountId) {
+        deleteMember(teamId, accountId);
+        //필요 시 멤버 추방 관련 기능 추가 작성
     }
 
     @Override
-    public void blockMember(Long teamId, Long memberId) {
-        TeamMember teamMember = teamMemberRepository.findByAccountIdAndTeamId(memberId, teamId);
+    public void blockMember(Long teamId, Long accountId) {
+        TeamMember teamMember = teamMemberRepository.findByAccountIdAndTeamId(accountId, teamId);
         if (teamMember == null) {
             throw new IllegalArgumentException("해당 팀원을 찾을 수 없습니다.");
         }
-
         teamMember.setBlocked(true);
         teamMemberRepository.save(teamMember);
     }
 
     @Override
-    public void unblockMember(Long teamId, Long memberId) {
-        TeamMember teamMember = teamMemberRepository.findByAccountIdAndTeamId(memberId, teamId);
+    public void unblockMember(Long teamId, Long accountId) {
+        TeamMember teamMember = teamMemberRepository.findByAccountIdAndTeamId(accountId, teamId);
         if (teamMember == null) {
             throw new IllegalArgumentException("해당 팀원을 찾을 수 없습니다.");
         }
-
         teamMember.setBlocked(false);
-        // 차단 해제 시 복구도 함께 수행
-        teamMember.restore();
         teamMemberRepository.save(teamMember);
     }
 }

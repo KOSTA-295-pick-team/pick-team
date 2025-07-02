@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -333,7 +334,8 @@ public class UserServiceImpl implements UserService {
         // 3. 기존 해시태그 연결 모두 삭제
         userHashtagListRepository.deleteByAccount(account);
 
-        // 4. 새로운 해시태그들 처리
+        // 4. 새로운 해시태그들 처리 (배치 작업으로 트랜잭션 안정성 향상)
+        List<UserHashtagList> newHashtagLists = new ArrayList<>();
         for (String cleanedName : validHashtags) {
 
             // 해시태그 조회 또는 생성 (활성 해시태그만 우선 조회)
@@ -357,13 +359,16 @@ public class UserServiceImpl implements UserService {
                         }
                     });
 
-            // 4. 사용자-해시태그 연결 생성
+            // 사용자-해시태그 연결 생성 (리스트에 추가만 하고 저장은 나중에 배치로)
             UserHashtagList userHashtagList = UserHashtagList.builder()
                     .account(account)
                     .userHashtag(userHashtag)
                     .build();
-            userHashtagListRepository.save(userHashtagList);
+            newHashtagLists.add(userHashtagList);
         }
+
+        // 배치로 저장하여 성능 및 트랜잭션 안정성 향상
+        userHashtagListRepository.saveAll(newHashtagLists);
 
         log.info("해시태그 업데이트 완료: userId={}, count={}", account.getId(), validHashtags.size());
     }

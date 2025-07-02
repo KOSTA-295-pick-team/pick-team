@@ -416,7 +416,7 @@ public class UserController {
 
         // URL에서 파일명 추출 (예: "/profile-images/uuid-filename.jpg" -> "uuid-filename.jpg")
         String imageUrl = profile.getProfileImageUrl();
-        String hashedFileName = extractFileNameFromUrl(imageUrl);
+        String hashedFileName = postAttachService.extractFileNameFromUrl(imageUrl);
 
         // 실제 파일 삭제 (PostAttachService 활용)
         postAttachService.deleteProfileImageByFileName(hashedFileName, currentUserId);
@@ -431,19 +431,6 @@ public class UserController {
     }
 
     // ==================== 유효성 검증 헬퍼 메서드들 ====================
-
-    /**
-     * URL에서 파일명 추출하는 헬퍼 메서드
-     * 
-     * @param imageUrl 이미지 URL (예: "/profile-images/uuid-filename.jpg")
-     * @return 파일명 (예: "uuid-filename.jpg")
-     */
-    private String extractFileNameFromUrl(String imageUrl) {
-        if (imageUrl == null || imageUrl.trim().isEmpty()) {
-            return "";
-        }
-        return imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
-    }
 
     /**
      * 로깅용 이메일 마스킹 (개인정보 보호)

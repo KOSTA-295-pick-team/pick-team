@@ -391,7 +391,7 @@ public class PostAttachService {
      * @param imageUrl 이미지 URL (예: "/profile-images/uuid-filename.jpg")
      * @return 파일명 (예: "uuid-filename.jpg")
      */
-    private String extractFileNameFromUrl(String imageUrl) {
+    public String extractFileNameFromUrl(String imageUrl) {
         if (imageUrl == null || imageUrl.trim().isEmpty()) {
             return "";
         }

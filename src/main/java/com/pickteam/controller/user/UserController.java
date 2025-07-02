@@ -381,15 +381,12 @@ public class UserController {
 
         log.info("프로필 이미지 업로드 시작 - 사용자 ID: {}, 파일크기: {}", currentUserId, file.getSize());
 
-        // 기존 프로필 이미지 삭제 (있다면)
+        // 기존 프로필 이미지 확인
         UserProfileResponse currentProfile = userService.getMyProfile(currentUserId);
-        if (currentProfile.getProfileImageUrl() != null && !currentProfile.getProfileImageUrl().trim().isEmpty()) {
-            log.info("기존 프로필 이미지 교체 - 사용자 ID: {}", currentUserId);
-            // 기존 이미지 URL에서 파일명 추출하여 삭제 로직 추가 가능
-        }
+        String oldImageUrl = currentProfile.getProfileImageUrl();
 
-        // 새 프로필 이미지 업로드
-        FileInfo fileInfo = postAttachService.uploadProfileImage(file, currentUserId);
+        // 새 프로필 이미지 업로드 및 기존 이미지 교체 (트랜잭션 안전성 보장)
+        FileInfo fileInfo = postAttachService.uploadProfileImageWithReplace(file, currentUserId, oldImageUrl);
         String imageUrl = postAttachService.generateProfileImageUrl(fileInfo.getNameHashed());
 
         // DB에 프로필 이미지 URL 저장
@@ -419,12 +416,10 @@ public class UserController {
 
         // URL에서 파일명 추출 (예: "/profile-images/uuid-filename.jpg" -> "uuid-filename.jpg")
         String imageUrl = profile.getProfileImageUrl();
-        String hashedFileName = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+        String hashedFileName = extractFileNameFromUrl(imageUrl);
 
-        // FileInfo 조회 및 삭제 (hashedName으로 검색)
-        // 실제 구현에서는 FileInfo Repository에서 hashedName으로 검색하는 메서드 필요
-        // 임시로 로그만 남김
-        log.info("프로필 이미지 파일 삭제 예정 - hashedFileName: {}", hashedFileName);
+        // 실제 파일 삭제 (PostAttachService 활용)
+        postAttachService.deleteProfileImageByFileName(hashedFileName, currentUserId);
 
         // DB에서 프로필 이미지 URL 제거
         UserProfileUpdateRequest updateRequest = new UserProfileUpdateRequest();
@@ -436,6 +431,19 @@ public class UserController {
     }
 
     // ==================== 유효성 검증 헬퍼 메서드들 ====================
+
+    /**
+     * URL에서 파일명 추출하는 헬퍼 메서드
+     * 
+     * @param imageUrl 이미지 URL (예: "/profile-images/uuid-filename.jpg")
+     * @return 파일명 (예: "uuid-filename.jpg")
+     */
+    private String extractFileNameFromUrl(String imageUrl) {
+        if (imageUrl == null || imageUrl.trim().isEmpty()) {
+            return "";
+        }
+        return imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+    }
 
     /**
      * 로깅용 이메일 마스킹 (개인정보 보호)

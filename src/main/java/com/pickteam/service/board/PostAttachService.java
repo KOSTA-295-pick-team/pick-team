@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -308,6 +309,93 @@ public class PostAttachService {
             log.error("프로필 이미지 파일 삭제 실패 - fileInfoId: {}, userId: {}", fileInfoId, userId, e);
             throw new RuntimeException("프로필 이미지 삭제에 실패했습니다.", e);
         }
+    }
+
+    /**
+     * 해시된 파일명으로 프로필 이미지 삭제
+     * 
+     * @param hashedFileName 해시된 파일명
+     * @param userId         사용자 ID (로깅용)
+     */
+    @Transactional
+    public void deleteProfileImageByFileName(String hashedFileName, Long userId) {
+        log.info("프로필 이미지 파일 삭제 시작 - hashedFileName: {}, userId: {}", hashedFileName, userId);
+
+        // 1. FileInfo 조회
+        Optional<FileInfo> fileInfoOpt = fileInfoRepository.findByNameHashedAndIsDeletedFalse(hashedFileName);
+
+        if (fileInfoOpt.isPresent()) {
+            FileInfo fileInfo = fileInfoOpt.get();
+
+            // 2. 물리적 파일 삭제
+            deletePhysicalProfileImageFile(fileInfo.getNameHashed());
+
+            // 3. FileInfo soft delete
+            fileInfo.markDeleted();
+
+            log.info("프로필 이미지 삭제 완료 - hashedFileName: {}, userId: {}", hashedFileName, userId);
+        } else {
+            log.warn("삭제할 프로필 이미지 파일을 찾을 수 없음 - hashedFileName: {}, userId: {}", hashedFileName, userId);
+            // 파일이 없어도 예외를 던지지 않음 (이미 삭제된 상태로 간주)
+        }
+    }
+
+    /**
+     * 물리적 프로필 이미지 파일 삭제
+     * 
+     * @param hashedFileName 해시된 파일명
+     */
+    private void deletePhysicalProfileImageFile(String hashedFileName) {
+        try {
+            Path filePath = Paths.get(profileImageDir).resolve(hashedFileName);
+            if (Files.exists(filePath)) {
+                Files.delete(filePath);
+                log.info("프로필 이미지 물리적 파일 삭제 완료: {}", filePath);
+            } else {
+                log.warn("삭제할 물리적 파일이 존재하지 않음: {}", filePath);
+            }
+        } catch (IOException e) {
+            log.error("프로필 이미지 파일 삭제 실패 - hashedFileName: {}", hashedFileName, e);
+            throw new RuntimeException("프로필 이미지 파일 삭제에 실패했습니다.", e);
+        }
+    }
+
+    /**
+     * 프로필 이미지 업로드 및 기존 이미지 교체 (트랜잭션 안전성 보장)
+     * 
+     * @param file        업로드할 이미지 파일
+     * @param userId      사용자 ID
+     * @param oldImageUrl 기존 이미지 URL (있다면)
+     * @return 저장된 FileInfo 엔티티
+     */
+    @Transactional
+    public FileInfo uploadProfileImageWithReplace(MultipartFile file, Long userId, String oldImageUrl) {
+        log.info("프로필 이미지 업로드 및 교체 시작 - userId: {}, oldImageUrl: {}", userId, oldImageUrl);
+
+        // 1. 기존 이미지 삭제 (있다면)
+        if (oldImageUrl != null && !oldImageUrl.trim().isEmpty()) {
+            String oldHashedFileName = extractFileNameFromUrl(oldImageUrl);
+            deleteProfileImageByFileName(oldHashedFileName, userId);
+        }
+
+        // 2. 새 이미지 업로드
+        FileInfo newFileInfo = uploadProfileImage(file, userId);
+
+        log.info("프로필 이미지 업로드 및 교체 완료 - userId: {}, newFileId: {}", userId, newFileInfo.getId());
+        return newFileInfo;
+    }
+
+    /**
+     * URL에서 파일명 추출하는 헬퍼 메서드
+     * 
+     * @param imageUrl 이미지 URL (예: "/profile-images/uuid-filename.jpg")
+     * @return 파일명 (예: "uuid-filename.jpg")
+     */
+    private String extractFileNameFromUrl(String imageUrl) {
+        if (imageUrl == null || imageUrl.trim().isEmpty()) {
+            return "";
+        }
+        return imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
     }
 
     /**

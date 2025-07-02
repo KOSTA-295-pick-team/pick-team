@@ -39,8 +39,8 @@ public class UserProfileResponse {
     /** 포트폴리오 링크 또는 설명 */
     private String portfolio;
 
-    /** 프로필 이미지 URL - TODO: 통합 파일 시스템 구축 후 활성화 */
-    // private String profileImageUrl;
+    /** 프로필 이미지 URL */
+    private String profileImageUrl;
 
     /** 선호하는 작업 스타일 (팀 매칭 알고리즘 활용) */
     private String preferWorkstyle;
@@ -65,8 +65,7 @@ public class UserProfileResponse {
         response.setDisposition(account.getDisposition());
         response.setIntroduction(account.getIntroduction());
         response.setPortfolio(account.getPortfolio());
-        // TODO: 통합 파일 시스템 구축 후 활성화
-        // response.setProfileImageUrl(account.getProfileImageUrl());
+        response.setProfileImageUrl(account.getProfileImageUrl());
         response.setPreferWorkstyle(account.getPreferWorkstyle());
         response.setDislikeWorkstyle(account.getDislikeWorkstyle());
 

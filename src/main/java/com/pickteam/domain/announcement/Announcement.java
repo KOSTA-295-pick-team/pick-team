@@ -25,7 +25,7 @@ public class Announcement extends BaseSoftDeleteSupportEntity {
     @Column(nullable = false, length = 255)
     private String title;
 
-    @Column(length = 255)
+    @Column(columnDefinition = "TEXT")
     private String content;
 
     // 지연 로딩 적용 - 공지사항 작성자 (Account)

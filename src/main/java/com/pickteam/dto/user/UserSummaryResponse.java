@@ -17,8 +17,6 @@ public class UserSummaryResponse {
     private String portfolio;
     private String preferWorkstyle;
     private String dislikeWorkstyle;
-    private String likes;
-    private String dislikes;
-    private String profileImage;
+    private String profileImageUrl;
     private String role;
 } 

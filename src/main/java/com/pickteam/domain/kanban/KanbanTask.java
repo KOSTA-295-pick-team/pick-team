@@ -1,6 +1,7 @@
 package com.pickteam.domain.kanban;
 
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
+import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import jakarta.persistence.*;
 import lombok.*;
 

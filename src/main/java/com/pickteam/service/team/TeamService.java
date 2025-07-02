@@ -239,7 +239,7 @@ public class TeamService {
                 .accountId(account.getId())
                 .name(account.getName())
                 .email(account.getEmail())
-                .profileImage(account.getProfileImage())
+//                .profileImage(account.getProfileImage())
                 .teamRole(member.getTeamRole())
                 .teamStatus(member.getTeamStatus())
                 .joinedAt(member.getCreatedAt())
@@ -258,9 +258,7 @@ public class TeamService {
                 .portfolio(account.getPortfolio())
                 .preferWorkstyle(account.getPreferWorkstyle())
                 .dislikeWorkstyle(account.getDislikeWorkstyle())
-                .likes(account.getLikes())
-                .dislikes(account.getDislikes())
-                .profileImage(account.getProfileImage())
+                .profileImageUrl(account.getProfileImageUrl())
                 .role(account.getRole().toString())
                 .build();
     }

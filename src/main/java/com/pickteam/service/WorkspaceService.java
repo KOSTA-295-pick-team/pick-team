@@ -481,9 +481,7 @@ public class WorkspaceService {
                 .portfolio(account.getPortfolio())
                 .preferWorkstyle(account.getPreferWorkstyle())
                 .dislikeWorkstyle(account.getDislikeWorkstyle())
-                .likes(account.getLikes())
-                .dislikes(account.getDislikes())
-                .profileImage(account.getProfileImage())
+                .profileImageUrl(account.getProfileImageUrl())
                 .role(member.getRole().toString())
                 .build();
     }
@@ -500,9 +498,7 @@ public class WorkspaceService {
                 .portfolio(account.getPortfolio())
                 .preferWorkstyle(account.getPreferWorkstyle())
                 .dislikeWorkstyle(account.getDislikeWorkstyle())
-                .likes(account.getLikes())
-                .dislikes(account.getDislikes())
-                .profileImage(account.getProfileImage())
+                .profileImageUrl(account.getProfileImageUrl())
                 .role(account.getRole().toString())
                 .build();
     }

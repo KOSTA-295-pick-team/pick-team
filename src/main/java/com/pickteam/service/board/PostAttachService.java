@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -372,14 +374,64 @@ public class PostAttachService {
     public FileInfo uploadProfileImageWithReplace(MultipartFile file, Long userId, String oldImageUrl) {
         log.info("프로필 이미지 업로드 및 교체 시작 - userId: {}, oldImageUrl: {}", userId, oldImageUrl);
 
-        // 1. 기존 이미지 삭제 (있다면)
+        // 1. 새 파일 업로드 먼저 (안전)
+        FileInfo newFileInfo = uploadProfileImage(file, userId);
+        String newHashedFileName = newFileInfo.getNameHashed();
+
+        // 2. 기존 파일 정보 추출 및 Soft Delete
+        String oldHashedFileName = null;
         if (oldImageUrl != null && !oldImageUrl.trim().isEmpty()) {
-            String oldHashedFileName = extractFileNameFromUrl(oldImageUrl);
-            deleteProfileImageByFileName(oldHashedFileName, userId);
+            oldHashedFileName = extractFileNameFromUrl(oldImageUrl);
+            // DB에서만 Soft Delete 수행 (물리적 파일은 나중에 삭제)
+            softDeleteProfileImageByFileName(oldHashedFileName, userId);
         }
 
-        // 2. 새 이미지 업로드
-        FileInfo newFileInfo = uploadProfileImage(file, userId);
+        // 3. 트랜잭션 동기화 등록 (커밋/롤백 시 물리적 파일 정리)
+        if (oldHashedFileName != null) {
+            final String finalOldFileName = oldHashedFileName;
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            // 커밋 성공 시: 기존 파일 물리적 삭제
+                            try {
+                                deletePhysicalProfileImageFile(finalOldFileName);
+                                log.info("트랜잭션 커밋 후 기존 파일 삭제 완료: {}", finalOldFileName);
+                            } catch (Exception e) {
+                                log.error("기존 파일 삭제 실패 (트랜잭션 커밋 후): {}", finalOldFileName, e);
+                            }
+                        }
+
+                        @Override
+                        public void afterCompletion(int status) {
+                            if (status == STATUS_ROLLED_BACK) {
+                                // 롤백 시: 새로 업로드된 파일 물리적 삭제
+                                try {
+                                    deletePhysicalProfileImageFile(newHashedFileName);
+                                    log.warn("트랜잭션 롤백으로 새 파일 삭제: {}", newHashedFileName);
+                                } catch (Exception e) {
+                                    log.error("새 파일 정리 실패 (트랜잭션 롤백 후): {}", newHashedFileName, e);
+                                }
+                            }
+                        }
+                    });
+        } else {
+            // 기존 파일이 없는 경우, 롤백 시에만 새 파일 정리
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCompletion(int status) {
+                            if (status == STATUS_ROLLED_BACK) {
+                                try {
+                                    deletePhysicalProfileImageFile(newHashedFileName);
+                                    log.warn("트랜잭션 롤백으로 새 파일 삭제: {}", newHashedFileName);
+                                } catch (Exception e) {
+                                    log.error("새 파일 정리 실패 (트랜잭션 롤백 후): {}", newHashedFileName, e);
+                                }
+                            }
+                        }
+                    });
+        }
 
         log.info("프로필 이미지 업로드 및 교체 완료 - userId: {}, newFileId: {}", userId, newFileInfo.getId());
         return newFileInfo;
@@ -451,5 +503,25 @@ public class PostAttachService {
                 .collect(Collectors.toSet());
 
         return allowedExtSet.contains(extension);
+    }
+
+    /**
+     * 프로필 이미지 Soft Delete만 수행 (물리적 파일은 삭제하지 않음)
+     * 
+     * @param hashedFileName 해시된 파일명
+     * @param userId         사용자 ID (로깅용)
+     */
+    @Transactional
+    public void softDeleteProfileImageByFileName(String hashedFileName, Long userId) {
+        log.info("프로필 이미지 Soft Delete 시작 - hashedFileName: {}, userId: {}", hashedFileName, userId);
+
+        Optional<FileInfo> fileInfoOpt = fileInfoRepository.findByNameHashedAndIsDeletedFalse(hashedFileName);
+        if (fileInfoOpt.isPresent()) {
+            FileInfo fileInfo = fileInfoOpt.get();
+            fileInfo.markDeleted();
+            log.info("프로필 이미지 Soft Delete 완료 - hashedFileName: {}, userId: {}", hashedFileName, userId);
+        } else {
+            log.warn("Soft Delete할 프로필 이미지 파일을 찾을 수 없음 - hashedFileName: {}, userId: {}", hashedFileName, userId);
+        }
     }
 }

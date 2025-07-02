@@ -70,6 +70,90 @@ public class AnnouncementService {
         }
     }
 
+    /**
+     * 워크스페이스의 모든 공지사항 조회
+     *
+     * @param workspaceId 워크스페이스 ID
+     * @return 공지사항 목록 (최신순 정렬)
+     * @throws IllegalArgumentException 잘못된 워크스페이스 ID인 경우
+     */
+    public List<AnnouncementResponse> getAnnouncementsByWorkspace(Long workspaceId) {
+        log.info("워크스페이스 공지사항 조회 요청 - 워크스페이스 ID: {}", workspaceId);
+
+        validateWorkspaceId(workspaceId);
+
+        try {
+            List<Announcement> announcements = announcementRepository
+                    .findByWorkspaceIdAndIsDeletedFalse(workspaceId);
+
+            log.info("워크스페이스 공지사항 조회 완료 - 워크스페이스 ID: {}, 개수: {}",
+                    workspaceId, announcements.size());
+
+            return announcements.stream()
+                    .map(AnnouncementResponse::from)
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("워크스페이스 공지사항 조회 실패 - 워크스페이스 ID: {}, 오류: {}",
+                    workspaceId, e.getMessage(), e);
+            throw new RuntimeException("공지사항 조회 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    /**
+     * 팀별 공지사항 조회
+     *
+     * @param teamId 팀 ID
+     * @return 해당 팀의 공지사항 목록 (최신순 정렬)
+     * @throws IllegalArgumentException 잘못된 팀 ID인 경우
+     */
+    public List<AnnouncementResponse> getAnnouncementsByTeam(Long teamId) {
+        log.info("팀 공지사항 조회 요청 - 팀 ID: {}", teamId);
+
+        validateTeamId(teamId);
+
+        try {
+            List<Announcement> announcements = announcementRepository
+                    .findByTeamIdAndIsDeletedFalse(teamId);
+
+            log.info("팀 공지사항 조회 완료 - 팀 ID: {}, 개수: {}", teamId, announcements.size());
+
+            return announcements.stream()
+                    .map(AnnouncementResponse::from)
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("팀 공지사항 조회 실패 - 팀 ID: {}, 오류: {}", teamId, e.getMessage(), e);
+            throw new RuntimeException("팀 공지사항 조회 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    /**
+     * 단일 공지사항 상세 조회
+     *
+     * @param announcementId 공지사항 ID
+     * @return 공지사항 상세 정보
+     * @throws EntityNotFoundException 공지사항을 찾을 수 없는 경우
+     * @throws IllegalArgumentException 잘못된 공지사항 ID인 경우
+     */
+    public AnnouncementResponse getAnnouncement(Long announcementId) {
+        log.info("공지사항 조회 요청 - ID: {}", announcementId);
+
+        validateAnnouncementId(announcementId);
+
+        try {
+            Announcement announcement = findAnnouncementById(announcementId);
+
+            log.info("공지사항 조회 완료 - ID: {}, 제목: {}",
+                    announcementId, announcement.getTitle());
+
+            return AnnouncementResponse.from(announcement);
+
+        } catch (Exception e) {
+            log.error("공지사항 조회 실패 - ID: {}, 오류: {}", announcementId, e.getMessage(), e);
+            throw e;
+        }
+    }
 
     // === Private 검증 메서드들 ===
 

@@ -59,7 +59,7 @@ public class AnnouncementController {
     }
 
     /**
-     * 공지사항 목록 조회
+     * 공지사항 목록 조회 (보안 검증 강화)
      *
      * @param workspaceId 워크스페이스 ID
      * @param teamId 팀 ID (선택사항 - 팀별 필터링)
@@ -77,11 +77,11 @@ public class AnnouncementController {
             String message;
 
             if (teamId != null) {
-                // 팀별 공지사항 조회
-                announcements = announcementService.getAnnouncementsByTeam(teamId);
+                // 팀별 공지사항 조회 (워크스페이스 보안 검증 포함)
+                announcements = announcementService.getAnnouncementsByTeam(workspaceId, teamId);
                 message = String.format("팀의 공지사항 %d개를 조회했습니다.", announcements.size());
             } else {
-                // 워크스페이스 전체 공지사항 조회
+                // 워크스페이스 전체 공지사항 조회 (존재 여부 검증 포함)
                 announcements = announcementService.getAnnouncementsByWorkspace(workspaceId);
                 message = String.format("워크스페이스의 공지사항 %d개를 조회했습니다.", announcements.size());
             }
@@ -90,6 +90,9 @@ public class AnnouncementController {
 
             return ResponseEntity.ok(createSuccessResponse(message, announcements));
 
+        } catch (EntityNotFoundException e) {
+            log.warn("공지사항 목록 조회 실패 - 엔티티 없음: {}", e.getMessage());
+            return createErrorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
         } catch (IllegalArgumentException e) {
             log.warn("공지사항 목록 조회 실패 - 잘못된 요청: {}", e.getMessage());
             return createErrorResponse(HttpStatus.BAD_REQUEST, "BAD_REQUEST", e.getMessage());
@@ -101,7 +104,7 @@ public class AnnouncementController {
     }
 
     /**
-     * 단일 공지사항 상세 조회
+     * 단일 공지사항 상세 조회 (워크스페이스 보안 검증 포함)
      *
      * @param workspaceId 워크스페이스 ID
      * @param announcementId 공지사항 ID
@@ -115,7 +118,8 @@ public class AnnouncementController {
         log.info("단일 공지사항 조회 요청 - 워크스페이스: {}, 공지사항: {}", workspaceId, announcementId);
 
         try {
-            AnnouncementResponse response = announcementService.getAnnouncement(announcementId);
+            // 워크스페이스 보안 검증 포함한 공지사항 조회
+            AnnouncementResponse response = announcementService.getAnnouncement(workspaceId, announcementId);
 
             log.info("단일 공지사항 조회 완료 - 제목: {}", response.getTitle());
 

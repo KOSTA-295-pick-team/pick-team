@@ -9,6 +9,7 @@ import com.pickteam.dto.announcement.AnnouncementUpdateRequest;
 import com.pickteam.repository.announcement.AnnouncementRepository;
 import com.pickteam.repository.team.TeamRepository;
 import com.pickteam.repository.user.AccountRepository;
+import com.pickteam.repository.workspace.WorkspaceRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,12 @@ import java.util.stream.Collectors;
 /**
  * 공지사항 서비스
  * 공지사항 CRUD 및 비즈니스 로직 처리
+ * 주요 기능:
+ * - 공지사항 생성, 조회
+ * - 워크스페이스별 공지사항 관리
+ * - 팀별 공지사항 필터링
+ * - 작성자 권한 검증 및 보안 처리
+ * - 존재 여부 검증 강화
  */
 @Service
 @RequiredArgsConstructor
@@ -31,6 +38,7 @@ public class AnnouncementService {
     private final AnnouncementRepository announcementRepository;
     private final AccountRepository accountRepository;
     private final TeamRepository teamRepository;
+    private final WorkspaceRepository workspaceRepository;
 
     /**
      * 공지사항 생성
@@ -76,15 +84,18 @@ public class AnnouncementService {
      * @param workspaceId 워크스페이스 ID
      * @return 공지사항 목록 (최신순 정렬)
      * @throws IllegalArgumentException 잘못된 워크스페이스 ID인 경우
+     * @throws EntityNotFoundException 워크스페이스를 찾을 수 없는 경우
      */
     public List<AnnouncementResponse> getAnnouncementsByWorkspace(Long workspaceId) {
         log.info("워크스페이스 공지사항 조회 요청 - 워크스페이스 ID: {}", workspaceId);
 
         validateWorkspaceId(workspaceId);
+        // 워크스페이스 존재 여부 확인
+        validateWorkspaceExists(workspaceId);
 
         try {
             List<Announcement> announcements = announcementRepository
-                    .findByWorkspaceIdAndIsDeletedFalse(workspaceId);
+                    .findByWorkspaceIdAndIsDeletedFalseOrderByCreatedAtDesc(workspaceId);
 
             log.info("워크스페이스 공지사항 조회 완료 - 워크스페이스 ID: {}, 개수: {}",
                     workspaceId, announcements.size());
@@ -101,30 +112,72 @@ public class AnnouncementService {
     }
 
     /**
-     * 팀별 공지사항 조회
+     * 팀별 공지사항 조회 (워크스페이스 보안 검증 포함)
      *
+     * @param workspaceId 워크스페이스 ID (보안 검증용)
      * @param teamId 팀 ID
      * @return 해당 팀의 공지사항 목록 (최신순 정렬)
-     * @throws IllegalArgumentException 잘못된 팀 ID인 경우
+     * @throws IllegalArgumentException 잘못된 ID이거나 워크스페이스-팀 불일치인 경우
+     * @throws EntityNotFoundException 팀을 찾을 수 없는 경우
      */
-    public List<AnnouncementResponse> getAnnouncementsByTeam(Long teamId) {
-        log.info("팀 공지사항 조회 요청 - 팀 ID: {}", teamId);
+    public List<AnnouncementResponse> getAnnouncementsByTeam(Long workspaceId, Long teamId) {
+        log.info("팀 공지사항 조회 요청 - 워크스페이스 ID: {}, 팀 ID: {}", workspaceId, teamId);
 
+        validateWorkspaceId(workspaceId);
         validateTeamId(teamId);
+
+        // 팀 존재 여부 확인 및 워크스페이스 일치 검증
+        Team team = findTeamById(teamId);
+        validateTeamBelongsToWorkspace(team, workspaceId);
 
         try {
             List<Announcement> announcements = announcementRepository
-                    .findByTeamIdAndIsDeletedFalse(teamId);
+                    .findByTeamIdAndIsDeletedFalseOrderByCreatedAtDesc(teamId);
 
-            log.info("팀 공지사항 조회 완료 - 팀 ID: {}, 개수: {}", teamId, announcements.size());
+            log.info("팀 공지사항 조회 완료 - 워크스페이스 ID: {}, 팀 ID: {}, 개수: {}",
+                    workspaceId, teamId, announcements.size());
 
             return announcements.stream()
                     .map(AnnouncementResponse::from)
                     .collect(Collectors.toList());
 
         } catch (Exception e) {
-            log.error("팀 공지사항 조회 실패 - 팀 ID: {}, 오류: {}", teamId, e.getMessage(), e);
-            throw new RuntimeException("팀 공지사항 조회 중 오류가 발생했습니다.", e);
+            log.error("팀 공지사항 조회 실패 - 워크스페이스 ID: {}, 팀 ID: {}, 오류: {}",
+                    workspaceId, teamId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    /**
+     * 단일 공지사항 상세 조회 (워크스페이스 보안 검증 포함)
+     *
+     * @param workspaceId 워크스페이스 ID (보안 검증용)
+     * @param announcementId 공지사항 ID
+     * @return 공지사항 상세 정보
+     * @throws EntityNotFoundException 공지사항을 찾을 수 없는 경우
+     * @throws IllegalArgumentException 잘못된 ID이거나 워크스페이스 불일치인 경우
+     */
+    public AnnouncementResponse getAnnouncement(Long workspaceId, Long announcementId) {
+        log.info("공지사항 조회 요청 - 워크스페이스 ID: {}, 공지사항 ID: {}", workspaceId, announcementId);
+
+        validateWorkspaceId(workspaceId);
+        validateAnnouncementId(announcementId);
+
+        try {
+            Announcement announcement = findAnnouncementById(announcementId);
+
+            // 공지사항이 해당 워크스페이스에 속하는지 검증
+            validateAnnouncementBelongsToWorkspace(announcement, workspaceId);
+
+            log.info("공지사항 조회 완료 - 워크스페이스 ID: {}, 공지사항 ID: {}, 제목: {}",
+                    workspaceId, announcementId, announcement.getTitle());
+
+            return AnnouncementResponse.from(announcement);
+
+        } catch (Exception e) {
+            log.error("공지사항 조회 실패 - 워크스페이스 ID: {}, 공지사항 ID: {}, 오류: {}",
+                    workspaceId, announcementId, e.getMessage(), e);
+            throw e;
         }
     }
 
@@ -174,6 +227,48 @@ public class AnnouncementService {
     private void validateWorkspaceId(Long workspaceId) {
         if (workspaceId == null || workspaceId <= 0) {
             throw new IllegalArgumentException("유효한 워크스페이스 ID가 필요합니다.");
+        }
+    }
+
+    /**
+     * 워크스페이스 존재 여부 검증
+     *
+     * @param workspaceId 워크스페이스 ID
+     * @throws EntityNotFoundException 워크스페이스를 찾을 수 없는 경우
+     */
+    // 수정 (기존 메서드 사용)
+    private void validateWorkspaceExists(Long workspaceId) {
+        workspaceRepository.findByIdAndIsDeletedFalse(workspaceId)
+                .orElseThrow(() -> new EntityNotFoundException("워크스페이스를 찾을 수 없습니다. ID: " + workspaceId));
+    }
+
+    /**
+     * 팀이 해당 워크스페이스에 속하는지 검증
+     *
+     * @param team 팀 엔티티
+     * @param workspaceId 워크스페이스 ID
+     * @throws IllegalArgumentException 팀이 해당 워크스페이스에 속하지 않는 경우
+     */
+    private void validateTeamBelongsToWorkspace(Team team, Long workspaceId) {
+        if (!team.getWorkspace().getId().equals(workspaceId)) {
+            throw new IllegalArgumentException(
+                    String.format("팀(ID: %d)이 워크스페이스(ID: %d)에 속하지 않습니다.",
+                            team.getId(), workspaceId));
+        }
+    }
+
+    /**
+     * 공지사항이 해당 워크스페이스에 속하는지 검증
+     *
+     * @param announcement 공지사항 엔티티
+     * @param workspaceId 워크스페이스 ID
+     * @throws IllegalArgumentException 공지사항이 해당 워크스페이스에 속하지 않는 경우
+     */
+    private void validateAnnouncementBelongsToWorkspace(Announcement announcement, Long workspaceId) {
+        if (!announcement.getTeam().getWorkspace().getId().equals(workspaceId)) {
+            throw new IllegalArgumentException(
+                    String.format("공지사항(ID: %d)이 워크스페이스(ID: %d)에 속하지 않습니다.",
+                            announcement.getId(), workspaceId));
         }
     }
 

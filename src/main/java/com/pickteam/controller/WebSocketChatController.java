@@ -7,6 +7,7 @@ import com.pickteam.exception.WebSocketChatException;
 import com.pickteam.security.UserPrincipal;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
@@ -17,11 +18,11 @@ public class WebSocketChatController {
     @MessageMapping("/chat/{roomId}")
     @SendTo("/sub/chat/{roomId}")
     public WebSocketChatDTO send(WebSocketChatDTO msg, Principal principal) {
+        System.out.println(msg);
+        UserPrincipal principalUser = (UserPrincipal)((UsernamePasswordAuthenticationToken) principal).getPrincipal();
 
-        UserPrincipal principalUser = (UserPrincipal) principal;
-
-
-        msg.setSenderEmail(principalUser.getUsername()+"("+principalUser.getId()+")");
+        msg.setSenderEmail(principalUser.getEmail());
+        msg.setSenderName(principalUser.getName());
         return msg;
     }
 }

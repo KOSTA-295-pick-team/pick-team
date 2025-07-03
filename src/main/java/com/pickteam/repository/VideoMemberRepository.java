@@ -3,6 +3,7 @@ package com.pickteam.repository;
 import com.pickteam.domain.videochat.VideoMember;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -13,6 +14,6 @@ public interface VideoMemberRepository extends JpaRepository<VideoMember, Long> 
     List<VideoMember> selectAccountsByChannelId(Long channelId);
 
     @Query("select vm from VideoMember vm where vm.account.id=:accountId and vm.videoChannel.id=:channelId")
-    VideoMember existsByAccountIdAndVideoChannelId(Long accountId, Long channelId);
+    VideoMember existsByAccountIdAndVideoChannelId(Long accountId,Long channelId);
 
 }

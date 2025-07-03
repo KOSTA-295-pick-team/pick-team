@@ -32,4 +32,7 @@ public class ChatMessage extends BaseSoftDeleteSupportEntity {
     @OneToMany(mappedBy = "chatMessage")
     private List<ChatAttach> attachments = new ArrayList<>();
 
+    @OneToMany(mappedBy = "lastReadMessage")
+    private List<ChatMember> chatMembers = new ArrayList<>();
+
 }

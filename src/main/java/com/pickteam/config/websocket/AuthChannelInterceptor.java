@@ -41,7 +41,7 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
             System.out.println(userPrincipal.getUsername());
             System.out.println(userPrincipal.getId());
             System.out.println(destChannelId);
-            VideoMember vm = videoMemberRepository.existsByAccountIdAndVideoChannelId(userPrincipal.getId(), Long.parseLong(destChannelId));
+            VideoMember vm = videoMemberRepository.findByAccountIdAndVideoChannelId(userPrincipal.getId(), Long.parseLong(destChannelId));
             System.out.println("vm = " + vm);
             if (vm == null) {
                 throw new WebSocketChatException(WebSocketChatErrorCode.CANNOT_ACCESS_CHANNEL);

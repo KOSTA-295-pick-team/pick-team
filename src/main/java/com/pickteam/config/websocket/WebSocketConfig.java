@@ -15,9 +15,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Autowired
     AuthChannelInterceptor authChannelInterceptor;
 
+    @Autowired
+    AuthHandler authHandler;
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws").setHandshakeHandler(new AuthHandler()).setAllowedOriginPatterns("*");//.withSockJS();
+        registry.addEndpoint("/ws").setHandshakeHandler(authHandler).setAllowedOriginPatterns("*");//.withSockJS();
     }
 
     @Override

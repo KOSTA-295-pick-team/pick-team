@@ -21,6 +21,7 @@ import java.util.Collections;
 public class UserPrincipal implements UserDetails {
     private Long id;
     private String email;
+    private String name;
     private String password;
     private UserRole role;
     private Collection<? extends GrantedAuthority> authorities;
@@ -33,6 +34,7 @@ public class UserPrincipal implements UserDetails {
         return new UserPrincipal(
                 account.getId(),
                 account.getEmail(),
+                account.getName(),
                 account.getPassword(),
                 account.getRole(),
                 authorities);

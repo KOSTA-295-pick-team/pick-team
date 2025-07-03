@@ -28,9 +28,9 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, Long
     Optional<Announcement> findByIdAndIsDeletedFalse(@Param("id") Long id);
 
     /**
-     * 워크스페이스의 삭제되지 않은 모든 공지사항 조회 (계정, 팀 정보 함께 조회)
+     * 워크스페이스의 삭제되지 않은 모든 공지사항 조회 (계정, 팀 정보 함께 조회) - 최신순 정렬
      * @param workspaceId 워크스페이스 ID
-     * @return 공지사항 리스트
+     * @return 공지사항 리스트 (최신순)
      */
     @Query("SELECT a FROM Announcement a " +
             "JOIN FETCH a.account acc " +
@@ -38,12 +38,12 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, Long
             "WHERE t.workspace.id = :workspaceId " +
             "AND a.isDeleted = false " +
             "ORDER BY a.createdAt DESC")
-    List<Announcement> findByWorkspaceIdAndIsDeletedFalse(@Param("workspaceId") Long workspaceId);
+    List<Announcement> findByWorkspaceIdAndIsDeletedFalseOrderByCreatedAtDesc(@Param("workspaceId") Long workspaceId);
 
     /**
-     * 팀의 삭제되지 않은 모든 공지사항 조회 (계정 정보 함께 조회)
+     * 팀의 삭제되지 않은 모든 공지사항 조회 (계정 정보 함께 조회) - 최신순 정렬
      * @param teamId 팀 ID
-     * @return 공지사항 리스트
+     * @return 공지사항 리스트 (최신순)
      */
     @Query("SELECT a FROM Announcement a " +
             "JOIN FETCH a.account acc " +
@@ -51,7 +51,7 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, Long
             "WHERE a.team.id = :teamId " +
             "AND a.isDeleted = false " +
             "ORDER BY a.createdAt DESC")
-    List<Announcement> findByTeamIdAndIsDeletedFalse(@Param("teamId") Long teamId);
+    List<Announcement> findByTeamIdAndIsDeletedFalseOrderByCreatedAtDesc(@Param("teamId") Long teamId);
 
     /**
      * 계정이 작성한 삭제되지 않은 공지사항 조회

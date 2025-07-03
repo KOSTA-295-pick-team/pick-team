@@ -57,6 +57,7 @@ frontend/build/
 frontend/dist/
 frontend/.env
 frontend/.env.*
+frontend/
 
 # === Docker 관련 ===
 docker/logs/

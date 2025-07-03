@@ -1,6 +1,7 @@
 package com.pickteam.domain.chat;
 
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
+import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.enums.ChatRoomType;
 import com.pickteam.domain.workspace.Workspace;
 import com.pickteam.domain.common.BaseTimeEntity;
@@ -16,7 +17,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ChatRoom extends BaseSoftDeleteByAnnotation {
+public class ChatRoom extends BaseSoftDeleteSupportEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

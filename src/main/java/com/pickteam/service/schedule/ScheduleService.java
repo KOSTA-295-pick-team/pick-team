@@ -32,13 +32,15 @@ public class ScheduleService {
     private final TeamRepository teamRepository;
 
     public Page<ScheduleResponseDto> getSchedules(Long teamId, Pageable pageable) {
-        Page<Schedule> schedules = scheduleRepository.findByTeamIdWithDetails(teamId, pageable);
+        // 변경: AndIsDeletedFalse 메서드로 수정
+        Page<Schedule> schedules = scheduleRepository.findByTeamIdWithDetailsAndIsDeletedFalse(teamId, pageable);
         return schedules.map(ScheduleResponseDto::from);
     }
 
     public List<ScheduleResponseDto> getSchedulesByDateRange(
             Long teamId, LocalDateTime startDate, LocalDateTime endDate) {
-        List<Schedule> schedules = scheduleRepository.findByTeamIdAndDateRange(teamId, startDate, endDate);
+        // 변경: AndIsDeletedFalse 메서드로 수정
+        List<Schedule> schedules = scheduleRepository.findByTeamIdAndDateRangeAndIsDeletedFalse(teamId, startDate, endDate);
         return schedules.stream()
                 .map(ScheduleResponseDto::from)
                 .collect(Collectors.toList());
@@ -46,12 +48,14 @@ public class ScheduleService {
 
     public Page<ScheduleResponseDto> getSchedulesByType(
             Long teamId, ScheduleType type, Pageable pageable) {
-        Page<Schedule> schedules = scheduleRepository.findByTeamIdAndType(teamId, type, pageable);
+        // 변경: AndIsDeletedFalse 메서드로 수정
+        Page<Schedule> schedules = scheduleRepository.findByTeamIdAndTypeAndIsDeletedFalse(teamId, type, pageable);
         return schedules.map(ScheduleResponseDto::from);
     }
 
     public Page<ScheduleResponseDto> getMySchedules(Long accountId, Pageable pageable) {
-        Page<Schedule> schedules = scheduleRepository.findByAccountId(accountId, pageable);
+        //  변경: AndIsDeletedFalse 메서드로 수정
+        Page<Schedule> schedules = scheduleRepository.findByAccountIdAndIsDeletedFalse(accountId, pageable);
         return schedules.map(ScheduleResponseDto::from);
     }
 
@@ -63,6 +67,7 @@ public class ScheduleService {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. accountId: " + accountId));
 
+        // 변경 예정 : 팀도 삭제되지 않은 것만 조회되게 된다면 이 부분 수정해야
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new IllegalArgumentException("팀을 찾을 수 없습니다. teamId: " + teamId));
 
@@ -88,7 +93,8 @@ public class ScheduleService {
     public ScheduleResponseDto updateSchedule(Long scheduleId, ScheduleUpdateDto dto, Long accountId) {
         log.info("일정 수정 요청 - scheduleId: {}, accountId: {}", scheduleId, accountId);
 
-        Schedule schedule = scheduleRepository.findByIdWithDetails(scheduleId)
+        // 변경: AndIsDeletedFalse 메서드로 수정
+        Schedule schedule = scheduleRepository.findByIdWithDetailsAndIsDeletedFalse(scheduleId)
                 .orElseThrow(() -> new IllegalArgumentException("일정을 찾을 수 없습니다. scheduleId: " + scheduleId));
 
         validateScheduleOwner(schedule, accountId);
@@ -108,12 +114,15 @@ public class ScheduleService {
     public void deleteSchedule(Long scheduleId, Long accountId) {
         log.info("일정 삭제 요청 - scheduleId: {}, accountId: {}", scheduleId, accountId);
 
-        Schedule schedule = scheduleRepository.findById(scheduleId)
+        // 변경: AndIsDeletedFalse 메서드로 수정
+        Schedule schedule = scheduleRepository.findByIdAndIsDeletedFalse(scheduleId)
                 .orElseThrow(() -> new IllegalArgumentException("일정을 찾을 수 없습니다. scheduleId: " + scheduleId));
 
         validateScheduleOwner(schedule, accountId);
 
-        scheduleRepository.delete(schedule);
+        // 변경: markDeleted() 메서드로 수정
+        schedule.markDeleted(); // Soft Delete 처리
+
         log.info("일정 삭제 완료 - scheduleId: {}", scheduleId);
     }
 

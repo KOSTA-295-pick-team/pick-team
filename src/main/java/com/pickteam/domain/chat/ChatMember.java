@@ -1,6 +1,7 @@
 package com.pickteam.domain.chat;
 
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
+import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.common.BaseTimeEntity;
 import com.pickteam.domain.user.Account;
 import jakarta.persistence.*;
@@ -16,7 +17,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ChatMember extends BaseSoftDeleteByAnnotation {
+public class ChatMember extends BaseSoftDeleteSupportEntity {
     //Soft-Delete 방식으로 설계변경
 
     @Id

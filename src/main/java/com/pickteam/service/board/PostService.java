@@ -30,7 +30,7 @@ public class PostService {
     }
 
     public PostResponseDto readPost(Long postId) {
-        Post post = postRepository.findByIdWithDetails(postId)
+        Post post = postRepository.findByIdWithDetailsAndIsDeletedFalse(postId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
 
         // 지연 로딩으로 컬렉션 초기화 (null 체크 포함)
@@ -52,7 +52,7 @@ public class PostService {
         Board board = boardRepository.findById(dto.getBoardId())
                 .orElseThrow(() -> new IllegalArgumentException("게시판을 찾을 수 없습니다. boardId: " + dto.getBoardId()));
 
-        Integer nextPostNo = postRepository.findMaxPostNoByBoardId(dto.getBoardId()) + 1;
+        Integer nextPostNo = postRepository.findMaxPostNoByBoardIdAndIsDeletedFalse(dto.getBoardId()) + 1;
 
         Post post = Post.builder()
                 .postNo(nextPostNo)
@@ -72,7 +72,7 @@ public class PostService {
 
     @Transactional
     public PostResponseDto updatePost(Long postId, PostUpdateDto dto, Long accountId) {
-        Post post = postRepository.findByIdWithDetails(postId)
+        Post post = postRepository.findByIdWithDetailsAndIsDeletedFalse(postId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
 
         validatePostOwner(post, accountId);
@@ -90,7 +90,8 @@ public class PostService {
 
         validatePostOwner(post, accountId);
 
-        postRepository.delete(post);
+        // Soft Delete 처리
+        post.markDeleted();
     }
 
     @Transactional
@@ -98,7 +99,8 @@ public class PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
 
-        postRepository.delete(post);
+        // 수동 Soft Delete 처리
+        post.markDeleted();
     }
 
     private void validatePostOwner(Post post, Long accountId) {

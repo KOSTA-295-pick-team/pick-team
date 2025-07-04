@@ -18,6 +18,7 @@ import lombok.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.time.LocalDateTime;
+import java.security.SecureRandom;
 
 /**
  * 사용자 계정 엔티티
@@ -48,10 +49,9 @@ public class Account extends BaseSoftDeleteSupportEntity {
     // 실제 저장 시에는 암호화된 값이 저장되어야 함
     private String password;
 
-    /** 사용자 이름 (프로필 완성 시 입력) */
+    /** 사용자 이름 (프로필 완성 시 입력, 초기값: user + 8자리 랜덤 숫자) */
     @Column(nullable = true)
-    @Builder.Default
-    private String name = "신규 사용자";
+    private String name;
 
     /** 사용자 나이 (탈퇴 시 개인정보보호를 위해 삭제) */
     @Column(nullable = true)
@@ -237,6 +237,30 @@ public class Account extends BaseSoftDeleteSupportEntity {
      */
     public boolean isWithdrawnUser() {
         return this.email == null;
+    }
+
+    // === 랜덤 사용자명 생성 메서드 ===
+
+    /**
+     * 보안이 강화된 랜덤한 8자리 숫자를 포함한 초기 사용자명 생성
+     * SecureRandom을 사용하여 예측 불가능한 랜덤 값 생성
+     * 예: user12345678, user87654321
+     * 
+     * @return user + 8자리 랜덤 숫자 형태의 사용자명
+     */
+    public static String generateRandomUsername() {
+        SecureRandom secureRandom = new SecureRandom();
+        int randomNumber = 10000000 + secureRandom.nextInt(90000000); // 10000000~99999999
+        return "user" + randomNumber;
+    }
+
+    /**
+     * 이름이 null이거나 비어있을 때 랜덤 사용자명으로 초기화
+     */
+    public void initializeNameIfEmpty() {
+        if (this.name == null || this.name.trim().isEmpty()) {
+            this.name = generateRandomUsername();
+        }
     }
 
 }

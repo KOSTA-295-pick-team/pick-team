@@ -8,7 +8,6 @@ import com.pickteam.domain.common.FileInfo;
 import com.pickteam.service.user.UserService;
 import com.pickteam.service.user.AuthService;
 import com.pickteam.service.board.PostAttachService;
-// import com.pickteam.service.user.FileUploadService; // TODO: 통합 파일 시스템 구축 후 활성화
 import com.pickteam.constants.UserControllerMessages;
 import com.pickteam.exception.validation.ValidationException;
 import jakarta.validation.Valid;

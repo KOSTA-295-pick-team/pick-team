@@ -102,4 +102,7 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
         // 이메일 중복 체크 (활성 계정만)
         boolean existsByEmailAndIsDeletedFalse(String email);
+
+        // 사용자명 중복 체크 (활성 계정만)
+        boolean existsByNameAndDeletedAtIsNull(String name);
 }

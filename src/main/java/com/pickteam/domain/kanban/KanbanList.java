@@ -21,6 +21,9 @@ public class KanbanList extends BaseSoftDeleteSupportEntity {
     private Long id;
 
     private String kanbanListName;
+    
+    @Column(name = "list_order")
+    private Integer order;
 
     @ManyToOne(optional = false)
     private Kanban kanban;

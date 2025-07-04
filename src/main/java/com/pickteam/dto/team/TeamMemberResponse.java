@@ -25,4 +25,15 @@ public class TeamMemberResponse {
     private TeamMember.TeamRole teamRole;
     private TeamMember.TeamStatus teamStatus;
     private LocalDateTime joinedAt;
+    
+    // 사용자 상세 정보 추가
+    private Integer age;
+    private String mbti;
+    private String disposition;
+    private String introduction;
+    private String portfolio;
+    private String preferWorkstyle;
+    private String dislikeWorkstyle;
+    private String likes;
+    private String dislikes;
 } 

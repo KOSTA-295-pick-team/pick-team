@@ -201,7 +201,7 @@ public class KanbanServiceHelper {
                 .kanbanTaskId(member.getKanbanTask().getId())
                 .accountId(member.getAccount().getId())
                 .memberName(member.getAccount().getName())
-                .profileImage(member.getAccount().getProfileImage())
+                .profileImage(member.getAccount().getProfileImageUrl())
                 .assignedAt(member.getCreatedAt())
                 .build();
     }

@@ -263,8 +263,6 @@ public class TeamService {
                 .portfolio(account.getPortfolio())
                 .preferWorkstyle(account.getPreferWorkstyle())
                 .dislikeWorkstyle(account.getDislikeWorkstyle())
-                .likes(account.getLikes())
-                .dislikes(account.getDislikes())
                 .build();
     }
     

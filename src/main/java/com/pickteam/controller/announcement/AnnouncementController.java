@@ -138,6 +138,89 @@ public class AnnouncementController {
         }
     }
 
+    /**
+     * 공지사항 수정
+     *
+     * @param workspaceId 워크스페이스 ID
+     * @param announcementId 공지사항 ID
+     * @param request 공지사항 수정 요청 DTO
+     * @param accountId 수정 요청자 계정 ID
+     * @return 수정된 공지사항 정보
+     *
+     * API: PATCH /api/workspaces/{workspaceId}/announcement/{announcementId}
+     */
+    @PatchMapping("/{announcementId}")
+    public ResponseEntity<?> updateAnnouncement(
+            @PathVariable Long workspaceId,
+            @PathVariable Long announcementId,
+            @Valid @RequestBody AnnouncementUpdateRequest request,
+            @RequestHeader(value = "Account-Id") Long accountId) {
+
+        log.info("공지사항 수정 요청 - 워크스페이스: {}, 공지사항: {}, 계정: {}",
+                workspaceId, announcementId, accountId);
+
+        try {
+            // 워크스페이스 보안 검증 포함한 공지사항 수정
+            AnnouncementResponse response = announcementService
+                    .updateAnnouncement(workspaceId, announcementId, request, accountId);
+
+            log.info("공지사항 수정 완료 - 제목: {}", response.getTitle());
+
+            return ResponseEntity.ok(createSuccessResponse("공지사항이 성공적으로 수정되었습니다.", response));
+
+        } catch (EntityNotFoundException e) {
+            log.warn("공지사항 수정 실패 - 공지사항 없음: {}", e.getMessage());
+            return createErrorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            log.warn("공지사항 수정 실패 - 권한 없음 또는 잘못된 요청: {}", e.getMessage());
+            return createErrorResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage());
+        } catch (Exception e) {
+            log.error("공지사항 수정 중 예상치 못한 오류 발생", e);
+            return createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",
+                    "서버 내부 오류가 발생했습니다.");
+        }
+    }
+
+    /**
+     * 공지사항 삭제 (소프트 삭제)
+     *
+     * @param workspaceId 워크스페이스 ID
+     * @param announcementId 공지사항 ID
+     * @param accountId 삭제 요청자 계정 ID
+     * @return 삭제 결과
+     *
+     * API: DELETE /api/workspaces/{workspaceId}/announcement/{announcementId}
+     */
+    @DeleteMapping("/{announcementId}")
+    public ResponseEntity<?> deleteAnnouncement(
+            @PathVariable Long workspaceId,
+            @PathVariable Long announcementId,
+            @RequestHeader(value = "Account-Id") Long accountId) {
+
+        log.info("공지사항 삭제 요청 - 워크스페이스: {}, 공지사항: {}, 계정: {}",
+                workspaceId, announcementId, accountId);
+
+        try {
+            // 워크스페이스 보안 검증 포함한 공지사항 삭제
+            announcementService.deleteAnnouncement(workspaceId, announcementId, accountId);
+
+            log.info("공지사항 삭제 완료 - 공지사항 ID: {}", announcementId);
+
+            return ResponseEntity.ok(createSuccessResponse("공지사항이 성공적으로 삭제되었습니다.", null));
+
+        } catch (EntityNotFoundException e) {
+            log.warn("공지사항 삭제 실패 - 공지사항 없음: {}", e.getMessage());
+            return createErrorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            log.warn("공지사항 삭제 실패 - 권한 없음 또는 잘못된 요청: {}", e.getMessage());
+            return createErrorResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage());
+        } catch (Exception e) {
+            log.error("공지사항 삭제 중 예상치 못한 오류 발생", e);
+            return createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",
+                    "서버 내부 오류가 발생했습니다.");
+        }
+    }
+
 
 
 

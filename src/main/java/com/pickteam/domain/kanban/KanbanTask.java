@@ -26,6 +26,12 @@ public class KanbanTask extends BaseSoftDeleteSupportEntity {
     private String content;
 
     private java.time.LocalDateTime deadline;
+    
+    @Column(name = "task_order")
+    private Integer order;
+    
+    @Column(name = "is_approved")
+    private Boolean isApproved = false;
 
     @ManyToOne(optional = false)
     private KanbanList kanbanList;

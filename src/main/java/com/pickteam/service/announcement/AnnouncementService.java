@@ -208,6 +208,97 @@ public class AnnouncementService {
         }
     }
 
+    /**
+     * 공지사항 수정 (워크스페이스 보안 검증 포함)
+     *
+     * @param workspaceId 워크스페이스 ID (보안 검증용)
+     * @param announcementId 공지사항 ID
+     * @param request 수정 요청 데이터
+     * @param accountId 수정 요청자 계정 ID
+     * @return 수정된 공지사항 정보
+     * @throws EntityNotFoundException 공지사항을 찾을 수 없는 경우
+     * @throws IllegalArgumentException 권한이 없거나 잘못된 요청인 경우
+     */
+    @Transactional
+    public AnnouncementResponse updateAnnouncement(Long workspaceId,
+                                                   Long announcementId,
+                                                   AnnouncementUpdateRequest request,
+                                                   Long accountId) {
+        log.info("공지사항 수정 요청 - 워크스페이스 ID: {}, 공지사항 ID: {}, 계정 ID: {}, 제목: {}",
+                workspaceId, announcementId, accountId, request.getTitle());
+
+        try {
+            // 기본 유효성 검증
+            validateWorkspaceId(workspaceId);
+            validateAnnouncementId(announcementId);
+            validateUpdateRequest(request);
+
+            // 공지사항 조회
+            Announcement announcement = findAnnouncementById(announcementId);
+
+            // 워크스페이스 일치 검증
+            validateAnnouncementBelongsToWorkspace(announcement, workspaceId);
+
+            // 권한 확인 (기존 메서드 사용)
+            validateUpdatePermission(announcement, accountId);
+
+            // 공지사항 수정 (엔티티의 update 메서드 사용)
+            announcement.update(request.getTitle().trim(),
+                    request.getContent() != null ? request.getContent().trim() : null);
+
+            log.info("공지사항 수정 완료 - 워크스페이스 ID: {}, 공지사항 ID: {}, 제목: {}",
+                    workspaceId, announcementId, announcement.getTitle());
+
+            return AnnouncementResponse.from(announcement);
+
+        } catch (Exception e) {
+            log.error("공지사항 수정 실패 - 워크스페이스 ID: {}, 공지사항 ID: {}, 계정 ID: {}, 오류: {}",
+                    workspaceId, announcementId, accountId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    /**
+     * 공지사항 소프트 삭제 (워크스페이스 보안 검증 포함)
+     *
+     * @param workspaceId 워크스페이스 ID (보안 검증용)
+     * @param announcementId 공지사항 ID
+     * @param accountId 삭제 요청자 계정 ID
+     * @throws EntityNotFoundException 공지사항을 찾을 수 없는 경우
+     * @throws IllegalArgumentException 권한이 없거나 잘못된 요청인 경우
+     */
+    @Transactional
+    public void deleteAnnouncement(Long workspaceId, Long announcementId, Long accountId) {
+        log.info("공지사항 삭제 요청 - 워크스페이스 ID: {}, 공지사항 ID: {}, 계정 ID: {}",
+                workspaceId, announcementId, accountId);
+
+        try {
+            // 기본 유효성 검증
+            validateWorkspaceId(workspaceId);
+            validateAnnouncementId(announcementId);
+
+            // 공지사항 조회
+            Announcement announcement = findAnnouncementById(announcementId);
+
+            // 워크스페이스 일치 검증
+            validateAnnouncementBelongsToWorkspace(announcement, workspaceId);
+
+            // 권한 확인 (기존 메서드 사용)
+            validateDeletePermission(announcement, accountId);
+
+            // 소프트 삭제 처리 (엔티티의 markDeleted 메서드 사용)
+            announcement.markDeleted();
+
+            log.info("공지사항 삭제 완료 - 워크스페이스 ID: {}, 공지사항 ID: {}, 제목: {}",
+                    workspaceId, announcementId, announcement.getTitle());
+
+        } catch (Exception e) {
+            log.error("공지사항 삭제 실패 - 워크스페이스 ID: {}, 공지사항 ID: {}, 계정 ID: {}, 오류: {}",
+                    workspaceId, announcementId, accountId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
     // === Private 검증 메서드들 ===
 
     private void validateCreateRequest(AnnouncementCreateRequest request) {

@@ -1,7 +1,10 @@
 package com.pickteam.repository.chat;
 
+import com.pickteam.domain.chat.ChatRoom;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-public interface ChatRoomRepository extends JpaRepository<ChatRoomRepository, Long> {
+@Repository
+public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
 
 }

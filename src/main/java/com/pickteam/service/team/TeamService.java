@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -164,20 +165,31 @@ public class TeamService {
             throw new RuntimeException("워크스페이스 멤버만 팀에 참여할 수 있습니다.");
         }
         
-        // 이미 팀 멤버인지 확인
+        // 이미 활성 팀 멤버인지 확인
         if (teamMemberRepository.existsByTeamIdAndAccountId(teamId, accountId)) {
             throw new RuntimeException("이미 팀의 멤버입니다.");
         }
         
-        // 팀 멤버로 추가
-        TeamMember teamMember = TeamMember.builder()
-                .team(team)
-                .account(account)
-                .teamRole(TeamMember.TeamRole.MEMBER)
-                .teamStatus(TeamMember.TeamStatus.ACTIVE)
-                .build();
+        // 기존 팀 멤버 레코드가 있는지 확인 (탈퇴한 멤버 포함)
+        Optional<TeamMember> existingMember = teamMemberRepository.findByTeamIdAndAccountId(teamId, accountId);
         
-        teamMemberRepository.save(teamMember);
+        if (existingMember.isPresent()) {
+            // 기존 레코드가 있다면 재활성화
+            TeamMember teamMember = existingMember.get();
+            teamMember.setTeamStatus(TeamMember.TeamStatus.ACTIVE);
+            teamMember.setTeamRole(TeamMember.TeamRole.MEMBER); // 역할 초기화
+            teamMemberRepository.save(teamMember);
+        } else {
+            // 기존 레코드가 없다면 새로 생성
+            TeamMember teamMember = TeamMember.builder()
+                    .team(team)
+                    .account(account)
+                    .teamRole(TeamMember.TeamRole.MEMBER)
+                    .teamStatus(TeamMember.TeamStatus.ACTIVE)
+                    .build();
+            
+            teamMemberRepository.save(teamMember);
+        }
     }
     
     /**
@@ -243,6 +255,16 @@ public class TeamService {
                 .teamRole(member.getTeamRole())
                 .teamStatus(member.getTeamStatus())
                 .joinedAt(member.getCreatedAt())
+                // 사용자 상세 정보 추가
+                .age(account.getAge())
+                .mbti(account.getMbti())
+                .disposition(account.getDisposition())
+                .introduction(account.getIntroduction())
+                .portfolio(account.getPortfolio())
+                .preferWorkstyle(account.getPreferWorkstyle())
+                .dislikeWorkstyle(account.getDislikeWorkstyle())
+                .likes(account.getLikes())
+                .dislikes(account.getDislikes())
                 .build();
     }
     

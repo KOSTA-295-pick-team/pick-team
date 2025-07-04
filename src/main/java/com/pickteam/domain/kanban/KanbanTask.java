@@ -14,7 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class KanbanTask extends BaseSoftDeleteByAnnotation {
+public class KanbanTask extends BaseSoftDeleteSupportEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -1,4 +1,4 @@
-package com.pickteam;
+package com;
 
 import com.pickteam.domain.enums.UserRole;
 import com.pickteam.domain.user.Account;

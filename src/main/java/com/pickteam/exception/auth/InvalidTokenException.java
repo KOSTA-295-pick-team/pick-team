@@ -1,4 +1,4 @@
-package com.pickteam.exception;
+package com.pickteam.exception.auth;
 
 /**
  * 토큰 검증 실패 시 발생하는 예외

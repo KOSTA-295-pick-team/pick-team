@@ -1,4 +1,4 @@
-package com.pickteam.exception;
+package com.pickteam.exception.auth;
 
 /**
  * 세션 만료 예외
@@ -31,5 +31,14 @@ public class SessionExpiredException extends RuntimeException {
      */
     public SessionExpiredException(String message, Throwable cause) {
         super(message, cause);
+    }
+
+    /**
+     * 원인을 포함한 생성자
+     * 
+     * @param cause 원인이 되는 예외
+     */
+    public SessionExpiredException(Throwable cause) {
+        super(cause);
     }
 }

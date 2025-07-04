@@ -58,6 +58,20 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+    /** 사용자 ID, 이메일, 이름으로 Access Token 생성 */
+    public String generateAccessToken(Long userId, String email, String name) {
+        Date expiryDate = new Date(System.currentTimeMillis() + jwtExpirationMs);
+
+        return Jwts.builder()
+                .subject(userId.toString())
+                .claim("email", email)
+                .claim("name", name)
+                .issuedAt(new Date())
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
+
     /** 사용자 ID로 Refresh Token 생성 */
     public String generateRefreshToken(Long userId) {
         Date expiryDate = new Date(System.currentTimeMillis() + refreshExpirationMs);
@@ -90,6 +104,17 @@ public class JwtTokenProvider {
                 .getPayload();
 
         return claims.get("email", String.class);
+    }
+
+    /** 토큰에서 사용자 이름 추출 */
+    public String getNameFromToken(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+        return claims.get("name", String.class);
     }
 
     /**

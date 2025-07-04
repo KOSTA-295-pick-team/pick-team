@@ -1,6 +1,7 @@
 package com.pickteam.domain.board;
 
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
+import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.user.Account;
 import jakarta.persistence.*;
 import lombok.*;
@@ -15,7 +16,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Post extends BaseSoftDeleteByAnnotation {
+public class Post extends BaseSoftDeleteSupportEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,24 +27,31 @@ public class Post extends BaseSoftDeleteByAnnotation {
 
     private String title;
 
-    //작성자 id
-    @ManyToOne(optional=false)
+    /**
+     * 게시글 작성자
+     * - LAZY 로딩으로 성능 최적화 (수동 Soft Delete 방식에서 지원)
+     */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private Account account;
 
 
     @Lob
     private String content;
 
-    @ManyToOne(optional = false)
+    /**
+     * 소속 게시판
+     * - LAZY 로딩으로 성능 최적화
+     */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "board_id", nullable = false)
     private Board board;
 
     // 하나의 게시물에는 다수의 첨부파일, 댓글 등이 붙을 수 있다. 이를 관리하기 위해 OneToMany로 설정한다.
     // cascade 설정은 하지 않는다.
-
-    @OneToMany(mappedBy = "post")
+    @OneToMany(mappedBy = "post", fetch = FetchType.LAZY)
     private List<PostAttach> attachments = new ArrayList<>();
-    @OneToMany(mappedBy = "post")
+
+    @OneToMany(mappedBy = "post", fetch = FetchType.LAZY)
     private List<Comment> comments = new ArrayList<>();
-
-
 }

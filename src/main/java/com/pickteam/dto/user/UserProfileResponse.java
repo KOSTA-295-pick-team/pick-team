@@ -2,6 +2,7 @@ package com.pickteam.dto.user;
 
 import com.pickteam.domain.enums.UserRole;
 import lombok.Data;
+import java.util.List;
 
 /**
  * 사용자 프로필 응답 DTO
@@ -38,11 +39,17 @@ public class UserProfileResponse {
     /** 포트폴리오 링크 또는 설명 */
     private String portfolio;
 
+    /** 프로필 이미지 URL */
+    private String profileImageUrl;
+
     /** 선호하는 작업 스타일 (팀 매칭 알고리즘 활용) */
     private String preferWorkstyle;
 
     /** 기피하는 작업 스타일 (팀 매칭 시 제외) */
     private String dislikeWorkstyle;
+
+    /** 사용자 해시태그 목록 */
+    private List<String> hashtags;
 
     /**
      * Account 엔티티에서 UserProfileResponse로 변환
@@ -58,8 +65,16 @@ public class UserProfileResponse {
         response.setDisposition(account.getDisposition());
         response.setIntroduction(account.getIntroduction());
         response.setPortfolio(account.getPortfolio());
+        response.setProfileImageUrl(account.getProfileImageUrl());
         response.setPreferWorkstyle(account.getPreferWorkstyle());
         response.setDislikeWorkstyle(account.getDislikeWorkstyle());
+
+        // 해시태그 변환
+        List<String> hashtagNames = account.getUserHashtagLists().stream()
+                .map(userHashtagList -> userHashtagList.getUserHashtag().getName())
+                .collect(java.util.stream.Collectors.toList());
+        response.setHashtags(hashtagNames);
+
         return response;
     }
 }

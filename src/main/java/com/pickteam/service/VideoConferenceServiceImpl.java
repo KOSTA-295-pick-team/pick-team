@@ -108,6 +108,7 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
 
         VideoMember member = videoMemberRepository.findById(memberId).orElseThrow(() -> new VideoConferenceException(VideoConferenceErrorCode.MEMBER_NOT_FOUND));
 
+
         videoMemberRepository.delete(member);
 
     }
@@ -115,7 +116,7 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
     @Transactional(readOnly = true)
     @Override
     public boolean checkUserInVideoChannel(Long accountId, Long videoChannelId) {
-        VideoMember member = videoMemberRepository.selectAccountByChannelId(videoChannelId, accountId);
+        VideoMember member = videoMemberRepository.findByAccountIdAndVideoChannelId(accountId, videoChannelId);
         return member != null;
     }
 

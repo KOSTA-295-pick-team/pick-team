@@ -1,4 +1,4 @@
-package com.pickteam.exception;
+package com.pickteam.exception.user;
 
 /**
  * 사용자를 찾을 수 없는 경우 발생하는 예외
@@ -31,5 +31,14 @@ public class UserNotFoundException extends RuntimeException {
      */
     public UserNotFoundException(String message, Throwable cause) {
         super(message, cause);
+    }
+
+    /**
+     * 원인이 포함된 생성자
+     * 
+     * @param cause 예외 원인
+     */
+    public UserNotFoundException(Throwable cause) {
+        super(cause);
     }
 }

@@ -27,7 +27,7 @@ public class CommentService {
     private final AccountRepository accountRepository;
 
     public Page<CommentResponseDto> getComments(Long postId, Pageable pageable) {
-        Page<Comment> comments = commentRepository.findByPostIdWithAuthor(postId, pageable);
+        Page<Comment> comments = commentRepository.findByPostIdWithAuthorAndIsDeletedFalse(postId, pageable);
         return comments.map(CommentResponseDto::from);
     }
 
@@ -51,7 +51,7 @@ public class CommentService {
 
     @Transactional
     public CommentResponseDto updateComment(Long commentId, CommentUpdateDto dto, Long accountId) {
-        Comment comment = commentRepository.findByIdWithDetails(commentId)
+        Comment comment = commentRepository.findByIdWithDetailsAndIsDeletedFalse(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다."));
 
         validateCommentOwner(comment, accountId);
@@ -68,7 +68,8 @@ public class CommentService {
 
         validateCommentOwner(comment, accountId);
 
-        commentRepository.delete(comment);
+        // 수동 Soft Delete 처리
+        comment.markDeleted();
     }
 
     @Transactional
@@ -76,7 +77,8 @@ public class CommentService {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다."));
 
-        commentRepository.delete(comment);
+        // 수동 Soft Delete 처리
+        comment.markDeleted();
     }
 
     private void validateCommentOwner(Comment comment, Long accountId) {

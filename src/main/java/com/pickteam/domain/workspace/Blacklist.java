@@ -1,6 +1,7 @@
 package com.pickteam.domain.workspace;
 
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
+import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.user.Account;
 import jakarta.persistence.*;
 import lombok.*;
@@ -11,7 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Blacklist extends BaseSoftDeleteByAnnotation {
+public class Blacklist extends BaseSoftDeleteSupportEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

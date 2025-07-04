@@ -12,7 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Comment extends BaseSoftDeleteByAnnotation {
+public class Comment extends BaseSoftDeleteSupportEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,9 +21,19 @@ public class Comment extends BaseSoftDeleteByAnnotation {
     @Lob
     private String content;
 
-    @ManyToOne(optional = false)
+    /**
+     * 댓글 작성자
+     * - LAZY 로딩으로 성능 최적화 (수동 Soft Delete 방식에서 지원)
+     */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private Account account;
 
-    @ManyToOne(optional = false)
+    /**
+     * 소속 게시글
+     * - LAZY 로딩으로 성능 최적화
+     */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "post_id", nullable = false)
     private Post post;
 }

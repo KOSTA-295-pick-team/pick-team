@@ -4,8 +4,8 @@ import com.pickteam.dto.user.*;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 
 public interface UserService {
-    // 회원가입
-    void registerUser(UserRegisterRequest request);
+    // 간소화된 회원가입 (이메일 + 패스워드)
+    void registerUser(SignupRequest request);
 
     // ID 중복검사
     boolean checkDuplicateId(String email);
@@ -45,4 +45,8 @@ public interface UserService {
 
     // 계정 삭제
     void deleteAccount(Long userId);
+
+    // === 해시태그 관리 ===
+    // 해시태그 검색 (다른 사용자들의 해시태그 포함)
+    java.util.List<HashtagResponse> searchHashtags(String keyword);
 }

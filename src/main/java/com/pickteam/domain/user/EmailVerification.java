@@ -29,7 +29,7 @@ public class EmailVerification extends BaseTimeEntity {
     private Long id;
 
     /** 인증 대상 이메일 주소 */
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String email;
 
     /** 이메일로 발송된 인증 코드 (숫자 또는 문자열) */

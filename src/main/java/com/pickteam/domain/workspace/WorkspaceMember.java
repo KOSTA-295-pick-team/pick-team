@@ -1,6 +1,7 @@
 package com.pickteam.domain.workspace;
 
 import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
+import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.user.Account;
 import jakarta.persistence.*;
 import lombok.*;
@@ -14,7 +15,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class WorkspaceMember extends BaseSoftDeleteByAnnotation {
+public class WorkspaceMember extends BaseSoftDeleteSupportEntity {
     //유저가 탈퇴하거나 추방되어도 관련 정보가 삭제되면 안된다. soft-delete 처리한다.
 
     @Id

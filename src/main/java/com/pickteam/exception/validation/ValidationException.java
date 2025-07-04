@@ -1,4 +1,4 @@
-package com.pickteam.exception;
+package com.pickteam.exception.validation;
 
 /**
  * 유효성 검사 실패 시 발생하는 예외

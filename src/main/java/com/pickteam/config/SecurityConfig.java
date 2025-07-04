@@ -59,7 +59,11 @@ public class SecurityConfig {
                 // URL 접근 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         // 인증 없이 접근 가능한 URL
-                        .requestMatchers("/api/users/register", "/api/users/login").permitAll()
+                        .requestMatchers("/api/users/register", "/api/users/login", "/api/users/login/",
+                                "/api/users/login/enhanced")
+                        .permitAll()
+                        .requestMatchers("/api/users/logout", "/api/users/logout/", "/api/users/logout/enhanced")
+                        .permitAll()
                         .requestMatchers("/api/users/check-id", "/api/users/validate-password").permitAll()
                         .requestMatchers("/api/users/email/request", "/api/users/email/verify").permitAll()
 

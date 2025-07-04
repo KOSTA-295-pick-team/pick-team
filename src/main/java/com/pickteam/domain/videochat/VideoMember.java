@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class VideoMember extends BaseSoftDeleteByAnnotation {
+public class VideoMember extends BaseSoftDeleteSupportEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

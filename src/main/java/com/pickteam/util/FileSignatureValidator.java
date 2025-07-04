@@ -43,7 +43,9 @@ public class FileSignatureValidator {
                 new byte[] { 'G', 'I', 'F', '8', '9', 'a' } // GIF89a
         ));
         FILE_SIGNATURES.put("webp", List.of(
-                new byte[] { 'R', 'I', 'F', 'F' } // RIFF 시그니처 (WebP는 RIFF 컨테이너 사용)
+                // RIFF 헤더(4바이트) + 파일크기(4바이트, 가변) + WEBP 식별자(4바이트)
+                // 8번째 바이트부터 'WEBP' 식별자를 확인하는 방식으로 별도 처리됨
+                new byte[] { 'R', 'I', 'F', 'F' } // RIFF 시그니처 (WebP 특별 검증 로직 사용)
         ));
 
         // 문서 파일
@@ -175,10 +177,46 @@ public class FileSignatureValidator {
             return false;
         }
 
+        // WebP 특별 처리: RIFF 헤더 + WEBP 식별자 검증
+        if (signature.length == 4 &&
+                signature[0] == 'R' && signature[1] == 'I' &&
+                signature[2] == 'F' && signature[3] == 'F') {
+            return isWebPFile(fileHeader);
+        }
+
+        // 일반적인 시그니처 매칭
         for (int i = 0; i < signature.length; i++) {
             if (fileHeader[i] != signature[i]) {
                 return false;
             }
+        }
+
+        return true;
+    }
+
+    /**
+     * WebP 파일 특별 검증
+     * WebP 구조: RIFF(4바이트) + 파일크기(4바이트) + WEBP(4바이트)
+     * 
+     * @param fileHeader 파일 헤더 바이트 배열
+     * @return WebP 파일이면 true
+     */
+    private static boolean isWebPFile(byte[] fileHeader) {
+        // 최소 12바이트 필요 (RIFF + 파일크기 + WEBP)
+        if (fileHeader.length < 12) {
+            return false;
+        }
+
+        // RIFF 헤더 확인 (0-3번째 바이트)
+        if (fileHeader[0] != 'R' || fileHeader[1] != 'I' ||
+                fileHeader[2] != 'F' || fileHeader[3] != 'F') {
+            return false;
+        }
+
+        // WEBP 식별자 확인 (8-11번째 바이트)
+        if (fileHeader[8] != 'W' || fileHeader[9] != 'E' ||
+                fileHeader[10] != 'B' || fileHeader[11] != 'P') {
+            return false;
         }
 
         return true;

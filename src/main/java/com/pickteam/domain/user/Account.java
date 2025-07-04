@@ -79,7 +79,7 @@ public class Account extends BaseSoftDeleteSupportEntity {
     @Builder.Default
     private String portfolio = null; // 포트폴리오 미등록 상태
 
-    /** 프로필 이미지 URL (파일 저장소에 업로드된 이미지 경로) - TODO: 통합 파일 시스템 구축 후 연동 예정 */
+    /** 프로필 이미지 URL (PostAttachService를 통한 통합 파일 시스템으로 관리) */
     private String profileImageUrl;
 
     /** 선호하는 작업 스타일 (팀 매칭 알고리즘에 활용) */

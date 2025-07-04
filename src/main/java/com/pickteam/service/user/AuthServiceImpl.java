@@ -246,7 +246,7 @@ public class AuthServiceImpl implements AuthService {
      * 현재 로그인된 사용자 ID 조회
      * - Spring Security Context에서 인증된 사용자 정보 추출
      * - JWT 토큰을 통해 인증된 사용자의 ID 반환
-     * - UserController의 TODO 해결을 위한 핵심 메서드
+     * - 인증이 필요한 모든 API에서 사용하는 핵심 메서드
      * 
      * @return 현재 로그인된 사용자 ID
      * @throws AuthenticationException 인증되지 않은 사용자인 경우

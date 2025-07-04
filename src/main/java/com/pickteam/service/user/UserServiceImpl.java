@@ -582,10 +582,7 @@ public class UserServiceImpl implements UserService {
         response.setDisposition(account.getDisposition()); // 엔티티 기본값: "정보없음"
         response.setIntroduction(account.getIntroduction()); // 엔티티 기본값: "정보없음"
         response.setPortfolio(account.getPortfolio()); // 엔티티 기본값: "https://github.com/myportfolio"
-        // TODO: 통합 파일 시스템 구축 후 활성화
-        // response.setProfileImageUrl(account.getProfileImageUrl()); // 프로필 이미지는 null
-        // 유지
-        // response.setProfileImageUrl(null); // 임시로 null 설정
+        response.setProfileImageUrl(account.getProfileImageUrl()); // 프로필 이미지 URL
         response.setPreferWorkstyle(account.getPreferWorkstyle()); // 엔티티 기본값: "정보없음"
         response.setDislikeWorkstyle(account.getDislikeWorkstyle()); // 엔티티 기본값: "정보없음"
 

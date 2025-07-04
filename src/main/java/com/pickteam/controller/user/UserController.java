@@ -31,8 +31,6 @@ public class UserController {
     private final UserService userService;
     private final AuthService authService;
     private final PostAttachService postAttachService; // 프로필 이미지 업로드용
-    // private final FileUploadService fileUploadService; // TODO: 통합 파일 시스템 구축 후
-    // 활성화
 
     // 환경변수에서 주입받는 설정들
     @Value("${app.email.blocked-domains}")

@@ -7,6 +7,7 @@ import com.pickteam.dto.board.PostAttachResponseDto;
 import com.pickteam.repository.board.PostAttachRepository;
 import com.pickteam.repository.board.PostRepository;
 import com.pickteam.repository.common.FileInfoRepository;
+import com.pickteam.util.FileSignatureValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -55,6 +56,9 @@ public class PostAttachService {
 
     @Value("${app.profile.image.allowed-extensions}")
     private String profileAllowedExtensions;
+
+    @Value("${app.profile.image.allowed-mime-types}")
+    private String profileAllowedMimeTypes;
 
     // ==================== 게시글 첨부파일 관리 ====================
 
@@ -440,6 +444,23 @@ public class PostAttachService {
                     String.format("허용되지 않는 이미지 형식입니다. 허용 형식: %s", profileAllowedExtensions));
         }
 
+        // MIME 타입 검증 (브라우저에서 제공하는 Content-Type)
+        String contentType = file.getContentType();
+        if (!isAllowedProfileImageMimeType(contentType)) {
+            log.warn("허용되지 않는 MIME 타입 - userId: {}, filename: {}, mimeType: {}",
+                    userId, originalFilename, contentType);
+            throw new IllegalArgumentException(
+                    String.format("허용되지 않는 이미지 형식입니다. 허용 MIME 타입: %s", profileAllowedMimeTypes));
+        }
+
+        // 파일 시그니처 검증 (실제 파일 헤더 검사)
+        String extension = getFileExtension(originalFilename);
+        if (!FileSignatureValidator.validateFileSignature(file, extension)) {
+            log.warn("파일 시그니처 검증 실패 - userId: {}, filename: {}, extension: {}",
+                    userId, originalFilename, extension);
+            throw new SecurityException("파일의 실제 형식이 확장자와 일치하지 않습니다. 보안상 업로드가 거부됩니다.");
+        }
+
         // 파일명 보안 검증 (경로 탐색 공격 방지)
         validateSecureFileName(originalFilename, userId);
 
@@ -461,6 +482,32 @@ public class PostAttachService {
                 .collect(Collectors.toSet());
 
         return allowedExtSet.contains(extension);
+    }
+
+    /**
+     * 프로필 이미지 허용 MIME 타입 검증
+     */
+    private boolean isAllowedProfileImageMimeType(String mimeType) {
+        if (mimeType == null || mimeType.trim().isEmpty()) {
+            return false;
+        }
+
+        Set<String> allowedMimeSet = Arrays.stream(profileAllowedMimeTypes.split(","))
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+
+        return allowedMimeSet.contains(mimeType.toLowerCase());
+    }
+
+    /**
+     * 파일명에서 확장자 추출
+     */
+    private String getFileExtension(String fileName) {
+        if (fileName == null || !fileName.contains(".")) {
+            return "";
+        }
+        return fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
     }
 
     /**

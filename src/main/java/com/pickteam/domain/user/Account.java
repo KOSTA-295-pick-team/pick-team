@@ -15,9 +15,11 @@ import com.pickteam.domain.workspace.WorkspaceMember;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.time.LocalDateTime;
+import java.security.SecureRandom;
 
 /**
  * 사용자 계정 엔티티
@@ -48,14 +50,13 @@ public class Account extends BaseSoftDeleteSupportEntity {
     // 실제 저장 시에는 암호화된 값이 저장되어야 함
     private String password;
 
-    /** 사용자 이름 (프로필 완성 시 입력) */
+    /** 사용자 이름 (프로필 완성 시 입력, 초기값: user + 8자리 랜덤 숫자) */
     @Column(nullable = true)
-    @Builder.Default
-    private String name = "신규 사용자";
+    private String name;
 
     /** 사용자 나이 (탈퇴 시 개인정보보호를 위해 삭제) */
     @Column(nullable = true)
-    private Integer age = 225;
+    private Integer age;
 
     /** 사용자 권한 (ADMIN, USER 등) */
     @Enumerated(EnumType.STRING)
@@ -79,7 +80,7 @@ public class Account extends BaseSoftDeleteSupportEntity {
     @Builder.Default
     private String portfolio = null; // 포트폴리오 미등록 상태
 
-    /** 프로필 이미지 URL (파일 저장소에 업로드된 이미지 경로) - TODO: 통합 파일 시스템 구축 후 연동 예정 */
+    /** 프로필 이미지 URL (PostAttachService를 통한 통합 파일 시스템으로 관리) */
     private String profileImageUrl;
 
     /** 선호하는 작업 스타일 (팀 매칭 알고리즘에 활용) */
@@ -237,6 +238,36 @@ public class Account extends BaseSoftDeleteSupportEntity {
      */
     public boolean isWithdrawnUser() {
         return this.email == null;
+    }
+
+    // === 랜덤 사용자명 생성 메서드 ===
+
+    /**
+     * 보안이 강화된 랜덤한 8자리 숫자를 포함한 초기 사용자명 생성
+     * SecureRandom을 사용하여 예측 불가능한 랜덤 값 생성
+     * 예: user12345678, user87654321
+     * 
+     * @return user + 8자리 랜덤 숫자 형태의 사용자명
+     */
+    public static String generateRandomUsername() {
+        SecureRandom secureRandom = new SecureRandom();
+        int randomNumber = 10000000 + secureRandom.nextInt(90000000); // 10000000~99999999
+        return "user" + randomNumber;
+    }
+
+    /**
+     * 이름이 비어있거나 null인 경우 랜덤 사용자명으로 초기화
+     * - 사용자가 프로필 업데이트 시 이름을 삭제한 경우 자동으로 랜덤 사용자명 할당
+     * - 회원가입 시 이름이 설정되지 않은 경우에도 사용 가능
+     * 
+     * @return 초기화 여부 (true: 초기화됨, false: 이미 유효한 이름 존재)
+     */
+    public boolean initializeNameIfEmpty() {
+        if (this.name == null || this.name.trim().isEmpty()) {
+            this.name = generateRandomUsername();
+            return true;
+        }
+        return false;
     }
 
 }

@@ -8,7 +8,6 @@ import com.pickteam.domain.common.FileInfo;
 import com.pickteam.service.user.UserService;
 import com.pickteam.service.user.AuthService;
 import com.pickteam.service.board.PostAttachService;
-// import com.pickteam.service.user.FileUploadService; // TODO: 통합 파일 시스템 구축 후 활성화
 import com.pickteam.constants.UserControllerMessages;
 import com.pickteam.exception.validation.ValidationException;
 import jakarta.validation.Valid;
@@ -32,8 +31,6 @@ public class UserController {
     private final UserService userService;
     private final AuthService authService;
     private final PostAttachService postAttachService; // 프로필 이미지 업로드용
-    // private final FileUploadService fileUploadService; // TODO: 통합 파일 시스템 구축 후
-    // 활성화
 
     // 환경변수에서 주입받는 설정들
     @Value("${app.email.blocked-domains}")

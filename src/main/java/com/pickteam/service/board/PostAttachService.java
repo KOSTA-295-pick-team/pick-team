@@ -380,6 +380,9 @@ public class PostAttachService {
         } catch (Exception e) {
             FileOperationLogger.logOperationFailure(FileOperationType.PROFILE_IMAGE_DELETE,
                     FileOperationLogger.formatDeleteParams(null, null, userId, hashedFileName), e);
+            if (e instanceof SecurityException) {
+                throw e; // 보안 예외는 그대로 전파
+            }
             throw new RuntimeException("프로필 이미지 삭제 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
     }

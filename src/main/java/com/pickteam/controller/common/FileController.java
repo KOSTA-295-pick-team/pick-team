@@ -2,6 +2,8 @@ package com.pickteam.controller.common;
 
 import com.pickteam.domain.common.FileInfo;
 import com.pickteam.repository.common.FileInfoRepository;
+import com.pickteam.util.FileOperationLogger;
+import com.pickteam.util.FileOperationLogger.FileOperationType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,15 +50,16 @@ public class FileController {
             Resource resource = new UrlResource(filePath.toUri());
 
             if (!resource.exists()) {
-                log.warn("요청된 파일이 존재하지 않음 - fileId: {}, path: {}", fileId, filePath);
+                FileOperationLogger.logOperationWarning(FileOperationType.FILE_DOWNLOAD,
+                        "요청된 파일이 존재하지 않음 - fileId: " + fileId + ", path: " + filePath);
                 throw new RuntimeException("파일이 존재하지 않습니다.");
             }
 
             String encodedFileName = URLEncoder.encode(fileInfo.getNameOrigin(), StandardCharsets.UTF_8)
                     .replaceAll("\\+", "%20");
 
-            log.info("파일 다운로드 성공 - fileId: {}, fileName: {}",
-                    fileId, fileInfo.getNameOrigin());
+            FileOperationLogger.logOperationSuccess(FileOperationType.FILE_DOWNLOAD,
+                    "fileId: " + fileId + ", fileName: " + fileInfo.getNameOrigin());
 
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_OCTET_STREAM)
@@ -65,7 +68,8 @@ public class FileController {
                     .body(resource);
 
         } catch (Exception e) {
-            log.error("파일 다운로드 실패 - fileId: {}", fileId, e);
+            FileOperationLogger.logOperationFailure(FileOperationType.FILE_DOWNLOAD,
+                    "fileId: " + fileId, e);
             throw new RuntimeException("파일 다운로드에 실패했습니다.", e);
         }
     }
@@ -85,18 +89,21 @@ public class FileController {
 
         // 경로 탐색 공격 패턴 검사
         if (DANGEROUS_PATH_PATTERN.matcher(hashedFileName).matches()) {
-            log.warn("경로 탐색 공격 시도 탐지 - fileName: {}", hashedFileName);
+            FileOperationLogger.logOperationWarning(FileOperationType.FILE_VALIDATION,
+                    FileOperationLogger.formatSecurityRisk(null, hashedFileName, "경로 탐색 공격 시도"));
             throw new SecurityException("허용되지 않는 파일 경로입니다.");
         }
 
         // 파일명에 위험한 문자가 포함되어 있는지 확인
         if (hashedFileName.contains("../") || hashedFileName.contains("..\\") ||
                 hashedFileName.contains("/") || hashedFileName.contains("\\")) {
-            log.warn("위험한 경로 문자 탐지 - fileName: {}", hashedFileName);
+            FileOperationLogger.logOperationWarning(FileOperationType.FILE_VALIDATION,
+                    FileOperationLogger.formatSecurityRisk(null, hashedFileName, "위험한 경로 문자"));
             throw new SecurityException("허용되지 않는 파일명입니다.");
         }
 
-        log.debug("파일 보안 검증 통과 - fileName: {}", hashedFileName);
+        FileOperationLogger.logOperationDebug(FileOperationType.FILE_VALIDATION,
+                "파일 보안 검증 통과 - fileName: " + hashedFileName);
     }
 
     /**
@@ -113,11 +120,14 @@ public class FileController {
 
         // 경로가 업로드 디렉토리 내부에 있는지 확인 (경로 탐색 공격 방지)
         if (!filePath.startsWith(uploadPath)) {
-            log.error("경로 탐색 공격 시도 - uploadDir: {}, requestPath: {}", uploadPath, filePath);
+            FileOperationLogger.logOperationFailure(FileOperationType.FILE_VALIDATION,
+                    "경로 탐색 공격 시도 - uploadDir: " + uploadPath + ", requestPath: " + filePath,
+                    new SecurityException("허용되지 않는 파일 경로입니다."));
             throw new SecurityException("허용되지 않는 파일 경로입니다.");
         }
 
-        log.debug("보안 파일 경로 생성 완료 - path: {}", filePath);
+        FileOperationLogger.logOperationDebug(FileOperationType.FILE_VALIDATION,
+                "보안 파일 경로 생성 완료 - path: " + filePath);
         return filePath;
     }
 }

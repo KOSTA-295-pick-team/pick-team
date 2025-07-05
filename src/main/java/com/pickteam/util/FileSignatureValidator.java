@@ -82,8 +82,8 @@ public class FileSignatureValidator {
 
         // 텍스트 파일
         FILE_SIGNATURES.put("txt", List.of(
-                // UTF-8 BOM
-                new byte[] { (byte) 0xEF, (byte) 0xBB, (byte) 0xBF }
+                new byte[] { (byte) 0xEF, (byte) 0xBB, (byte) 0xBF }, // UTF-8 BOM
+                new byte[] {} // 빈 시그니처 - 텍스트 파일은 내용 기반 검증 사용
         // 참고: 일반 ASCII/UTF-8 텍스트는 시그니처가 없으므로 별도 검증 로직 필요
         ));
     }
@@ -142,15 +142,16 @@ public class FileSignatureValidator {
 
     /**
      * 파일에서 헤더 바이트를 읽어옴
+     * try-with-resources 패턴으로 스트림 리소스 안전 관리
      * 
      * @param file       읽을 파일
      * @param headerSize 읽을 헤더 크기
      * @return 파일 헤더 바이트 배열
      */
     private static byte[] readFileHeader(MultipartFile file, int headerSize) {
-        try {
+        try (var inputStream = file.getInputStream()) {
             byte[] header = new byte[headerSize];
-            int bytesRead = file.getInputStream().read(header);
+            int bytesRead = inputStream.read(header);
 
             if (bytesRead == -1) {
                 return new byte[0];
@@ -175,6 +176,11 @@ public class FileSignatureValidator {
     private static boolean matchesSignature(byte[] fileHeader, byte[] signature) {
         if (fileHeader.length < signature.length) {
             return false;
+        }
+
+        // 빈 시그니처 처리 (텍스트 파일 등)
+        if (signature.length == 0) {
+            return isTextFile(fileHeader);
         }
 
         // WebP 특별 처리: RIFF 헤더 + WEBP 식별자 검증
@@ -253,5 +259,56 @@ public class FileSignatureValidator {
      */
     public static java.util.Set<String> getSupportedExtensions() {
         return FILE_SIGNATURES.keySet();
+    }
+
+    /**
+     * 텍스트 파일 특별 검증
+     * 시그니처가 없는 텍스트 파일을 내용 기반으로 검증
+     * 
+     * @param fileHeader 파일 헤더 바이트 배열
+     * @return 텍스트 파일로 판단되면 true
+     */
+    private static boolean isTextFile(byte[] fileHeader) {
+        if (fileHeader.length == 0) {
+            return true; // 빈 파일도 텍스트로 간주
+        }
+
+        // ASCII/UTF-8 인코딩 검증
+        int textCharCount = 0;
+        int totalBytes = Math.min(fileHeader.length, 16); // 최대 16바이트만 검사
+
+        for (int i = 0; i < totalBytes; i++) {
+            byte b = fileHeader[i];
+
+            // ASCII 제어 문자 중 허용되는 것들 (탭, 줄바꿈, 캐리지리턴)
+            if (b == 0x09 || b == 0x0A || b == 0x0D) {
+                textCharCount++;
+                continue;
+            }
+
+            // 인쇄 가능한 ASCII 문자 (32-126)
+            if (b >= 32 && b <= 126) {
+                textCharCount++;
+                continue;
+            }
+
+            // UTF-8 시작 바이트 확인
+            if ((b & 0x80) != 0) {
+                // UTF-8 멀티바이트 문자일 가능성
+                if ((b & 0xE0) == 0xC0 || (b & 0xF0) == 0xE0 || (b & 0xF8) == 0xF0) {
+                    textCharCount++;
+                    continue;
+                }
+            }
+
+            // NULL 바이트나 기타 바이너리 데이터로 의심되는 경우
+            if (b == 0x00) {
+                return false; // 바이너리 파일로 판단
+            }
+        }
+
+        // 80% 이상이 텍스트 문자면 텍스트 파일로 판단
+        double textRatio = (double) textCharCount / totalBytes;
+        return textRatio >= 0.8;
     }
 }

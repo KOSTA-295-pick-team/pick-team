@@ -15,6 +15,7 @@ import com.pickteam.domain.workspace.WorkspaceMember;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.time.LocalDateTime;
@@ -55,7 +56,7 @@ public class Account extends BaseSoftDeleteSupportEntity {
 
     /** 사용자 나이 (탈퇴 시 개인정보보호를 위해 삭제) */
     @Column(nullable = true)
-    private Integer age = 225;
+    private Integer age;
 
     /** 사용자 권한 (ADMIN, USER 등) */
     @Enumerated(EnumType.STRING)
@@ -255,12 +256,18 @@ public class Account extends BaseSoftDeleteSupportEntity {
     }
 
     /**
-     * 이름이 null이거나 비어있을 때 랜덤 사용자명으로 초기화
+     * 이름이 비어있거나 null인 경우 랜덤 사용자명으로 초기화
+     * - 사용자가 프로필 업데이트 시 이름을 삭제한 경우 자동으로 랜덤 사용자명 할당
+     * - 회원가입 시 이름이 설정되지 않은 경우에도 사용 가능
+     * 
+     * @return 초기화 여부 (true: 초기화됨, false: 이미 유효한 이름 존재)
      */
-    public void initializeNameIfEmpty() {
+    public boolean initializeNameIfEmpty() {
         if (this.name == null || this.name.trim().isEmpty()) {
             this.name = generateRandomUsername();
+            return true;
         }
+        return false;
     }
 
 }

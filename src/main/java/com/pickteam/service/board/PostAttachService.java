@@ -279,59 +279,11 @@ public class PostAttachService {
             if (oldHashedFileName != null) {
                 final String finalOldFileName = oldHashedFileName;
                 TransactionSynchronizationManager.registerSynchronization(
-                        new TransactionSynchronization() {
-                            @Override
-                            public void afterCommit() {
-                                // 커밋 성공 시: 기존 파일 물리적 삭제
-                                try {
-                                    deletePhysicalProfileImageFile(finalOldFileName);
-                                    FileOperationLogger.logOperationSuccess(
-                                            FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
-                                            "기존 파일 삭제 (커밋 후): " + finalOldFileName);
-                                } catch (Exception e) {
-                                    FileOperationLogger.logOperationFailure(
-                                            FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
-                                            "기존 파일 삭제 실패 (커밋 후): " + finalOldFileName, e);
-                                }
-                            }
-
-                            @Override
-                            public void afterCompletion(int status) {
-                                if (status == STATUS_ROLLED_BACK) {
-                                    // 롤백 시: 새로 업로드된 파일 물리적 삭제
-                                    try {
-                                        deletePhysicalProfileImageFile(newHashedFileName);
-                                        FileOperationLogger.logOperationWarning(
-                                                FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
-                                                "트랜잭션 롤백으로 새 파일 삭제: " + newHashedFileName);
-                                    } catch (Exception e) {
-                                        FileOperationLogger.logOperationFailure(
-                                                FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
-                                                "새 파일 정리 실패 (롤백 후): " + newHashedFileName, e);
-                                    }
-                                }
-                            }
-                        });
+                        createProfileImageTransactionSynchronization(finalOldFileName, newHashedFileName));
             } else {
                 // 기존 파일이 없는 경우, 롤백 시에만 새 파일 정리
                 TransactionSynchronizationManager.registerSynchronization(
-                        new TransactionSynchronization() {
-                            @Override
-                            public void afterCompletion(int status) {
-                                if (status == STATUS_ROLLED_BACK) {
-                                    try {
-                                        deletePhysicalProfileImageFile(newHashedFileName);
-                                        FileOperationLogger.logOperationWarning(
-                                                FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
-                                                "트랜잭션 롤백으로 새 파일 삭제: " + newHashedFileName);
-                                    } catch (Exception e) {
-                                        FileOperationLogger.logOperationFailure(
-                                                FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
-                                                "새 파일 정리 실패 (롤백 후): " + newHashedFileName, e);
-                                    }
-                                }
-                            }
-                        });
+                        createNewProfileImageTransactionSynchronization(newHashedFileName));
             }
 
             FileOperationLogger.logOperationSuccess(FileOperationType.PROFILE_IMAGE_UPLOAD,
@@ -616,6 +568,85 @@ public class PostAttachService {
             FileOperationLogger.logOperationWarning(FileOperationType.PROFILE_IMAGE_SOFT_DELETE,
                     "Soft Delete할 파일을 찾을 수 없음 - "
                             + FileOperationLogger.formatDeleteParams(null, null, userId, hashedFileName));
+        }
+    }
+
+    // ==================== 트랜잭션 동기화 헬퍼 메서드들 ====================
+
+    /**
+     * 프로필 이미지 교체 시 트랜잭션 동기화 생성 (기존 파일이 있는 경우)
+     *
+     * @param oldFileName 기존 파일명
+     * @param newFileName 새 파일명
+     * @return 트랜잭션 동기화 객체
+     */
+    private TransactionSynchronization createProfileImageTransactionSynchronization(
+            String oldFileName, String newFileName) {
+        return new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                handleOldFileCleanupOnCommit(oldFileName);
+            }
+
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_ROLLED_BACK) {
+                    handleNewFileCleanupOnRollback(newFileName);
+                }
+            }
+        };
+    }
+
+    /**
+     * 프로필 이미지 신규 업로드 시 트랜잭션 동기화 생성 (기존 파일이 없는 경우)
+     *
+     * @param newFileName 새 파일명
+     * @return 트랜잭션 동기화 객체
+     */
+    private TransactionSynchronization createNewProfileImageTransactionSynchronization(String newFileName) {
+        return new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_ROLLED_BACK) {
+                    handleNewFileCleanupOnRollback(newFileName);
+                }
+            }
+        };
+    }
+
+    /**
+     * 트랜잭션 커밋 후 기존 파일 정리 처리
+     *
+     * @param oldFileName 삭제할 기존 파일명
+     */
+    private void handleOldFileCleanupOnCommit(String oldFileName) {
+        try {
+            deletePhysicalProfileImageFile(oldFileName);
+            FileOperationLogger.logOperationSuccess(
+                    FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
+                    "기존 파일 삭제 (커밋 후): " + oldFileName);
+        } catch (Exception e) {
+            FileOperationLogger.logOperationFailure(
+                    FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
+                    "기존 파일 삭제 실패 (커밋 후): " + oldFileName, e);
+        }
+    }
+
+    /**
+     * 트랜잭션 롤백 후 새 파일 정리 처리
+     *
+     * @param newFileName 정리할 새 파일명
+     */
+    private void handleNewFileCleanupOnRollback(String newFileName) {
+        try {
+            deletePhysicalProfileImageFile(newFileName);
+            FileOperationLogger.logOperationWarning(
+                    FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
+                    "트랜잭션 롤백으로 새 파일 삭제: " + newFileName);
+        } catch (Exception e) {
+            FileOperationLogger.logOperationFailure(
+                    FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
+                    "새 파일 정리 실패 (롤백 후): " + newFileName, e);
         }
     }
 }

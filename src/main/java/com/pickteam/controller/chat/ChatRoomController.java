@@ -43,6 +43,8 @@ public class ChatRoomController {
     /**
      * 채팅방 제목을 수정합니다.
      */
+
+    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     @PatchMapping("/{chatRoomId}")
     ChatRoomResponse updateChatRoomTitle(Long chatRoomId, String title) {
 
@@ -52,6 +54,7 @@ public class ChatRoomController {
     /**
      * 1:1 채팅방을 생성합니다.
      */
+    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     @PostMapping("/create-dm")
     ChatRoomResponse createDmChatRoom(Long workspaceId, Long memberId) {
         return null;
@@ -62,6 +65,7 @@ public class ChatRoomController {
      * Soft-Delete 처리이므로 Patch 요청을 넣는다
      * 요청 경로는 restful하되 일반적인 수정 요청과 분리되도록 /delete suffix를 붙인다.
      */
+    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     @PatchMapping("/{chatRoomId}/delete")
     void deleteChatRoom(Long chatRoomId, Long accountId) {
 
@@ -70,6 +74,7 @@ public class ChatRoomController {
     /**
      * ID로 채팅방 상세 정보를 조회합니다.
      */
+    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     @GetMapping("/{chatRoomId}")
     ChatRoomDetailResponse getChatRoomDetails(Long chatRoomId) {
         return null;
@@ -78,6 +83,7 @@ public class ChatRoomController {
     /**
      * 채팅방 알림을 활성화합니다.
      */
+    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     @PatchMapping("/{chatRoomId}/notification/enable")
     void enableChatRoomNotification(Long chatRoomId, Long accountId) {
     }
@@ -85,6 +91,7 @@ public class ChatRoomController {
     /**
      * 채팅방 알림을 비활성화합니다.
      */
+    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     @PatchMapping("/{chatRoomId}/notification/disable")
     void disableChatRoomNotification(Long chatRoomId, Long accountId) {
 

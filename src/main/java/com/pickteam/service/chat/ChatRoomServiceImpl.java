@@ -42,9 +42,9 @@ public class ChatRoomServiceImpl implements ChatRoomService{
     private final TeamRepository teamRepository;
     private final ChatMemberRepository chatMemberRepository;
 
+    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     @Override
     public Page<ChatRoomResponse> getChatRoomsByWorkspace(Long workspaceId, Pageable pageable) {
-
         return null;
     }
 
@@ -54,7 +54,7 @@ public class ChatRoomServiceImpl implements ChatRoomService{
         Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(request.getWorkspaceId())
                 .orElseThrow(() -> new EntityNotFoundException("해당하는 워크스페이스가 없습니다."));
 
-        List<Long> memberIds = request.getChatMemberIdLists();
+        List<Long> memberIds = request.getChatMemberIdList();
         List<ChatMember> chatMembers = new ArrayList<>();
 
 
@@ -83,31 +83,39 @@ public class ChatRoomServiceImpl implements ChatRoomService{
         return ChatRoomResponse.from(chatroom);
     }
 
+    // ------------------------- Work in Progress --------------------------------
+
+    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     @Override
     public ChatRoomResponse updateChatRoomTitle(Long chatRoomId, String title) {
         return null;
     }
 
+    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     @Override
     public ChatRoomResponse createDmChatRoom(Long workspaceId, Long memberId) {
         return null;
     }
 
+    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     @Override
     public void deleteChatRoom(Long chatRoomId, Long accountId) {
 
     }
 
+    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     @Override
     public ChatRoomDetailResponse getChatRoomDetails(Long chatRoomId) {
         return null;
     }
 
+    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     @Override
     public void enableChatRoomNotification(Long chatRoomId, Long accountId) {
 
     }
 
+    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     @Override
     public void disableChatRoomNotification(Long chatRoomId, Long accountId) {
 

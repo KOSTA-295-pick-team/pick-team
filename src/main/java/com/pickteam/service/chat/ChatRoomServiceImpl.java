@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -115,17 +116,17 @@ public class ChatRoomServiceImpl implements ChatRoomService{
     @Transactional
     public ChatRoomResponse updateChatRoomTitle(Long requestUserId, ChatRoomUpdateTitleRequest request) {
         //requestUserId가 chatRoom안에 속해 있는지 검사
-        ChatRoom chatroom = chatRoomRepository.findByIdAndIsDeletedFalse(request.getChatRoomId());
+        Optional<ChatRoom> chatroom = chatRoomRepository.findByIdAndIsDeletedFalse(request.getChatRoomId());
 
         //채팅방의 멤버라면 채팅방 제목을 변경 처리
         //방장 여부나 방장을 검사하는 로직이 별도로 없으므로 누구나 변경 가능하도록 처리
         //방장만 변경 가능하도록 하려면 구조 확장 필요
-        boolean isMember = chatroom.getChatMembers().stream()
+        boolean isMember = chatroom.get().getChatMembers().stream()
                 .anyMatch(m -> m.getId().equals(requestUserId));
 
-        if(isMember)chatroom.setName(request.getNewName());//채팅방 이름 변경처리
+        if(isMember) chatroom.get().setName(request.getNewName());//채팅방 이름 변경처리
         else throw new EntityNotFoundException("채팅방의 멤버가 아닙니다.");
-        return ChatRoomResponse.from(chatroom);
+        return ChatRoomResponse.from(chatroom.orElse(null));
     }
 
     /**

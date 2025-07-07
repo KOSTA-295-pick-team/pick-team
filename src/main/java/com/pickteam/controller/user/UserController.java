@@ -2,6 +2,7 @@ package com.pickteam.controller.user;
 
 import com.pickteam.dto.user.*;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
+import com.pickteam.dto.security.RefreshTokenRequest;
 import com.pickteam.dto.ApiResponse;
 import com.pickteam.domain.enums.UserRole;
 import com.pickteam.domain.common.FileInfo;
@@ -106,9 +107,33 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.EMAIL_VERIFICATION_SUCCESS, isVerified));
     }
 
-    // 로그인
+    // 기본 로그인 (사용 중단 - 강화된 로그인 사용 권장)
+    /*
+     * @PostMapping("/login")
+     * public ResponseEntity<ApiResponse<JwtAuthenticationResponse>>
+     * login(@Valid @RequestBody UserLoginRequest request) {
+     * log.info("로그인 시도 - 이메일: {}", maskEmail(request.getEmail()));
+     * 
+     * // 추가 검증: 비밀번호 최소 길이 체크 (보안 강화)
+     * if (request.getPassword() != null && request.getPassword().length() < 8) {
+     * log.warn("너무 짧은 비밀번호로 로그인 시도: 이메일={}", maskEmail(request.getEmail()));
+     * throw new ValidationException("비밀번호는 최소 8자 이상이어야 합니다.");
+     * }
+     * 
+     * JwtAuthenticationResponse response = userService.login(request);
+     * log.info("로그인 성공 - 이메일: {}", maskEmail(request.getEmail()));
+     * return
+     * ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGIN_SUCCESS,
+     * response));
+     * }
+     */
+
+    // 로그인 (클라이언트 정보 포함 - 권장)
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> login(@Valid @RequestBody UserLoginRequest request) {
+    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> loginWithClientInfo(
+            @Valid @RequestBody UserLoginRequest request,
+            @RequestBody(required = false) SessionInfoRequest sessionInfo,
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
         log.info("로그인 시도 - 이메일: {}", maskEmail(request.getEmail()));
 
         // 추가 검증: 비밀번호 최소 길이 체크 (보안 강화)
@@ -117,14 +142,14 @@ public class UserController {
             throw new ValidationException("비밀번호는 최소 8자 이상이어야 합니다.");
         }
 
-        JwtAuthenticationResponse response = userService.login(request);
+        JwtAuthenticationResponse response = authService.authenticateWithClientInfo(request, sessionInfo, httpRequest);
         log.info("로그인 성공 - 이메일: {}", maskEmail(request.getEmail()));
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGIN_SUCCESS, response));
     }
 
-    // 개선된 로그인 (클라이언트 정보 포함)
+    // 개선된 로그인 (백워드 호환성을 위한 대체 엔드포인트)
     @PostMapping("/login/enhanced")
-    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> loginWithClientInfo(
+    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> loginEnhanced(
             @Valid @RequestBody UserLoginRequest request,
             @RequestBody(required = false) SessionInfoRequest sessionInfo,
             jakarta.servlet.http.HttpServletRequest httpRequest) {
@@ -427,10 +452,32 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("프로필 이미지 삭제 성공", null));
     }
 
-    // ==================== 유효성 검증 헬퍼 메서드들 ====================
+    /**
+     * 토큰 갱신 API
+     * RefreshToken을 사용하여 새로운 AccessToken과 RefreshToken을 발급합니다.
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> refreshToken(
+            @Valid @RequestBody RefreshTokenRequest request) {
+
+        log.info("토큰 갱신 요청");
+
+        try {
+            // AuthService를 통해 토큰 갱신
+            JwtAuthenticationResponse response = authService.refreshToken(request);
+
+            log.info("토큰 갱신 성공");
+            return ResponseEntity.ok(ApiResponse.success("토큰 갱신 성공", response));
+
+        } catch (Exception e) {
+            log.error("토큰 갱신 중 오류 발생: {}", e.getMessage(), e);
+            return ResponseEntity.status(401)
+                    .body(ApiResponse.error("토큰 갱신에 실패했습니다: " + e.getMessage()));
+        }
+    }
 
     /**
-     * 로깅용 이메일 마스킹 (개인정보 보호)
+     * 이메일 마스킹 처리 (보안)
      */
     private String maskEmail(String email) {
         if (email == null || email.isEmpty()) {

@@ -24,10 +24,14 @@ public class ChatRoomResponse {
         response.id = chatRoom.getId();
         response.name = chatRoom.getName();
         response.type = chatRoom.getType();
-        response.workspaceId = chatRoom.getWorkspace().getId();
-        response.workspaceName = chatRoom.getWorkspace().getName();
+        if (chatRoom.getWorkspace() != null) {
+            response.workspaceId = chatRoom.getWorkspace().getId();
+            response.workspaceName = chatRoom.getWorkspace().getName();
+        }
         response.createdAt = chatRoom.getCreatedAt();
-        response.memberCount = chatRoom.getChatMembers().size();
+        response.memberCount = chatRoom.getChatMembers() != null
+            ? chatRoom.getChatMembers().size()
+            : 0;
         return response;
     }
 }

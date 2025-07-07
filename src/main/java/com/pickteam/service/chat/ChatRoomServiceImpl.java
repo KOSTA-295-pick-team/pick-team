@@ -87,7 +87,6 @@ public class ChatRoomServiceImpl implements ChatRoomService{
                 .chatMessages(new ArrayList<ChatMessage>())
                 .build();
         chatroom = chatRoomRepository.save(chatroom);
-        System.out.println(memberIds);
         //memberIds 순회하면서 ChatMember 생성
         for(Long memberId : memberIds) {
             ChatMember chatMember = ChatMember.builder()

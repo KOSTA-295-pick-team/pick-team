@@ -45,9 +45,6 @@ public class ChatRoomController {
     public ResponseEntity<ApiResponse<ChatRoomResponse>> createChatRoom(@RequestParam Long creatorId,
                                          @RequestBody ChatRoomCreateRequest request) {
         ChatRoomResponse response = chatRoomService.createChatRoom(creatorId, request);
-        System.out.println("📦 workspaceId (path) = " + request.getWorkspaceId());
-        System.out.println("📥 request = " + request);
-        System.out.println("🧾 memberIds = " + request.getChatMemberIdList());
         return ResponseEntity.ok(ApiResponse.success("채팅방 생성 성공", response));
     }
 
@@ -61,7 +58,6 @@ public class ChatRoomController {
                                                                       @RequestBody ChatRoomUpdateTitleRequest request,
                                                                       @PathVariable Long workspaceId)
     {
-        System.out.println(request.getWorkspaceId());
         if (!workspaceId.equals(request.getWorkspaceId())) {
             //PathVariable로 선언했으면 내부 어딘가에서 사용해줘야 한다.
             //ChatRoom이 Workspace 정보를 들고 있으므로 여기서 경로를 넘겨주지 않아도 서비스 레이어에서 검증이 가능하다.

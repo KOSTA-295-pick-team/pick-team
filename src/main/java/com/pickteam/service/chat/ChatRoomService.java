@@ -3,6 +3,7 @@ package com.pickteam.service.chat;
 import com.pickteam.dto.chat.ChatRoomCreateRequest;
 import com.pickteam.dto.chat.ChatRoomDetailResponse;
 import com.pickteam.dto.chat.ChatRoomResponse;
+import com.pickteam.dto.chat.ChatRoomUpdateTitleRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,12 +22,12 @@ public interface ChatRoomService {
     /**
      * 채팅방 제목을 수정합니다.
      */
-    ChatRoomResponse updateChatRoomTitle(Long chatRoomId, String title);
+    ChatRoomResponse updateChatRoomTitle(Long creatorId, ChatRoomUpdateTitleRequest request);
 
     /**
      * 1:1 채팅방을 생성합니다.
      */
-    ChatRoomResponse createDmChatRoom(Long workspaceId, Long memberId);
+    ChatRoomResponse createDmChatRoom(Long creatorId, ChatRoomCreateRequest request);
 
     /**
      * 채팅방을 삭제합니다.

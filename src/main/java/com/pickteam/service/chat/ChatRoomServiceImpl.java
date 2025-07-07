@@ -122,7 +122,7 @@ public class ChatRoomServiceImpl implements ChatRoomService{
         //방장 여부나 방장을 검사하는 로직이 별도로 없으므로 누구나 변경 가능하도록 처리
         //방장만 변경 가능하도록 하려면 구조 확장 필요
         boolean isMember = chatroom.get().getChatMembers().stream()
-                .anyMatch(m -> m.getId().equals(requestUserId));
+                .anyMatch(m -> m.getAccount().getId().equals(requestUserId));
 
         if(isMember) chatroom.get().setName(request.getNewName());//채팅방 이름 변경처리
         else throw new EntityNotFoundException("채팅방의 멤버가 아닙니다.");

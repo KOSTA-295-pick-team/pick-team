@@ -7,7 +7,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-@Service
 public interface ChatRoomService {
     /**
      * 특정 워크스페이스에 속한 채팅방 목록을 조회합니다.

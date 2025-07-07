@@ -61,16 +61,8 @@ public ChatRoomResponse createChatRoom(Long creatorId, ChatRoomCreateRequest req
 
     List<Long> memberIds = request.getChatMemberIdLists();
     // 중복 제거 및 생성자 포함 보장
-// src/main/java/com/pickteam/service/chat/ChatRoomServiceImpl.java
-
-package com.pickteam.service.chat;
-
-import java.util.Set;
-import java.util.HashSet;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-// … 기타 기존 import 문들
+    Set<Long> uniqueMemberIds = new HashSet<>(memberIds);
+    uniqueMemberIds.add(creatorId);
 
     List<ChatMember> chatMembers = new ArrayList<>();
 

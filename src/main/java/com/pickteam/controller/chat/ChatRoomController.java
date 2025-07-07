@@ -30,10 +30,8 @@ public class ChatRoomController {
      * 새로운 채팅방을 생성합니다.
      */
     @PostMapping("/")
-    @PostMapping("/")
-    public ResponseEntity createChatRoom(@AuthenticationPrincipal UserDetails userDetails,
+    public ResponseEntity createChatRoom(@RequestParam Long creatorId,
                                          @RequestBody ChatRoomCreateRequest request) {
-        Long creatorId = ((CustomUserDetails) userDetails).getId();
         ChatRoomResponse response = chatRoomService.createChatRoom(creatorId, request);
         return ResponseEntity.ok(ApiResponse.success("채팅방 생성 성공", response));
     }

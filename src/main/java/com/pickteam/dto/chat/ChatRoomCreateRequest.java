@@ -22,6 +22,6 @@ public class ChatRoomCreateRequest {
     private ChatRoomType type;
 
     @NotNull(message="채팅에 참여한 멤버가 없습니다.")
-    private List<Long> ChatMemberIdLists;
+    private List<Long> chatMemberIdList;
 
 }

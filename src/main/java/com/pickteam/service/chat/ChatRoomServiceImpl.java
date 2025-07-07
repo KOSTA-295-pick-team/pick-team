@@ -50,38 +50,46 @@ public class ChatRoomServiceImpl implements ChatRoomService{
 
     @Override
     @Transactional
-    public ChatRoomResponse createChatRoom(Long creatorId, ChatRoomCreateRequest request) {
-        Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(request.getWorkspaceId())
-                .orElseThrow(() -> new EntityNotFoundException("해당하는 워크스페이스가 없습니다."));
+public ChatRoomResponse createChatRoom(Long creatorId, ChatRoomCreateRequest request) {
+    Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(request.getWorkspaceId())
+            .orElseThrow(() -> new EntityNotFoundException("해당하는 워크스페이스가 없습니다."));
 
-        List<Long> memberIds = request.getChatMemberIdLists();
-        List<ChatMember> chatMembers = new ArrayList<>();
-
-
-        ChatRoom chatroom = ChatRoom.builder()
-                .name(request.getName())
-                .type(request.getType())
-                .workspace(workspace)
-                .chatMembers(new ArrayList<ChatMember>())
-                .chatMessages(new ArrayList<ChatMessage>())
-                .build();
-        chatroom = chatRoomRepository.save(chatroom);
-
-        //memberIds 순회하면서 ChatMember 생성
-        for(Long memberId : memberIds) {
-            ChatMember chatMember = ChatMember.builder()
-                    .account(accountRepository.findById(memberId)
-                            .orElseThrow(()-> new EntityNotFoundException("대상 멤버를 찾을 수 없습니다.")))
-                    .chatRoom(chatroom)
-                    .lastReadMessage(null)
-                    .build();
-            chatMembers.add(chatMember);
-        }
-
-        chatMembers = chatMemberRepository.saveAll(chatMembers);
-
-        return ChatRoomResponse.from(chatroom);
+    // 생성자가 워크스페이스 멤버인지 확인
+    if (!workspaceService.isWorkspaceMember(workspace.getId(), creatorId)) {
+        throw new IllegalArgumentException("워크스페이스 멤버만 채팅방을 생성할 수 있습니다.");
     }
+
+    List<Long> memberIds = request.getChatMemberIdLists();
+    // 중복 제거 및 생성자 포함 보장
+    Set<Long> uniqueMemberIds = new HashSet<>(memberIds);
+    uniqueMemberIds.add(creatorId);
+
+    List<ChatMember> chatMembers = new ArrayList<>();
+
+    ChatRoom chatroom = ChatRoom.builder()
+            .name(request.getName())
+            .type(request.getType())
+            .workspace(workspace)
+            .chatMembers(new ArrayList<ChatMember>())
+            .chatMessages(new ArrayList<ChatMessage>())
+            .build();
+    chatroom = chatRoomRepository.save(chatroom);
+
+    // uniqueMemberIds 순회하면서 ChatMember 생성
+    for (Long memberId : uniqueMemberIds) {
+        ChatMember chatMember = ChatMember.builder()
+                .account(accountRepository.findById(memberId)
+                        .orElseThrow(() -> new EntityNotFoundException("대상 멤버를 찾을 수 없습니다.")))
+                .chatRoom(chatroom)
+                .lastReadMessage(null)
+                .build();
+        chatMembers.add(chatMember);
+    }
+
+    chatMembers = chatMemberRepository.saveAll(chatMembers);
+
+    return ChatRoomResponse.from(chatroom);
+}
 
     @Override
     public ChatRoomResponse updateChatRoomTitle(Long chatRoomId, String title) {

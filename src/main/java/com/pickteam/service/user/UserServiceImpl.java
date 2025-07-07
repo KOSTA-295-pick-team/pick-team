@@ -284,15 +284,8 @@ public class UserServiceImpl implements UserService {
         }
 
         // 프로필 업데이트 (null과 빈 문자열 모두 체크)
-        if (request.getName() != null) {
-            if (!request.getName().trim().isEmpty()) {
-                account.setName(request.getName().trim());
-            } else {
-                // 사용자가 이름을 지웠을 경우 랜덤 사용자명으로 초기화
-                account.initializeNameIfEmpty();
-                log.info("사용자 이름이 비어있어 랜덤 사용자명으로 초기화됨: userId={}, newName={}", userId, account.getName());
-            }
-        }
+        if (request.getName() != null && !request.getName().trim().isEmpty())
+            account.setName(request.getName().trim());
         if (request.getAge() != null)
             account.setAge(request.getAge());
         if (request.getMbti() != null && !request.getMbti().trim().isEmpty())

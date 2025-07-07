@@ -52,10 +52,6 @@ public class UserServiceImpl implements UserService {
     @Value("${app.account.default-grace-period-days}")
     private int defaultGracePeriodDays;
 
-    /** 기본 프로필 이미지 URL - 환경변수에서 주입 */
-    @Value("${app.profile.image.default-url}")
-    private String defaultProfileImageUrl;
-
     /**
      * 이메일 마스킹 (개인정보 보호)
      * - 로그에 이메일 출력 시 개인정보 보호를 위해 마스킹
@@ -587,13 +583,8 @@ public class UserServiceImpl implements UserService {
         response.setIntroduction(account.getIntroduction()); // 엔티티 기본값: "정보없음"
         response.setPortfolio(account.getPortfolio()); // 엔티티 기본값: "https://github.com/myportfolio"
 
-        // 프로필 이미지 URL 설정 (기본 이미지 fallback 적용)
-        String profileImageUrl = account.getProfileImageUrl();
-        if (profileImageUrl == null || profileImageUrl.trim().isEmpty()) {
-            response.setProfileImageUrl(defaultProfileImageUrl);
-        } else {
-            response.setProfileImageUrl(profileImageUrl);
-        }
+        // 프로필 이미지 URL 설정 (null 그대로 반환 - 프론트엔드에서 처리)
+        response.setProfileImageUrl(account.getProfileImageUrl());
 
         response.setPreferWorkstyle(account.getPreferWorkstyle()); // 엔티티 기본값: "정보없음"
         response.setDislikeWorkstyle(account.getDislikeWorkstyle()); // 엔티티 기본값: "정보없음"

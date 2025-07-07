@@ -53,6 +53,10 @@ public class AuthServiceImpl implements AuthService {
     @Value("${app.jwt.refresh-token.expiration-days}")
     private long refreshTokenExpirationDays;
 
+    /** 기본 프로필 이미지 URL - 환경변수에서 주입 */
+    @Value("${app.profile.image.default-url}")
+    private String defaultProfileImageUrl;
+
     /**
      * 사용자 로그인 인증 처리
      * - 이메일/비밀번호 검증 후 JWT 토큰 발급
@@ -332,6 +336,15 @@ public class AuthServiceImpl implements AuthService {
         userProfile.setDisposition(account.getDisposition());
         userProfile.setIntroduction(account.getIntroduction());
         userProfile.setPortfolio(account.getPortfolio());
+
+        // 프로필 이미지 URL 설정 (기본 이미지 fallback 적용)
+        String profileImageUrl = account.getProfileImageUrl();
+        if (profileImageUrl == null || profileImageUrl.trim().isEmpty()) {
+            userProfile.setProfileImageUrl(defaultProfileImageUrl);
+        } else {
+            userProfile.setProfileImageUrl(profileImageUrl);
+        }
+
         userProfile.setPreferWorkstyle(account.getPreferWorkstyle());
         userProfile.setDislikeWorkstyle(account.getDislikeWorkstyle());
         return userProfile;
@@ -457,7 +470,7 @@ public class AuthServiceImpl implements AuthService {
                 accessToken,
                 refreshToken,
                 jwtTokenProvider.getJwtExpirationMs(),
-                UserProfileResponse.from(account));
+                mapToUserProfile(account));
     }
 
     /**

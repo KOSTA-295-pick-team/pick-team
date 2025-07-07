@@ -53,7 +53,12 @@ public class UserProfileResponse {
 
     /**
      * Account 엔티티에서 UserProfileResponse로 변환
+     * 
+     * @deprecated 이 정적 메서드는 기본 프로필 이미지 URL 처리를 지원하지 않습니다.
+     *             대신 UserServiceImpl.convertToProfileResponse() 또는
+     *             AuthServiceImpl.mapToUserProfile()를 사용하세요.
      */
+    @Deprecated
     public static UserProfileResponse from(com.pickteam.domain.user.Account account) {
         UserProfileResponse response = new UserProfileResponse();
         response.setId(account.getId());

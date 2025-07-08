@@ -109,7 +109,8 @@ public class ChatRoomController {
     @GetMapping("/{chatRoomId}/messages")
     public ResponseEntity<ChatMessageListResponse> getRecentMessages(
             @PathVariable Long chatRoomId,
-            @RequestParam(defaultValue = "20") int limit
+            @RequestParam(defaultValue = "20") int limit,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         ChatMessageListResponse messages = chatMessageService.getRecentMessages(chatRoomId, limit);
         return ResponseEntity.ok(messages);
@@ -135,7 +136,8 @@ public class ChatRoomController {
      */
     @GetMapping("/{chatRoomId}/messages/all")
     public ResponseEntity<ChatMessageListResponse> getAllMessages(
-            @PathVariable Long chatRoomId
+            @PathVariable Long chatRoomId,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return ResponseEntity.ok(chatMessageService.getAllMessages(chatRoomId));
     }

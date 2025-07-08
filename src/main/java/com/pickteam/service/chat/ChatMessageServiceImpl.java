@@ -35,38 +35,40 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         ChatMessage baseMessage = chatMessageRepository.findById(messageId)
                 .orElseThrow(() -> new EntityNotFoundException("기준 메시지를 찾을 수 없습니다."));
 
-        List<ChatMessage> messages = chatMessageRepository
-                .findByChatRoomIdAndCreatedAtAfterOrderByCreatedAtAsc(chatRoomId, baseMessage.getCreatedAt());
+        Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "createdAt"));
+        Page<ChatMessage> messages = chatMessageRepository
+                .findByChatRoomIdAndCreatedAtAfterOrderByCreatedAtAsc(
+                        chatRoomId, baseMessage.getCreatedAt(), pageable);
 
-        return ChatMessageListResponse.from(messages);
+        return ChatMessageListResponse.from(messages.map(ChatMessageResponse::from));
     }
 
     @Override
     public ChatMessageListResponse getMessagesAfterTime(Long chatRoomId, LocalDateTime dateTime) {
-        List<ChatMessage> messages = chatMessageRepository
-                .findByChatRoomIdAndCreatedAtAfterOrderByCreatedAtAsc(chatRoomId, dateTime);
+        Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "createdAt"));
+        Page<ChatMessage> messages = chatMessageRepository
+                .findByChatRoomIdAndCreatedAtAfterOrderByCreatedAtAsc(
+                        chatRoomId, dateTime, pageable);
 
-        return ChatMessageListResponse.from(messages);
+        return ChatMessageListResponse.from(messages.map(ChatMessageResponse::from));
     }
 
     @Override
     public ChatMessageListResponse getAllMessages(Long chatRoomId) {
-        List<ChatMessage> messages = chatMessageRepository
-                .findByChatRoomIdOrderByCreatedAtAsc(chatRoomId);
+        Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<ChatMessage> messages = chatMessageRepository
+                .findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, pageable);
 
-        return ChatMessageListResponse.from(messages);
+        return ChatMessageListResponse.from(messages.map(ChatMessageResponse::from));
     }
 
     @Override
     public ChatMessageListResponse getRecentMessages(Long chatRoomId, int limit) {
-        Pageable pageable = PageRequest.ofSize(limit).withSort(Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<ChatMessage> messages = chatMessageRepository
+                .findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, pageable);
 
-        List<ChatMessage> messages = chatMessageRepository.findByChatRoomId(chatRoomId, pageable);
-
-        // 최신순으로 가져온 후 → 다시 오름차순 정렬해서 반환
-        messages.sort(Comparator.comparing(ChatMessage::getCreatedAt));
-
-        return ChatMessageListResponse.from(messages);
+        return ChatMessageListResponse.from(messages.map(ChatMessageResponse::from));
     }
 
     @Override

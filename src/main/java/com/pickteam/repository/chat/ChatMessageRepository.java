@@ -11,12 +11,13 @@ import java.util.List;
 
 @Repository
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
-
-    List<ChatMessage> findByChatRoomId(Long chatRoomId, Pageable pageable);
-
-    List<ChatMessage> findByChatRoomIdAndCreatedAtAfterOrderByCreatedAtAsc(Long chatRoomId, LocalDateTime createdAt);
+    Page<ChatMessage> findByChatRoomIdOrderByCreatedAtDesc(Long chatRoomId, Pageable pageable);
+    
+    Page<ChatMessage> findByChatRoomIdAndCreatedAtAfterOrderByCreatedAtAsc(
+            Long chatRoomId, LocalDateTime createdAt, Pageable pageable);
+    
+    Page<ChatMessage> findByChatRoomIdAndCreatedAtLessThanEqualOrderByCreatedAtDesc(
+            Long chatRoomId, LocalDateTime createdAt, Pageable pageable);
 
     Page<ChatMessage> findByChatRoomIdAndCreatedAtLessThanEqual(Long chatRoomId, LocalDateTime createdAt, Pageable pageable);
-
-    List<ChatMessage> findByChatRoomIdOrderByCreatedAtAsc(Long chatRoomId);
 }

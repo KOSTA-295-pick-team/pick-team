@@ -138,10 +138,13 @@ public class UserServiceImpl implements UserService {
             throw new DuplicateEmailException(UserErrorMessages.DUPLICATE_EMAIL);
         }
 
-        // 5. 간소화된 계정 생성 (이메일, 패스워드, 기본 role만)
+        // 5. 간소화된 계정 생성 (이메일, 패스워드, 고유한 랜덤 사용자명, 기본 role)
+        String uniqueUsername = generateUniqueRandomUsername();
+
         Account account = Account.builder()
                 .email(request.getEmail())
                 .password(authService.encryptPassword(request.getPassword()))
+                .name(uniqueUsername) // 중복되지 않는 랜덤 사용자명
                 .role(UserRole.USER) // 기본값 설정
                 .build();
 
@@ -579,10 +582,10 @@ public class UserServiceImpl implements UserService {
         response.setDisposition(account.getDisposition()); // 엔티티 기본값: "정보없음"
         response.setIntroduction(account.getIntroduction()); // 엔티티 기본값: "정보없음"
         response.setPortfolio(account.getPortfolio()); // 엔티티 기본값: "https://github.com/myportfolio"
-        // TODO: 통합 파일 시스템 구축 후 활성화
-        // response.setProfileImageUrl(account.getProfileImageUrl()); // 프로필 이미지는 null
-        // 유지
-        // response.setProfileImageUrl(null); // 임시로 null 설정
+
+        // 프로필 이미지 URL 설정 (null 그대로 반환 - 프론트엔드에서 처리)
+        response.setProfileImageUrl(account.getProfileImageUrl());
+
         response.setPreferWorkstyle(account.getPreferWorkstyle()); // 엔티티 기본값: "정보없음"
         response.setDislikeWorkstyle(account.getDislikeWorkstyle()); // 엔티티 기본값: "정보없음"
 
@@ -626,5 +629,36 @@ public class UserServiceImpl implements UserService {
 
         log.debug("해시태그 검색 완료: [KEYWORD_LENGTH={}], 결과 수={} (최대 10개)", cleanedKeyword.length(), results.size());
         return results;
+    }
+
+    /**
+     * 중복되지 않는 고유한 랜덤 사용자명 생성
+     * - SecureRandom을 사용하여 보안 강화
+     * - 데이터베이스에서 중복 체크
+     * - 최대 10회 재시도로 무한루프 방지
+     * 
+     * @return 중복되지 않는 랜덤 사용자명
+     * @throws RuntimeException 10회 시도 후에도 고유한 이름을 생성하지 못한 경우
+     */
+    private String generateUniqueRandomUsername() {
+        int maxAttempts = 10;
+        int attempts = 0;
+
+        while (attempts < maxAttempts) {
+            String randomUsername = Account.generateRandomUsername();
+
+            // 데이터베이스에서 중복 체크
+            if (!accountRepository.existsByNameAndDeletedAtIsNull(randomUsername)) {
+                log.debug("고유한 랜덤 사용자명 생성 성공: {} (시도 횟수: {})", randomUsername, attempts + 1);
+                return randomUsername;
+            }
+
+            attempts++;
+            log.debug("사용자명 중복 발견, 재시도: {} (시도 횟수: {})", randomUsername, attempts);
+        }
+
+        // 최대 시도 횟수 초과 시 예외 발생
+        log.error("고유한 랜덤 사용자명 생성 실패: 최대 시도 횟수 ({}) 초과", maxAttempts);
+        throw new RuntimeException("고유한 사용자명 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
     }
 }

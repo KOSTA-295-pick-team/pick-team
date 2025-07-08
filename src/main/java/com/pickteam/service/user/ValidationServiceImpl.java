@@ -20,13 +20,13 @@ public class ValidationServiceImpl implements ValidationService {
      * - 최소 8자리 이상
      * - 대문자, 소문자, 숫자, 특수문자 각각 1개 이상 포함
      * - 공백 문자 불허
-     * - 허용 특수문자: @#$%^&+=!
+     * - 허용 특수문자: !@#$%^&*()-=
      */
     private static final Pattern PASSWORD_PATTERN = Pattern
-            .compile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!])(?=\\S+$).{8,}$");
+            .compile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()\\-=])(?=\\S+$).{8,}$");
 
-    /** 이름 형식 검증을 위한 정규표현식 (한글, 영문, 공백 허용, 2-50자) */
-    private static final Pattern NAME_PATTERN = Pattern.compile("^[가-힣a-zA-Z\\s]{2,50}$");
+    /** 이름 형식 검증을 위한 정규표현식 (한글, 영문, 숫자, 공백 허용, 2-50자) */
+    private static final Pattern NAME_PATTERN = Pattern.compile("^[가-힣a-zA-Z0-9\\s]{2,50}$");
 
     /** MBTI 16가지 유형 상수 배열 */
     private static final String[] VALID_MBTI = {
@@ -63,9 +63,9 @@ public class ValidationServiceImpl implements ValidationService {
 
     /**
      * 이름 형식 유효성 검사
-     * - 한글, 영문 대소문자, 공백 허용
+     * - 한글, 영문 대소문자, 숫자, 공백 허용
      * - 2자 이상 50자 이하 제한
-     * - 숫자 및 특수문자 제외
+     * - 특수문자 제외
      * 
      * @param name 검증할 이름
      * @return 이름 형식 유효성 여부
@@ -141,7 +141,7 @@ public class ValidationServiceImpl implements ValidationService {
             score++;
         if (password.matches(".*[0-9].*"))
             score++;
-        if (password.matches(".*[@#$%^&+=].*"))
+        if (password.matches(".*[!@#$%^&*()\\-=].*"))
             score++;
 
         return switch (score) {

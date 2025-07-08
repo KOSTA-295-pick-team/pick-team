@@ -3,11 +3,11 @@ package com.pickteam.service.user;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pickteam.config.OAuthConfig;
 import com.pickteam.dto.user.GoogleUserInfo;
 import com.pickteam.dto.user.OAuthUserInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -27,16 +27,7 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    // 구글 OAuth 설정값
-    @Value("${app.oauth.google.client-id}")
-    private String clientId;
-
-    @Value("${app.oauth.google.client-secret}")
-    private String clientSecret;
-
-    @Value("${app.oauth.google.redirect-uri}")
-    private String redirectUri;
+    private final OAuthConfig oauthConfig;
 
     // 구글 OAuth 엔드포인트
     private static final String GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -50,8 +41,8 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
         String state = generateState(); // CSRF 방지용 state 값 생성
 
         String oauthUrl = UriComponentsBuilder.fromUriString(GOOGLE_AUTH_URL)
-                .queryParam("client_id", clientId)
-                .queryParam("redirect_uri", redirectUri)
+                .queryParam("client_id", oauthConfig.getGoogle().getClientId())
+                .queryParam("redirect_uri", oauthConfig.getGoogle().getRedirectUri())
                 .queryParam("response_type", "code")
                 .queryParam("scope", "openid email profile")
                 .queryParam("state", state)
@@ -75,11 +66,11 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
 
             // 요청 바디 설정
             MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-            params.add("client_id", clientId);
-            params.add("client_secret", clientSecret);
+            params.add("client_id", oauthConfig.getGoogle().getClientId());
+            params.add("client_secret", oauthConfig.getGoogle().getClientSecret());
             params.add("code", code);
             params.add("grant_type", "authorization_code");
-            params.add("redirect_uri", redirectUri);
+            params.add("redirect_uri", oauthConfig.getGoogle().getRedirectUri());
 
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
 

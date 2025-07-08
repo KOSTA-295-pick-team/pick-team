@@ -3,11 +3,11 @@ package com.pickteam.service.user;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pickteam.config.OAuthConfig;
 import com.pickteam.dto.user.KakaoUserInfo;
 import com.pickteam.dto.user.OAuthUserInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -27,16 +27,7 @@ public class KakaoOAuthServiceImpl implements KakaoOAuthService {
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    // 카카오 OAuth 설정값
-    @Value("${app.oauth.kakao.client-id}")
-    private String clientId;
-
-    @Value("${app.oauth.kakao.client-secret}")
-    private String clientSecret;
-
-    @Value("${app.oauth.kakao.redirect-uri}")
-    private String redirectUri;
+    private final OAuthConfig oauthConfig;
 
     // 카카오 OAuth 엔드포인트
     private static final String KAKAO_AUTH_URL = "https://kauth.kakao.com/oauth/authorize";
@@ -50,8 +41,8 @@ public class KakaoOAuthServiceImpl implements KakaoOAuthService {
         String state = generateState(); // CSRF 방지용 state 값 생성
 
         String oauthUrl = UriComponentsBuilder.fromUriString(KAKAO_AUTH_URL)
-                .queryParam("client_id", clientId)
-                .queryParam("redirect_uri", redirectUri)
+                .queryParam("client_id", oauthConfig.getKakao().getClientId())
+                .queryParam("redirect_uri", oauthConfig.getKakao().getRedirectUri())
                 .queryParam("response_type", "code")
                 .queryParam("scope", "profile_nickname,profile_image,account_email")
                 .queryParam("state", state)
@@ -74,9 +65,9 @@ public class KakaoOAuthServiceImpl implements KakaoOAuthService {
             // 요청 바디 설정
             MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
             params.add("grant_type", "authorization_code");
-            params.add("client_id", clientId);
-            params.add("client_secret", clientSecret);
-            params.add("redirect_uri", redirectUri);
+            params.add("client_id", oauthConfig.getKakao().getClientId());
+            params.add("client_secret", oauthConfig.getKakao().getClientSecret());
+            params.add("redirect_uri", oauthConfig.getKakao().getRedirectUri());
             params.add("code", code);
 
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);

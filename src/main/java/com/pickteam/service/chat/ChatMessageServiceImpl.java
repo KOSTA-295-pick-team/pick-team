@@ -10,6 +10,7 @@ import com.pickteam.repository.chat.ChatMessageRepository;
 import com.pickteam.repository.chat.ChatRoomRepository;
 import com.pickteam.repository.user.AccountRepository;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -75,6 +76,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
      * @return
      */
     @Override
+    @Transactional
     public ChatMessageResponse sendMessage(Long chatRoomId, ChatMessageRequest request) {
         ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다."));

@@ -1,7 +1,10 @@
 package com.pickteam.controller.chat;
 
+import com.pickteam.domain.chat.ChatMember;
+import com.pickteam.domain.chat.ChatRoom;
 import com.pickteam.dto.ApiResponse;
 import com.pickteam.dto.chat.*;
+import com.pickteam.service.chat.ChatMemberService;
 import com.pickteam.service.chat.ChatMessageService;
 import com.pickteam.service.chat.ChatRoomService;
 import jakarta.validation.Valid;
@@ -10,23 +13,27 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/workspaces/{workspaceId}/chat-rooms")
 @RequiredArgsConstructor
 public class ChatRoomController {
-    /**
-     * 특정 워크스페이스에 속한 채팅방 목록을 조회합니다.
-     */
 
     private final ChatRoomService chatRoomService;
     private final ChatMessageService chatMessageService;
+    private final ChatMemberService chatMemberService;
 
+    /**
+     * 워크스페이스의 채팅방 목록을 조회합니다.
+     *
+     * @param workspaceId 워크스페이스 ID
+     * @param pageable    페이징 정보
+     * @return 채팅방 목록 페이지
+     */
     @GetMapping("/")
     public ResponseEntity<ApiResponse<Page<ChatRoomResponse>>> getChatRoomsByWorkspace(
             @PathVariable Long workspaceId,
@@ -36,41 +43,46 @@ public class ChatRoomController {
         return ResponseEntity.ok(ApiResponse.success("채팅방 목록 조회 성공", chatRooms));
     }
 
-
     /**
      * 새로운 채팅방을 생성합니다.
+     *
+     * @param creatorId 생성자 ID
+     * @param request   채팅방 생성 요청
+     * @return 생성된 채팅방 정보
      */
-    //creatorId를 RequestParam으로 받아오게 되어있는데, 리팩토링 필요
-    //현재 로그인 정보이므로 RequestParam으로 받아오기보단 @AuthenticationPrincipal 사용하는 것이 바람직하다...
-    //다른 컨트롤러 구현과 맞춰 일단 RequestParam으로 구현하고 추후 리팩토링한다.
-    @PostMapping("/")
+    @PostMapping("/create")
     public ResponseEntity<ApiResponse<ChatRoomResponse>> createChatRoom(@RequestParam Long creatorId,
                                                                         @RequestBody ChatRoomCreateRequest request) {
         ChatRoomResponse response = chatRoomService.createChatRoom(creatorId, request);
         return ResponseEntity.ok(ApiResponse.success("채팅방 생성 성공", response));
     }
 
-
     /**
-     * 채팅방 제목을 수정합니다.
+     * 채팅방 제목을 변경합니다.
+     *
+     * @param requestUserId 요청 사용자 ID
+     * @param request       채팅방 제목 변경 요청
+     * @param workspaceId   워크스페이스 ID
+     * @param chatRoomId    채팅방 ID
+     * @return 변경된 채팅방 정보
      */
-
-    @PatchMapping("/")
+    @PatchMapping("/{chatRoomId}/updateTitle")
     ResponseEntity<ApiResponse<ChatRoomResponse>> updateChatRoomTitle(@RequestParam Long requestUserId,
                                                                       @RequestBody ChatRoomUpdateTitleRequest request,
-                                                                      @PathVariable Long workspaceId) {
-        if (!workspaceId.equals(request.getWorkspaceId())) {
-            //PathVariable로 선언했으면 내부 어딘가에서 사용해줘야 한다.
-            //ChatRoom이 Workspace 정보를 들고 있으므로 여기서 경로를 넘겨주지 않아도 서비스 레이어에서 검증이 가능하다.
-            //별 의미는 없을 것 같지만 여기서 유효성 체크 한번 더 진행하는 것으로 값을 한번 사용해준다.
-            throw new IllegalArgumentException("경로와 바디의 워크스페이스 ID가 다릅니다.");
-        }
-        ChatRoomResponse response = chatRoomService.updateChatRoomTitle(requestUserId, request);
+                                                                      @PathVariable Long workspaceId,
+                                                                      @PathVariable Long chatRoomId
+    ) {
+        ChatRoomResponse response = chatRoomService.updateChatRoomTitle(requestUserId, request, workspaceId, chatRoomId);
         return ResponseEntity.ok(ApiResponse.success("채팅방 제목 변경 성공", response));
     }
 
+
     /**
-     * 1:1 채팅방을 생성합니다.
+     * DM 채팅방을 생성합니다.
+     *
+     * @param creatorId 생성자 ID
+     * @param request   DM 채팅방 생성 요청
+     * @return 생성된 DM 채팅방 정보
      */
     @PostMapping("/create-dm")
     ResponseEntity<ApiResponse<ChatRoomResponse>> createDmChatRoom(@RequestParam Long creatorId,
@@ -81,7 +93,11 @@ public class ChatRoomController {
 
 
     /**
-     * 특정 채팅방의 최신 메시지를 조회합니다.
+     * 최근 메시지를 조회합니다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param pageable   페이징 정보
+     * @return 메시지 목록
      */
     @GetMapping("/{chatRoomId}/messages")
     public ResponseEntity<ChatMessageListResponse> getRecentMessages(
@@ -94,8 +110,13 @@ public class ChatRoomController {
         return ResponseEntity.ok(messages);
     }
 
+
     /**
-     * 메시지를 전송합니다.
+     * 새 메시지를 전송합니다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @param request    메시지 전송 요청
+     * @return 전송된 메시지 정보
      */
     @PostMapping("/{chatRoomId}/messages")
     public ResponseEntity<ChatMessageResponse> sendMessage(
@@ -107,6 +128,97 @@ public class ChatRoomController {
     }
 
 
+    /**
+     * 채팅방에 참여합니다.
+     *
+     * @param workspaceId 워크스페이스 ID
+     * @param chatRoomId  채팅방 ID
+     * @param accountId   사용자 ID
+     * @return 참여 멤버 정보
+     */
+    @PostMapping("/{chatRoomId}/join")
+    public ResponseEntity<ApiResponse<ChatMemberResponse>> joinChatRoom(
+            @PathVariable Long workspaceId,
+            @PathVariable Long chatRoomId,
+            @RequestParam Long accountId
+    ) {
+        ChatMember joinedMember = chatMemberService.joinChatRoom(accountId, workspaceId, chatRoomId);
+        return ResponseEntity.ok(ApiResponse.success("채팅방 입장 성공", ChatMemberResponse.from(joinedMember)));
+    }
+
+    /**
+     * 채팅방을 퇴장합니다.
+     *
+     * @param workspaceId 워크스페이스 ID
+     * @param chatRoomId  채팅방 ID
+     * @param accountId   사용자 ID
+     * @return 성공 여부
+     */
+    @PatchMapping("/{chatRoomId}/leave")
+    public ResponseEntity<ApiResponse<Void>> leaveChatRoom(
+            @PathVariable Long workspaceId,
+            @PathVariable Long chatRoomId,
+            @RequestParam Long accountId
+    ) {
+        chatMemberService.leaveChatRoom(workspaceId, chatRoomId, accountId);
+        return ResponseEntity.ok(ApiResponse.success("채팅방 퇴장 성공", null));
+    }
+
+
+    /**
+     * 마지막으로 읽은 메시지를 갱신합니다.
+     *
+     * @param workspaceId 워크스페이스 ID
+     * @param chatRoomId  채팅방 ID
+     * @param accountId   사용자 ID
+     * @param messageId   마지막으로 읽은 메시지 ID
+     * @return 성공 여부
+     */
+    @PatchMapping("/{chatRoomId}/last-read-refresh")
+    public ResponseEntity<ApiResponse<Void>> updateLastReadMessage(
+            @PathVariable Long workspaceId,
+            @PathVariable Long chatRoomId,
+            @RequestParam Long accountId,
+            @RequestParam Long messageId
+    ) {
+        chatMemberService.updateLastReadMessage(workspaceId, chatRoomId, accountId, messageId);
+        return ResponseEntity.ok(ApiResponse.success("마지막 읽은 메시지 갱신 완료", null));
+    }
+
+    /**
+     * 채팅방 멤버 목록을 조회합니다.
+     *
+     * @param chatRoomId 채팅방 ID
+     * @return 채팅방 멤버 목록
+     */
+    @GetMapping("/{chatRoomId}/members")
+    public ResponseEntity<ApiResponse<List<ChatMemberResponse>>> getMembers(
+            @PathVariable Long chatRoomId
+    ) {
+        List<ChatMemberResponse> members = chatMemberService.getChatMembers(chatRoomId).stream()
+                .map(ChatMemberResponse::from)
+                .toList();
+
+        return ResponseEntity.ok(ApiResponse.success("채팅방 멤버 조회 성공", members));
+    }
+
+    /**
+     * 내가 참여한 채팅방 목록을 조회합니다.
+     *
+     * @param accountId 사용자 ID
+     * @return 참여 중인 채팅방 목록
+     */
+    @GetMapping("/accounts/{accountId}/")
+    public ResponseEntity<ApiResponse<List<ChatRoomResponse>>> getMyChatRooms(
+            @PathVariable Long accountId
+    ) {
+        List<ChatRoom> chatRooms = chatMemberService.getChatRoomsByMember(accountId);
+        List<ChatRoomResponse> response = chatRooms.stream()
+                .map(ChatRoomResponse::from)
+                .toList();
+
+        return ResponseEntity.ok(ApiResponse.success("참여 중인 채팅방 조회 성공", response));
+    }
 
     //---------------- Work in progress ------------------------------------------------------
 
@@ -131,9 +243,6 @@ public class ChatRoomController {
     }
 
 
-
-
-
     /**
      * 채팅방 알림을 활성화합니다.
      */
@@ -141,8 +250,6 @@ public class ChatRoomController {
     @PatchMapping("/{chatRoomId}/notification/enable")
     void enableChatRoomNotification(Long chatRoomId, Long accountId) {
     }
-
-
 
 
     /**

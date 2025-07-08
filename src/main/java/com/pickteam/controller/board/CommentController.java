@@ -40,6 +40,14 @@ public class CommentController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size) {
 
+                // 페이지네이션 매개변수 검증
+                if (page < 0) {
+                    throw new IllegalArgumentException("페이지 번호는 0 이상이어야 합니다.");
+                        }
+                if (size <= 0 || size > 100) {
+                    throw new IllegalArgumentException("페이지 크기는 1-100 사이여야 합니다.");
+                }
+
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").ascending());
         Page<CommentResponseDto> comments = commentService.getComments(postId, pageable);
         return ResponseEntity.ok(comments);

@@ -22,7 +22,7 @@ public interface ChatRoomService {
     /**
      * 채팅방 제목을 수정합니다.
      */
-    ChatRoomResponse updateChatRoomTitle(Long creatorId, ChatRoomUpdateTitleRequest request);
+    ChatRoomResponse updateChatRoomTitle(Long creatorId, ChatRoomUpdateTitleRequest request, Long workspaceId, Long chatId);
 
     /**
      * 1:1 채팅방을 생성합니다.

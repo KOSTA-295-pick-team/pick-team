@@ -113,9 +113,13 @@ public class ChatRoomServiceImpl implements ChatRoomService{
      */
     @Override
     @Transactional
-    public ChatRoomResponse updateChatRoomTitle(Long requestUserId, ChatRoomUpdateTitleRequest request) {
+    public ChatRoomResponse updateChatRoomTitle(Long requestUserId, ChatRoomUpdateTitleRequest request, Long workspaceId, Long chatId) {
+        //workspaceId가 유효한지 검사
+        Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(workspaceId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다."));;
+        
         //requestUserId가 chatRoom안에 속해 있는지 검사
-        Optional<ChatRoom> chatroom = chatRoomRepository.findByIdAndIsDeletedFalse(request.getChatRoomId());
+        Optional<ChatRoom> chatroom = chatRoomRepository.findByIdAndIsDeletedFalse(chatId);
 
         //채팅방의 멤버라면 채팅방 제목을 변경 처리
         //방장 여부나 방장을 검사하는 로직이 별도로 없으므로 누구나 변경 가능하도록 처리
@@ -153,8 +157,11 @@ public class ChatRoomServiceImpl implements ChatRoomService{
 
     //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     //채팅방 상세정보 가져오기
+    //채팅방에 참여중인 인원 정보와 채팅 내역 불러오기
     @Override
     public ChatRoomDetailResponse getChatRoomDetails(Long chatRoomId) {
+
+
         return null;
     }
 

@@ -183,4 +183,25 @@ public interface AuthService {
          * @return 로그아웃 상세 정보
          */
         LogoutResponse logoutWithDetails(Long userId, HttpServletRequest httpRequest);
+
+        /**
+         * Account 객체로부터 JWT 토큰을 생성합니다.
+         * OAuth 로그인 등에서 사용합니다.
+         *
+         * @param account 사용자 계정 정보
+         * @return JWT 인증 응답 (Access Token + Refresh Token)
+         * @throws IllegalArgumentException account가 null이거나 유효하지 않은 경우
+         */
+        JwtAuthenticationResponse generateTokensForAccount(com.pickteam.domain.user.Account account);
+
+        /**
+         * 클라이언트 정보를 포함하여 Account 객체로부터 JWT 토큰을 생성합니다.
+         *
+         * @param account     사용자 계정 정보
+         * @param httpRequest HTTP 요청 (클라이언트 정보 추출용)
+         * @return JWT 인증 응답 (Access Token + Refresh Token)
+         */
+        JwtAuthenticationResponse generateTokensForAccount(com.pickteam.domain.user.Account account,
+                        jakarta.servlet.http.HttpServletRequest httpRequest);
+
 }

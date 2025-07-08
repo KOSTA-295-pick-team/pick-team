@@ -567,4 +567,87 @@ public class AuthServiceImpl implements AuthService {
                 .message("로그아웃이 성공적으로 완료되었습니다.")
                 .build();
     }
+
+    // === OAuth 전용 토큰 생성 메서드 ===
+
+    @Override
+    @Transactional
+    public JwtAuthenticationResponse generateTokensForAccount(Account account) {
+        log.debug("Account 객체로부터 JWT 토큰 생성 시작 - 사용자 ID: {}", account.getId());
+
+        if (account == null) {
+            throw new IllegalArgumentException("Account는 null일 수 없습니다");
+        }
+
+        if (account.getId() == null || account.getEmail() == null) {
+            throw new IllegalArgumentException("Account의 ID와 이메일은 필수입니다");
+        }
+
+        try {
+            // Access Token 생성
+            String accessToken = generateAccessToken(account.getId(), account.getEmail(), account.getName());
+
+            // Refresh Token 생성
+            String refreshToken = generateRefreshToken(account.getId());
+
+            log.info("Account 객체로부터 JWT 토큰 생성 완료 - 사용자 ID: {}", account.getId());
+
+            return JwtAuthenticationResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .tokenType("Bearer")
+                    .expiresIn(jwtTokenProvider.getJwtExpirationMs())
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Account 객체로부터 JWT 토큰 생성 실패 - 사용자 ID: {}", account.getId(), e);
+            throw new RuntimeException("JWT 토큰 생성에 실패했습니다", e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public JwtAuthenticationResponse generateTokensForAccount(Account account, HttpServletRequest httpRequest) {
+        log.debug("클라이언트 정보를 포함하여 Account 객체로부터 JWT 토큰 생성 시작 - 사용자 ID: {}", account.getId());
+
+        if (account == null) {
+            throw new IllegalArgumentException("Account는 null일 수 없습니다");
+        }
+
+        if (account.getId() == null || account.getEmail() == null) {
+            throw new IllegalArgumentException("Account의 ID와 이메일은 필수입니다");
+        }
+
+        try {
+            // Access Token 생성
+            String accessToken = generateAccessToken(account.getId(), account.getEmail(), account.getName());
+
+            // 클라이언트 정보 추출
+            ClientInfoExtractor.ClientInfo clientInfo = null;
+            if (httpRequest != null) {
+                clientInfo = ClientInfoExtractor.extractClientInfo(httpRequest);
+            }
+
+            // Refresh Token 생성 (클라이언트 정보 포함)
+            String refreshToken;
+            if (clientInfo != null) {
+                refreshToken = generateRefreshTokenWithClientInfo(account.getId(), clientInfo);
+            } else {
+                refreshToken = generateRefreshToken(account.getId());
+            }
+
+            log.info("클라이언트 정보를 포함하여 Account 객체로부터 JWT 토큰 생성 완료 - 사용자 ID: {}", account.getId());
+
+            return JwtAuthenticationResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .tokenType("Bearer")
+                    .expiresIn(jwtTokenProvider.getJwtExpirationMs())
+                    .build();
+
+        } catch (Exception e) {
+            log.error("클라이언트 정보를 포함한 Account 객체로부터 JWT 토큰 생성 실패 - 사용자 ID: {}", account.getId(), e);
+            throw new RuntimeException("JWT 토큰 생성에 실패했습니다", e);
+        }
+    }
 }

@@ -79,8 +79,36 @@ public class ChatRoomController {
         return ResponseEntity.ok(ApiResponse.success("채팅방 생성 성공", response));
     }
 
-    //---------------- Work in progress ------------------------------------------------------
 
+    /**
+     * 특정 채팅방의 최신 메시지를 조회합니다.
+     */
+    @GetMapping("/{chatRoomId}/messages")
+    public ResponseEntity<ChatMessageListResponse> getRecentMessages(
+            @PathVariable Long chatRoomId,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+
+        // 최신순 DESC로 받아온 후 ASC 정렬해서 리턴하는 방식은 서비스에서 처리함
+        ChatMessageListResponse messages = chatMessageService.getRecentMessages(chatRoomId, pageable);
+        return ResponseEntity.ok(messages);
+    }
+
+    /**
+     * 메시지를 전송합니다.
+     */
+    @PostMapping("/{chatRoomId}/messages")
+    public ResponseEntity<ChatMessageResponse> sendMessage(
+            @PathVariable Long chatRoomId,
+            @RequestBody @Valid ChatMessageRequest request
+    ) {
+        ChatMessageResponse response = chatMessageService.sendMessage(chatRoomId, request);
+        return ResponseEntity.ok(response);
+    }
+
+
+
+    //---------------- Work in progress ------------------------------------------------------
 
     /**
      * 채팅방을 삭제합니다.
@@ -103,44 +131,8 @@ public class ChatRoomController {
     }
 
 
-    /**
-     * 특정 채팅방의 최신 메시지를 조회합니다.
-     */
-    @GetMapping("/{chatRoomId}/messages")
-    public ResponseEntity<ChatMessageListResponse> getRecentMessages(
-            @PathVariable Long chatRoomId,
-            @RequestParam(defaultValue = "20") int limit,
-            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
-        ChatMessageListResponse messages = chatMessageService.getRecentMessages(chatRoomId, limit);
-        return ResponseEntity.ok(messages);
-    }
-
-    /**
-     * 메시지를 전송합니다.
-     */
-    @PostMapping("/{chatRoomId}/messages")
-    public ResponseEntity<ChatMessageResponse> sendMessage(
-            @PathVariable Long chatRoomId,
-            @RequestBody @Valid ChatMessageRequest request
-    ) {
-        ChatMessageResponse response = chatMessageService.sendMessage(chatRoomId, request);
-        return ResponseEntity.ok(response);
-    }
 
 
-    /**
-     * 채팅방에 있는 모든 메시지 가져오기 (성능 이슈 있으므로 신중히 사용할 것)
-     * @param chatRoomId
-     * @return
-     */
-    @GetMapping("/{chatRoomId}/messages/all")
-    public ResponseEntity<ChatMessageListResponse> getAllMessages(
-            @PathVariable Long chatRoomId,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
-        return ResponseEntity.ok(chatMessageService.getAllMessages(chatRoomId));
-    }
 
     /**
      * 채팅방 알림을 활성화합니다.

@@ -18,54 +18,22 @@ public interface ChatMessageService {
      * @param messageId
      * @return
      */
-    ChatMessageListResponse getMessagesAfter(Long chatRoomId, Long messageId);
 
+    ChatMessageListResponse getMessagesAfter(Long chatRoomId, Long messageId, Pageable pageable);
     /**
      * 특정 시간 이후의 메시지를 조회
      * @param chatRoomId
      * @param dateTime
      * @return
      */
-    ChatMessageListResponse getMessagesAfterTime(Long chatRoomId, LocalDateTime dateTime);
+    ChatMessageListResponse getMessagesAfterTime(Long chatRoomId, LocalDateTime dateTime, Pageable pageable);
 
     /**
-     * 특정 채팅방의 모든 메시지를 조회
+     * 특정 채팅방의 가장 최근 메시지로부터 n개의 메시지 목록을 페이징해서 조회
      * @param chatRoomId
      * @return
      */
-    ChatMessageListResponse getAllMessages(Long chatRoomId);
-
-    /**
-     * 특정 채팅방에서 최근 n개의 메시지 조회
-     * @param chatRoomId
-     * @param limit
-     * @return
-     */
-    ChatMessageListResponse getRecentMessages(Long chatRoomId, int limit);
-
-    /**
-     * 특정 채팅방에서 특정 메시지로부터 메시지 목록을 페이징해서 조회
-     * @param chatRoomId
-     * @param baseMessageId
-     * @param pageable
-     * @return
-     */
-    Page<ChatMessageResponse> getMessagesByPage(Long chatRoomId, Long baseMessageId, Pageable pageable);
-
-    /**
-     * 메시지를 전송
-     * @param chatRoomId
-     * @param request
-     * @return
-     */
-    ChatMessageResponse sendMessage(Long chatRoomId, ChatMessageRequest request);
-
-    /**
-     * 메시지를 삭제
-     * @param messageId
-     * @param accountId
-     */
-    void deleteMessage(Long messageId, Long accountId);
+    ChatMessageListResponse getRecentMessages(Long chatRoomId, Pageable pageable);
 
     /**
      * 특정 사용자가 보낸 메시지를 조회
@@ -102,5 +70,20 @@ public interface ChatMessageService {
      * @return
      */
     List<ChatMessageResponse> searchAllMessagesByContent(Long chatRoomId, String keyword, Pageable pageable);
+
+    /**
+     * 메시지를 전송
+     * @param chatRoomId
+     * @param request
+     * @return
+     */
+
+    ChatMessageResponse sendMessage(Long chatRoomId, ChatMessageRequest request);
+    /**
+     * 메시지를 삭제
+     * @param messageId
+     * @param accountId
+     */
+    void deleteMessage(Long messageId, Long accountId);
 
 }

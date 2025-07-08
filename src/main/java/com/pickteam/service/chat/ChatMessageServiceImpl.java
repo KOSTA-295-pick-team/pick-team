@@ -1,6 +1,5 @@
 package com.pickteam.service.chat;
 
-import com.pickteam.domain.chat.ChatMember;
 import com.pickteam.domain.chat.ChatMessage;
 import com.pickteam.domain.chat.ChatRoom;
 import com.pickteam.domain.user.Account;
@@ -13,13 +12,10 @@ import com.pickteam.repository.user.AccountRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -31,11 +27,9 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     private final AccountRepository accountRepository;
 
     @Override
-    public ChatMessageListResponse getMessagesAfter(Long chatRoomId, Long messageId) {
+    public ChatMessageListResponse getMessagesAfter(Long chatRoomId, Long messageId, Pageable pageable) {
         ChatMessage baseMessage = chatMessageRepository.findById(messageId)
                 .orElseThrow(() -> new EntityNotFoundException("기준 메시지를 찾을 수 없습니다."));
-
-        Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "createdAt"));
         Page<ChatMessage> messages = chatMessageRepository
                 .findByChatRoomIdAndCreatedAtAfterOrderByCreatedAtAsc(
                         chatRoomId, baseMessage.getCreatedAt(), pageable);
@@ -44,8 +38,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     }
 
     @Override
-    public ChatMessageListResponse getMessagesAfterTime(Long chatRoomId, LocalDateTime dateTime) {
-        Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "createdAt"));
+    public ChatMessageListResponse getMessagesAfterTime(Long chatRoomId, LocalDateTime dateTime, Pageable pageable) {
         Page<ChatMessage> messages = chatMessageRepository
                 .findByChatRoomIdAndCreatedAtAfterOrderByCreatedAtAsc(
                         chatRoomId, dateTime, pageable);
@@ -54,33 +47,13 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     }
 
     @Override
-    public ChatMessageListResponse getAllMessages(Long chatRoomId) {
-        Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"));
+    public ChatMessageListResponse getRecentMessages(Long chatRoomId, Pageable pageable) {
         Page<ChatMessage> messages = chatMessageRepository
                 .findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, pageable);
 
         return ChatMessageListResponse.from(messages.map(ChatMessageResponse::from));
     }
 
-    @Override
-    public ChatMessageListResponse getRecentMessages(Long chatRoomId, int limit) {
-        Pageable pageable = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<ChatMessage> messages = chatMessageRepository
-                .findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, pageable);
-
-        return ChatMessageListResponse.from(messages.map(ChatMessageResponse::from));
-    }
-
-    @Override
-    public Page<ChatMessageResponse> getMessagesByPage(Long chatRoomId, Long baseMessageId, Pageable pageable) {
-        ChatMessage baseMessage = chatMessageRepository.findById(baseMessageId)
-                .orElseThrow(() -> new EntityNotFoundException("기준 메시지가 존재하지 않습니다."));
-
-        Page<ChatMessage> messages = chatMessageRepository
-                .findByChatRoomIdAndCreatedAtLessThanEqual(chatRoomId, baseMessage.getCreatedAt(), pageable);
-
-        return messages.map(ChatMessageResponse::from);
-    }
 
     /**
      * 메시지 전송

@@ -1,6 +1,7 @@
 package com.pickteam.controller.announcement;
 
 import com.pickteam.dto.announcement.AnnouncementCreateRequest;
+import com.pickteam.dto.announcement.AnnouncementPageResponse;
 import com.pickteam.dto.announcement.AnnouncementResponse;
 import com.pickteam.dto.announcement.AnnouncementUpdateRequest;
 import com.pickteam.service.announcement.AnnouncementService;
@@ -14,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -63,32 +63,47 @@ public class AnnouncementController {
      *
      * @param workspaceId 워크스페이스 ID
      * @param teamId 팀 ID (선택사항 - 팀별 필터링)
+     * @param page 페이지 번호 (0부터 시작, 기본값: 0)
+     * @param size 페이지 크기 (기본값: 5)
      * @return 공지사항 목록 (최신순 정렬)
      */
     @GetMapping
     public ResponseEntity<?> getAnnouncements(
             @PathVariable Long workspaceId,
-            @RequestParam(required = false) Long teamId) {
+            @RequestParam(required = false) Long teamId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size) {
 
-        log.info("공지사항 목록 조회 요청 - 워크스페이스: {}, 팀: {}", workspaceId, teamId);
+        log.info("공지사항 목록 조회 요청 - 워크스페이스: {}, 팀: {}, 페이지: {}, 크기: {}", 
+                workspaceId, teamId, page, size);
 
         try {
-            List<AnnouncementResponse> announcements;
             String message;
 
             if (teamId != null) {
-                // 팀별 공지사항 조회 (워크스페이스 보안 검증 포함)
-                announcements = announcementService.getAnnouncementsByTeam(workspaceId, teamId);
-                message = String.format("팀의 공지사항 %d개를 조회했습니다.", announcements.size());
+                // 팀별 공지사항 페이징 조회 (워크스페이스 보안 검증 포함)
+                AnnouncementPageResponse pageResponse = announcementService
+                        .getAnnouncementsByTeamWithPaging(workspaceId, teamId, page, size);
+                message = String.format("팀의 공지사항을 조회했습니다. (총 %d개, %d/%d 페이지)", 
+                        pageResponse.getTotalElements(), 
+                        pageResponse.getCurrentPage() + 1, 
+                        pageResponse.getTotalPages());
+
+                log.info("팀 공지사항 페이징 조회 완료 - 결과: {}", message);
+                return ResponseEntity.ok(createSuccessResponse(message, pageResponse));
+
             } else {
-                // 워크스페이스 전체 공지사항 조회 (존재 여부 검증 포함)
-                announcements = announcementService.getAnnouncementsByWorkspace(workspaceId);
-                message = String.format("워크스페이스의 공지사항 %d개를 조회했습니다.", announcements.size());
+                // 워크스페이스 전체 공지사항 페이징 조회 (존재 여부 검증 포함)
+                AnnouncementPageResponse pageResponse = announcementService
+                        .getAnnouncementsByWorkspaceWithPaging(workspaceId, page, size);
+                message = String.format("워크스페이스의 공지사항을 조회했습니다. (총 %d개, %d/%d 페이지)", 
+                        pageResponse.getTotalElements(), 
+                        pageResponse.getCurrentPage() + 1, 
+                        pageResponse.getTotalPages());
+
+                log.info("워크스페이스 공지사항 페이징 조회 완료 - 결과: {}", message);
+                return ResponseEntity.ok(createSuccessResponse(message, pageResponse));
             }
-
-            log.info("공지사항 목록 조회 완료 - 결과 개수: {}", announcements.size());
-
-            return ResponseEntity.ok(createSuccessResponse(message, announcements));
 
         } catch (EntityNotFoundException e) {
             log.warn("공지사항 목록 조회 실패 - 엔티티 없음: {}", e.getMessage());

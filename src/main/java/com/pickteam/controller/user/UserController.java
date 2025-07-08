@@ -453,14 +453,22 @@ public class UserController {
     }
 
     /**
-     * 토큰 갱신 API
+     * 토큰 갱신 API (보안 강화)
      * RefreshToken을 사용하여 새로운 AccessToken과 RefreshToken을 발급합니다.
+     * 보안을 위해 구체적인 예외 정보는 로그에만 기록하고, 클라이언트에는 일반적인 메시지만 반환합니다.
      */
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> refreshToken(
             @Valid @RequestBody RefreshTokenRequest request) {
 
-        log.info("토큰 갱신 요청");
+        log.info("토큰 갱신 요청 시작");
+
+        // 추가 검증: 리프레시 토큰 형식 기본 검사
+        if (request.getRefreshToken() == null || request.getRefreshToken().trim().isEmpty()) {
+            log.warn("빈 리프레시 토큰으로 갱신 시도");
+            return ResponseEntity.status(401)
+                    .body(ApiResponse.error("유효하지 않은 토큰입니다."));
+        }
 
         try {
             // AuthService를 통해 토큰 갱신
@@ -469,10 +477,23 @@ public class UserController {
             log.info("토큰 갱신 성공");
             return ResponseEntity.ok(ApiResponse.success("토큰 갱신 성공", response));
 
-        } catch (Exception e) {
-            log.error("토큰 갱신 중 오류 발생: {}", e.getMessage(), e);
+        } catch (com.pickteam.exception.auth.InvalidTokenException e) {
+            // 토큰 관련 예외 (만료, 무효, 변조 등)
+            log.warn("유효하지 않은 토큰으로 갱신 시도: {}", e.getMessage());
             return ResponseEntity.status(401)
-                    .body(ApiResponse.error("토큰 갱신에 실패했습니다: " + e.getMessage()));
+                    .body(ApiResponse.error("토큰이 유효하지 않습니다. 다시 로그인해주세요."));
+
+        } catch (com.pickteam.exception.validation.ValidationException e) {
+            // 요청 검증 예외
+            log.warn("잘못된 토큰 갱신 요청: {}", e.getMessage());
+            return ResponseEntity.status(400)
+                    .body(ApiResponse.error("잘못된 요청입니다."));
+
+        } catch (Exception e) {
+            // 기타 예상치 못한 예외
+            log.error("토큰 갱신 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."));
         }
     }
 

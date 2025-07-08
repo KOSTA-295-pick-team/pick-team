@@ -28,6 +28,10 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
     @Override
     public ChatMessageListResponse getMessagesAfter(Long chatRoomId, Long messageId, Pageable pageable) {
+        //채팅방 존재 여부 검증
+        chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다."));
+
         ChatMessage baseMessage = chatMessageRepository.findById(messageId)
                 .orElseThrow(() -> new EntityNotFoundException("기준 메시지를 찾을 수 없습니다."));
         Page<ChatMessage> messages = chatMessageRepository
@@ -39,6 +43,10 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
     @Override
     public ChatMessageListResponse getMessagesAfterTime(Long chatRoomId, LocalDateTime dateTime, Pageable pageable) {
+        //채팅방 존재 여부 검증
+        chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다."));
+
         Page<ChatMessage> messages = chatMessageRepository
                 .findByChatRoomIdAndCreatedAtAfterOrderByCreatedAtAsc(
                         chatRoomId, dateTime, pageable);
@@ -48,7 +56,10 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
     @Override
     public ChatMessageListResponse getRecentMessages(Long chatRoomId, Pageable pageable) {
-        
+        //채팅방 존재 여부 검증
+        chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다."));
+
         Page<ChatMessage> messages = chatMessageRepository
                 .findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, pageable);
 

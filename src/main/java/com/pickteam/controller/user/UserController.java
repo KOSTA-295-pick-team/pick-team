@@ -2,13 +2,13 @@ package com.pickteam.controller.user;
 
 import com.pickteam.dto.user.*;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
+import com.pickteam.dto.security.RefreshTokenRequest;
 import com.pickteam.dto.ApiResponse;
 import com.pickteam.domain.enums.UserRole;
 import com.pickteam.domain.common.FileInfo;
 import com.pickteam.service.user.UserService;
 import com.pickteam.service.user.AuthService;
 import com.pickteam.service.board.PostAttachService;
-// import com.pickteam.service.user.FileUploadService; // TODO: 통합 파일 시스템 구축 후 활성화
 import com.pickteam.constants.UserControllerMessages;
 import com.pickteam.exception.validation.ValidationException;
 import jakarta.validation.Valid;
@@ -32,8 +32,6 @@ public class UserController {
     private final UserService userService;
     private final AuthService authService;
     private final PostAttachService postAttachService; // 프로필 이미지 업로드용
-    // private final FileUploadService fileUploadService; // TODO: 통합 파일 시스템 구축 후
-    // 활성화
 
     // 환경변수에서 주입받는 설정들
     @Value("${app.email.blocked-domains}")
@@ -109,9 +107,33 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.EMAIL_VERIFICATION_SUCCESS, isVerified));
     }
 
-    // 로그인
+    // 기본 로그인 (사용 중단 - 강화된 로그인 사용 권장)
+    /*
+     * @PostMapping("/login")
+     * public ResponseEntity<ApiResponse<JwtAuthenticationResponse>>
+     * login(@Valid @RequestBody UserLoginRequest request) {
+     * log.info("로그인 시도 - 이메일: {}", maskEmail(request.getEmail()));
+     * 
+     * // 추가 검증: 비밀번호 최소 길이 체크 (보안 강화)
+     * if (request.getPassword() != null && request.getPassword().length() < 8) {
+     * log.warn("너무 짧은 비밀번호로 로그인 시도: 이메일={}", maskEmail(request.getEmail()));
+     * throw new ValidationException("비밀번호는 최소 8자 이상이어야 합니다.");
+     * }
+     * 
+     * JwtAuthenticationResponse response = userService.login(request);
+     * log.info("로그인 성공 - 이메일: {}", maskEmail(request.getEmail()));
+     * return
+     * ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGIN_SUCCESS,
+     * response));
+     * }
+     */
+
+    // 로그인 (클라이언트 정보 포함 - 권장)
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> login(@Valid @RequestBody UserLoginRequest request) {
+    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> loginWithClientInfo(
+            @Valid @RequestBody UserLoginRequest request,
+            @RequestBody(required = false) SessionInfoRequest sessionInfo,
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
         log.info("로그인 시도 - 이메일: {}", maskEmail(request.getEmail()));
 
         // 추가 검증: 비밀번호 최소 길이 체크 (보안 강화)
@@ -120,14 +142,14 @@ public class UserController {
             throw new ValidationException("비밀번호는 최소 8자 이상이어야 합니다.");
         }
 
-        JwtAuthenticationResponse response = userService.login(request);
+        JwtAuthenticationResponse response = authService.authenticateWithClientInfo(request, sessionInfo, httpRequest);
         log.info("로그인 성공 - 이메일: {}", maskEmail(request.getEmail()));
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGIN_SUCCESS, response));
     }
 
-    // 개선된 로그인 (클라이언트 정보 포함)
+    // 개선된 로그인 (백워드 호환성을 위한 대체 엔드포인트)
     @PostMapping("/login/enhanced")
-    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> loginWithClientInfo(
+    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> loginEnhanced(
             @Valid @RequestBody UserLoginRequest request,
             @RequestBody(required = false) SessionInfoRequest sessionInfo,
             jakarta.servlet.http.HttpServletRequest httpRequest) {
@@ -430,10 +452,53 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("프로필 이미지 삭제 성공", null));
     }
 
-    // ==================== 유효성 검증 헬퍼 메서드들 ====================
+    /**
+     * 토큰 갱신 API (보안 강화)
+     * RefreshToken을 사용하여 새로운 AccessToken과 RefreshToken을 발급합니다.
+     * 보안을 위해 구체적인 예외 정보는 로그에만 기록하고, 클라이언트에는 일반적인 메시지만 반환합니다.
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> refreshToken(
+            @Valid @RequestBody RefreshTokenRequest request) {
+
+        log.info("토큰 갱신 요청 시작");
+
+        // 추가 검증: 리프레시 토큰 형식 기본 검사
+        if (request.getRefreshToken() == null || request.getRefreshToken().trim().isEmpty()) {
+            log.warn("빈 리프레시 토큰으로 갱신 시도");
+            return ResponseEntity.status(401)
+                    .body(ApiResponse.error("유효하지 않은 토큰입니다."));
+        }
+
+        try {
+            // AuthService를 통해 토큰 갱신
+            JwtAuthenticationResponse response = authService.refreshToken(request);
+
+            log.info("토큰 갱신 성공");
+            return ResponseEntity.ok(ApiResponse.success("토큰 갱신 성공", response));
+
+        } catch (com.pickteam.exception.auth.InvalidTokenException e) {
+            // 토큰 관련 예외 (만료, 무효, 변조 등)
+            log.warn("유효하지 않은 토큰으로 갱신 시도: {}", e.getMessage());
+            return ResponseEntity.status(401)
+                    .body(ApiResponse.error("토큰이 유효하지 않습니다. 다시 로그인해주세요."));
+
+        } catch (com.pickteam.exception.validation.ValidationException e) {
+            // 요청 검증 예외
+            log.warn("잘못된 토큰 갱신 요청: {}", e.getMessage());
+            return ResponseEntity.status(400)
+                    .body(ApiResponse.error("잘못된 요청입니다."));
+
+        } catch (Exception e) {
+            // 기타 예상치 못한 예외
+            log.error("토큰 갱신 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."));
+        }
+    }
 
     /**
-     * 로깅용 이메일 마스킹 (개인정보 보호)
+     * 이메일 마스킹 처리 (보안)
      */
     private String maskEmail(String email) {
         if (email == null || email.isEmpty()) {

@@ -67,6 +67,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/check-id", "/api/users/validate-password").permitAll()
                         .requestMatchers("/api/users/email/request", "/api/users/email/verify").permitAll()
 
+                        // 프로필 이미지는 공개 접근 허용
+                        .requestMatchers("/profile-images/**").permitAll()
+
+                        // 업로드 파일 직접 접근 차단 (보안 강화)
+                        .requestMatchers("/uploads/**").denyAll()
+
+                        // 파일 다운로드는 컨트롤러를 통해서만 허용
+                        .requestMatchers("/api/files/*/download").authenticated()
+
                         // ADMIN 권한 필요
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 

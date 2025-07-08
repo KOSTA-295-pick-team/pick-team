@@ -15,7 +15,7 @@ import java.util.List;
 public class UserProfileUpdateRequest {
     /** 사용자 이름 */
     @Size(min = 2, max = 50, message = "이름은 2자 이상 50자 이하여야 합니다")
-    @Pattern(regexp = "^[가-힣a-zA-Z\\s]*$", message = "이름은 한글, 영문, 공백만 입력 가능합니다")
+    @Pattern(regexp = "^[가-힣a-zA-Z0-9\\s]*$", message = "이름은 한글, 영문, 숫자, 공백만 입력 가능합니다")
     private String name;
 
     /** 사용자 나이 */

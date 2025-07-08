@@ -1,18 +1,20 @@
 package com.pickteam.controller.chat;
 
 import com.pickteam.dto.ApiResponse;
-import com.pickteam.dto.chat.ChatRoomCreateRequest;
-import com.pickteam.dto.chat.ChatRoomDetailResponse;
-import com.pickteam.dto.chat.ChatRoomResponse;
-import com.pickteam.dto.chat.ChatRoomUpdateTitleRequest;
+import com.pickteam.dto.chat.*;
+import com.pickteam.service.chat.ChatMessageService;
 import com.pickteam.service.chat.ChatRoomService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/workspaces/{workspaceId}/chat-rooms")
@@ -23,6 +25,7 @@ public class ChatRoomController {
      */
 
     private final ChatRoomService chatRoomService;
+    private final ChatMessageService chatMessageService;
 
     @GetMapping("/")
     public ResponseEntity<ApiResponse<Page<ChatRoomResponse>>> getChatRoomsByWorkspace(
@@ -36,14 +39,13 @@ public class ChatRoomController {
 
     /**
      * 새로운 채팅방을 생성합니다.
-     *
      */
     //creatorId를 RequestParam으로 받아오게 되어있는데, 리팩토링 필요
     //현재 로그인 정보이므로 RequestParam으로 받아오기보단 @AuthenticationPrincipal 사용하는 것이 바람직하다...
     //다른 컨트롤러 구현과 맞춰 일단 RequestParam으로 구현하고 추후 리팩토링한다.
     @PostMapping("/")
     public ResponseEntity<ApiResponse<ChatRoomResponse>> createChatRoom(@RequestParam Long creatorId,
-                                         @RequestBody ChatRoomCreateRequest request) {
+                                                                        @RequestBody ChatRoomCreateRequest request) {
         ChatRoomResponse response = chatRoomService.createChatRoom(creatorId, request);
         return ResponseEntity.ok(ApiResponse.success("채팅방 생성 성공", response));
     }
@@ -56,8 +58,7 @@ public class ChatRoomController {
     @PatchMapping("/")
     ResponseEntity<ApiResponse<ChatRoomResponse>> updateChatRoomTitle(@RequestParam Long requestUserId,
                                                                       @RequestBody ChatRoomUpdateTitleRequest request,
-                                                                      @PathVariable Long workspaceId)
-    {
+                                                                      @PathVariable Long workspaceId) {
         if (!workspaceId.equals(request.getWorkspaceId())) {
             //PathVariable로 선언했으면 내부 어딘가에서 사용해줘야 한다.
             //ChatRoom이 Workspace 정보를 들고 있으므로 여기서 경로를 넘겨주지 않아도 서비스 레이어에서 검증이 가능하다.
@@ -65,7 +66,7 @@ public class ChatRoomController {
             throw new IllegalArgumentException("경로와 바디의 워크스페이스 ID가 다릅니다.");
         }
         ChatRoomResponse response = chatRoomService.updateChatRoomTitle(requestUserId, request);
-        return ResponseEntity.ok(ApiResponse.success("채팅방 제목 변경 성공",response));
+        return ResponseEntity.ok(ApiResponse.success("채팅방 제목 변경 성공", response));
     }
 
     /**
@@ -73,7 +74,7 @@ public class ChatRoomController {
      */
     @PostMapping("/create-dm")
     ResponseEntity<ApiResponse<ChatRoomResponse>> createDmChatRoom(@RequestParam Long creatorId,
-                                      @RequestBody ChatRoomCreateRequest request) {
+                                                                   @RequestBody ChatRoomCreateRequest request) {
         ChatRoomResponse response = chatRoomService.createDmChatRoom(creatorId, request);
         return ResponseEntity.ok(ApiResponse.success("채팅방 생성 성공", response));
     }
@@ -101,6 +102,44 @@ public class ChatRoomController {
         return null;
     }
 
+
+    /**
+     * 특정 채팅방의 최신 메시지를 조회합니다.
+     */
+    @GetMapping("/{chatRoomId}/messages")
+    public ResponseEntity<ChatMessageListResponse> getRecentMessages(
+            @PathVariable Long chatRoomId,
+            @RequestParam(defaultValue = "20") int limit
+    ) {
+        ChatMessageListResponse messages = chatMessageService.getRecentMessages(chatRoomId, limit);
+        return ResponseEntity.ok(messages);
+    }
+
+    /**
+     * 메시지를 전송합니다.
+     */
+    @PostMapping("/{chatRoomId}/messages")
+    public ResponseEntity<ChatMessageResponse> sendMessage(
+            @PathVariable Long chatRoomId,
+            @RequestBody @Valid ChatMessageRequest request
+    ) {
+        ChatMessageResponse response = chatMessageService.sendMessage(chatRoomId, request);
+        return ResponseEntity.ok(response);
+    }
+
+
+    /**
+     * 채팅방에 있는 모든 메시지 가져오기 (성능 이슈 있으므로 신중히 사용할 것)
+     * @param chatRoomId
+     * @return
+     */
+    @GetMapping("/{chatRoomId}/messages/all")
+    public ResponseEntity<ChatMessageListResponse> getAllMessages(
+            @PathVariable Long chatRoomId
+    ) {
+        return ResponseEntity.ok(chatMessageService.getAllMessages(chatRoomId));
+    }
+
     /**
      * 채팅방 알림을 활성화합니다.
      */
@@ -108,6 +147,9 @@ public class ChatRoomController {
     @PatchMapping("/{chatRoomId}/notification/enable")
     void enableChatRoomNotification(Long chatRoomId, Long accountId) {
     }
+
+
+
 
     /**
      * 채팅방 알림을 비활성화합니다.

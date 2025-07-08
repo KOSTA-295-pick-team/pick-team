@@ -24,7 +24,7 @@ public class PostController {
     public ResponseEntity<Page<PostResponseDto>> getPosts(
             @PathVariable Long teamId,
             @RequestParam Long boardId,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 5, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
         Page<PostResponseDto> posts = postService.getPosts(boardId, pageable);
         return ResponseEntity.ok(posts);

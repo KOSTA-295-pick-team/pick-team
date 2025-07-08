@@ -48,6 +48,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
     @Override
     public ChatMessageListResponse getRecentMessages(Long chatRoomId, Pageable pageable) {
+        
         Page<ChatMessage> messages = chatMessageRepository
                 .findByChatRoomIdOrderByCreatedAtDesc(chatRoomId, pageable);
 
@@ -96,18 +97,10 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         return null;
     }
 
-    @Override
-    public List<ChatMessageResponse> searchAllMessagesByUser(Long chatRoomId, Long accountId, Pageable pageable) {
-        return List.of();
-    }
 
     @Override
     public Page<ChatMessageResponse> searchMessagesByContent(Long chatRoomId, String keyword, Pageable pageable) {
         return null;
     }
 
-    @Override
-    public List<ChatMessageResponse> searchAllMessagesByContent(Long chatRoomId, String keyword, Pageable pageable) {
-        return List.of();
-    }
 }

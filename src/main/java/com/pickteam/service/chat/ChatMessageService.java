@@ -44,15 +44,7 @@ public interface ChatMessageService {
      */
     Page<ChatMessageResponse> searchMessagesByUser(Long chatRoomId, Long accountId, Pageable pageable);
 
-    /**
-     * 페이징 없이 특정 사용자가 보낸 모든 메시지를 조회
-     * @param chatRoomId
-     * @param accountId
-     * @param pageable
-     * @return
-     */
-    List<ChatMessageResponse> searchAllMessagesByUser(Long chatRoomId, Long accountId, Pageable pageable);
-    
+
     /**
      * 특정 키워드를 포함한 메시지 검색
      * @param chatRoomId
@@ -61,15 +53,6 @@ public interface ChatMessageService {
      * @return
      */
     Page<ChatMessageResponse> searchMessagesByContent(Long chatRoomId, String keyword, Pageable pageable);
-
-    /**
-     * 페이징 없이 특정 사용자가 보낸 모든 메시지를 조회
-     * @param chatRoomId
-     * @param keyword
-     * @param pageable
-     * @return
-     */
-    List<ChatMessageResponse> searchAllMessagesByContent(Long chatRoomId, String keyword, Pageable pageable);
 
     /**
      * 메시지를 전송

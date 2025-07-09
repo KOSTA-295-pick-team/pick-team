@@ -34,7 +34,7 @@ public class ChatRoomController {
      * @param pageable    페이징 정보
      * @return 채팅방 목록 페이지
      */
-    @GetMapping("/")
+    @GetMapping
     public ResponseEntity<ApiResponse<Page<ChatRoomResponse>>> getChatRoomsByWorkspace(
             @PathVariable Long workspaceId,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
@@ -136,6 +136,8 @@ public class ChatRoomController {
      * @param workspaceId
      * @param chatRoomId
      */
+    // 🚨 TODO: 인증된 사용자 기준으로 accountId 처리할 것
+    // 현재는 연동 테스트를 위한 임시 구현
     @PatchMapping("/{chatRoomId}/messages/{messageId}/delete")
     public void deleteMessage(@PathVariable Long messageId, @RequestParam Long accountId, @PathVariable Long workspaceId,
                               @PathVariable Long chatRoomId) {
@@ -151,7 +153,8 @@ public class ChatRoomController {
      * @param accountId   사용자 ID
      * @return 참여 멤버 정보
      */
-
+    // 🚨 TODO: 인증된 사용자 기준으로 accountId 처리할 것
+    // 현재는 연동 테스트를 위한 임시 구현
     @PostMapping("/{chatRoomId}/join")
     public ResponseEntity<ApiResponse<ChatMemberResponse>> joinChatRoom(
             @PathVariable Long workspaceId,
@@ -170,6 +173,8 @@ public class ChatRoomController {
      * @param accountId   사용자 ID
      * @return 성공 여부
      */
+    // 🚨 TODO: 인증된 사용자 기준으로 accountId 처리할 것
+    // 현재는 연동 테스트를 위한 임시 구현
     @PatchMapping("/{chatRoomId}/leave")
     public ResponseEntity<ApiResponse<Void>> leaveChatRoom(
             @PathVariable Long workspaceId,
@@ -190,6 +195,8 @@ public class ChatRoomController {
      * @param messageId   마지막으로 읽은 메시지 ID
      * @return 성공 여부
      */
+    // 🚨 TODO: 인증된 사용자 기준으로 accountId 처리할 것
+    // 현재는 연동 테스트를 위한 임시 구현
     @PatchMapping("/{chatRoomId}/last-read-refresh")
     public ResponseEntity<ApiResponse<Void>> updateLastReadMessage(
             @PathVariable Long workspaceId,
@@ -224,7 +231,9 @@ public class ChatRoomController {
      * @param accountId 사용자 ID
      * @return 참여 중인 채팅방 목록
      */
-    @GetMapping("/accounts/{accountId}/")
+    // 🚨 TODO: 인증된 사용자 기준으로 accountId 처리할 것
+    // 현재는 연동 테스트를 위한 임시 구현
+    @GetMapping("/accounts/{accountId}")
     public ResponseEntity<ApiResponse<List<ChatRoomResponse>>> getMyChatRooms(
             @PathVariable Long accountId
     ) {
@@ -238,16 +247,17 @@ public class ChatRoomController {
 
     //---------------- Work in progress ------------------------------------------------------
 
-    /**
-     * 채팅방을 삭제합니다.
-     * Soft-Delete 처리이므로 Patch 요청을 넣는다
-     * 요청 경로는 restful하되 일반적인 수정 요청과 분리되도록 /delete suffix를 붙인다.
-     */
-    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
-    @PatchMapping("/{chatRoomId}/delete")
-    void deleteChatRoom(Long chatRoomId, Long accountId) {
-
-    }
+    //채팅방 직접 삭제 기능 제거 (방장이 삭제하는 방식 안 할 예정)
+    //    /**
+    //     * 채팅방을 삭제합니다.
+    //     * Soft-Delete 처리이므로 Patch 요청을 넣는다
+    //     * 요청 경로는 restful하되 일반적인 수정 요청과 분리되도록 /delete suffix를 붙인다.
+    //     */
+    //    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
+    //    @PatchMapping("/{chatRoomId}/delete")
+    //    void deleteChatRoom(Long chatRoomId, Long accountId) {
+    //
+    //    }
 
     /**
      * ID로 채팅방 상세 정보를 조회합니다.

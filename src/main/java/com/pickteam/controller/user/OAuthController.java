@@ -5,8 +5,11 @@ import com.pickteam.dto.ApiResponse;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.service.user.OAuthService;
 import com.pickteam.service.user.AuthService;
+import com.pickteam.service.user.OAuthStateService;
+import com.pickteam.service.user.OAuthTempCodeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,8 +31,13 @@ import java.net.URI;
 @RequiredArgsConstructor
 public class OAuthController {
 
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
+
     private final OAuthService oauthService;
     private final AuthService authService;
+    private final OAuthStateService oauthStateService;
+    private final OAuthTempCodeService oauthTempCodeService;
 
     /**
      * OAuth 로그인 URL 생성 및 리다이렉트
@@ -75,7 +83,7 @@ public class OAuthController {
      * 
      * @param provider OAuth 제공자
      * @param code     Authorization Code
-     * @param state    CSRF 방지용 state (현재는 검증 생략)
+     * @param state    CSRF 방지용 state
      * @param error    OAuth 인증 실패 시 오류 코드
      * @param request  HTTP 요청 (클라이언트 정보 추출용)
      * @return JWT 토큰 응답
@@ -91,9 +99,25 @@ public class OAuthController {
         log.info("OAuth 콜백 수신 - 제공자: {}, 코드 존재: {}, 에러: {}", provider, code != null, error);
 
         try {
+            // CSRF 방지를 위한 state 검증 (더 상세한 로깅)
+            if (state == null || state.trim().isEmpty()) {
+                log.warn("OAuth state 검증 실패 - 제공자: {}, 이유: state 파라미터 누락", provider);
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("잘못된 요청입니다. (CSRF 보호)"));
+            }
+
+            if (!oauthStateService.validateState(state)) {
+                log.warn("OAuth state 검증 실패 - 제공자: {}, 이유: state 값 불일치 또는 만료", provider);
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("잘못된 요청입니다. (CSRF 보호)"));
+            }
+
+            log.debug("OAuth state 검증 성공 - 제공자: {}", provider);
+
             // OAuth 인증 실패 확인
             if (error != null) {
                 log.warn("OAuth 인증 실패 - 제공자: {}, 에러: {}", provider, error);
+                oauthStateService.clearStoredState(); // 실패 시 state 정리
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("OAuth 인증이 취소되었거나 실패했습니다: " + error));
             }
@@ -101,6 +125,7 @@ public class OAuthController {
             // Authorization Code 확인
             if (code == null || code.trim().isEmpty()) {
                 log.warn("OAuth Authorization Code 누락 - 제공자: {}", provider);
+                oauthStateService.clearStoredState(); // 실패 시 state 정리
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("OAuth 인증 코드가 제공되지 않았습니다"));
             }
@@ -119,22 +144,58 @@ public class OAuthController {
 
             log.info("OAuth 로그인 성공 - 제공자: {}", provider);
 
-            // 프론트엔드로 리다이렉트 (토큰을 URL 파라미터로 전달)
-            String frontendUrl = String.format("http://localhost:3000/oauth/success?accessToken=%s&refreshToken=%s",
-                    jwtResponse.getAccessToken(), jwtResponse.getRefreshToken());
+            // 보안을 위해 임시 코드 생성 및 JWT 토큰 저장
+            String tempCode = oauthTempCodeService.generateTempCodeAndStoreTokens(jwtResponse);
+
+            // 프론트엔드로 임시 코드만 전달 (토큰은 별도 API로 교환)
+            String redirectUrl = String.format("%s/oauth/success?code=%s", frontendUrl, tempCode);
 
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(frontendUrl))
+                    .location(URI.create(redirectUrl))
                     .build();
 
         } catch (IllegalArgumentException e) {
             log.error("잘못된 OAuth 제공자: {}", provider, e);
+            oauthStateService.clearStoredState(); // 예외 발생 시 state 정리
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("지원하지 않는 OAuth 제공자입니다: " + provider));
         } catch (Exception e) {
             log.error("OAuth 콜백 처리 실패 - 제공자: {}, 코드: {}", provider, code != null ? "있음" : "없음", e);
+            oauthStateService.clearStoredState(); // 예외 발생 시 state 정리
             return ResponseEntity.internalServerError()
                     .body(ApiResponse.error("OAuth 로그인 처리 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 임시 코드를 JWT 토큰으로 교환
+     * 
+     * @param tempCode 임시 코드
+     * @return JWT 토큰 응답
+     */
+    @PostMapping("/exchange-token")
+    public ResponseEntity<ApiResponse<JwtAuthenticationResponse>> exchangeTokenWithTempCode(
+            @RequestParam String tempCode) {
+
+        log.info("OAuth 임시 코드 토큰 교환 요청");
+
+        try {
+            // 임시 코드로 JWT 토큰 조회 및 제거
+            JwtAuthenticationResponse jwtResponse = oauthTempCodeService.exchangeTokensWithTempCode(tempCode);
+
+            if (jwtResponse == null) {
+                log.warn("OAuth 임시 코드 토큰 교환 실패: 유효하지 않은 코드");
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("유효하지 않거나 만료된 코드입니다"));
+            }
+
+            log.info("OAuth 임시 코드 토큰 교환 성공");
+            return ResponseEntity.ok(ApiResponse.success("토큰 교환 성공", jwtResponse));
+
+        } catch (Exception e) {
+            log.error("OAuth 임시 코드 토큰 교환 중 오류 발생", e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("토큰 교환 처리 중 오류가 발생했습니다"));
         }
     }
 

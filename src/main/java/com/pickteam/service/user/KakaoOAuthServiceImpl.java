@@ -25,9 +25,10 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RequiredArgsConstructor
 public class KakaoOAuthServiceImpl implements KakaoOAuthService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
     private final OAuthConfig oauthConfig;
+    private final OAuthStateService oauthStateService;
 
     // 카카오 OAuth 엔드포인트
     private static final String KAKAO_AUTH_URL = "https://kauth.kakao.com/oauth/authorize";
@@ -38,7 +39,7 @@ public class KakaoOAuthServiceImpl implements KakaoOAuthService {
     public String generateOAuthUrl() {
         log.debug("카카오 OAuth URL 생성 시작");
 
-        String state = generateState(); // CSRF 방지용 state 값 생성
+        String state = oauthStateService.generateAndStoreState(); // CSRF 방지용 state 값 생성 및 저장
 
         String oauthUrl = UriComponentsBuilder.fromUriString(KAKAO_AUTH_URL)
                 .queryParam("client_id", oauthConfig.getKakao().getClientId())
@@ -143,15 +144,6 @@ public class KakaoOAuthServiceImpl implements KakaoOAuthService {
     public OAuthUserInfo getUserInfo(String accessToken) {
         KakaoUserInfo kakaoUserInfo = getKakaoUserInfo(accessToken);
         return kakaoUserInfo.toOAuthUserInfo();
-    }
-
-    /**
-     * CSRF 방지용 state 값 생성
-     * 
-     * @return 랜덤 state 문자열
-     */
-    private String generateState() {
-        return java.util.UUID.randomUUID().toString();
     }
 
     /**

@@ -29,11 +29,11 @@ public enum AuthProvider {
      * 
      * @param provider 제공자 문자열 (대소문자 무관)
      * @return AuthProvider 열거형
-     * @throws IllegalArgumentException 지원하지 않는 제공자인 경우
+     * @throws IllegalArgumentException null이거나 지원하지 않는 제공자인 경우
      */
     public static AuthProvider fromString(String provider) {
         if (provider == null) {
-            return LOCAL;
+            throw new IllegalArgumentException("OAuth 제공자는 null일 수 없습니다");
         }
 
         try {

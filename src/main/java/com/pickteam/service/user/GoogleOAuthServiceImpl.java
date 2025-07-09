@@ -25,9 +25,10 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RequiredArgsConstructor
 public class GoogleOAuthServiceImpl implements GoogleOAuthService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
     private final OAuthConfig oauthConfig;
+    private final OAuthStateService oauthStateService;
 
     // 구글 OAuth 엔드포인트
     private static final String GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -43,7 +44,7 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
                 oauthConfig.getGoogle().getClientId().substring(0, 10) + "***",
                 oauthConfig.getGoogle().getRedirectUri());
 
-        String state = generateState(); // CSRF 방지용 state 값 생성
+        String state = oauthStateService.generateAndStoreState(); // CSRF 방지용 state 값 생성 및 저장
 
         String oauthUrl = UriComponentsBuilder.fromUriString(GOOGLE_AUTH_URL)
                 .queryParam("client_id", oauthConfig.getGoogle().getClientId())
@@ -150,15 +151,6 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
     public OAuthUserInfo getUserInfo(String accessToken) {
         GoogleUserInfo googleUserInfo = getGoogleUserInfo(accessToken);
         return googleUserInfo.toOAuthUserInfo();
-    }
-
-    /**
-     * CSRF 방지용 state 값 생성
-     * 
-     * @return 랜덤 state 문자열
-     */
-    private String generateState() {
-        return java.util.UUID.randomUUID().toString();
     }
 
     /**

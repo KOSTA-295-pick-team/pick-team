@@ -61,6 +61,10 @@ public class OAuthUserInfo {
             return email.substring(0, email.indexOf("@"));
         }
 
+        // providerId가 null이거나 빈 문자열인 경우 기본값 반환
+        if (providerId == null || providerId.trim().isEmpty()) {
+            return "사용자";
+        }
         return "사용자" + providerId.substring(Math.max(0, providerId.length() - 4));
     }
 }

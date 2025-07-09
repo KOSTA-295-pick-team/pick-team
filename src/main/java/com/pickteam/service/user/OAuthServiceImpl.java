@@ -240,7 +240,7 @@ public class OAuthServiceImpl implements OAuthService {
         Account account = Account.builder()
                 .email(email)
                 .name(oauthUserInfo.getDisplayName())
-                .password("") // OAuth 사용자는 비밀번호 없음
+                .password(null) // OAuth 사용자는 비밀번호 없음
                 .provider(oauthUserInfo.getProvider())
                 .providerId(oauthUserInfo.getProviderId())
                 .socialEmail(oauthUserInfo.getEmail()) // 실제 소셜 이메일 (null일 수 있음)
@@ -305,8 +305,8 @@ public class OAuthServiceImpl implements OAuthService {
         String provider = oauthUserInfo.getProvider().name().toLowerCase();
         String providerId = oauthUserInfo.getProviderId();
 
-        // 제공자별 고유 이메일 생성: kakao123456789@oauth.pickteam.local
-        String generatedEmail = provider + providerId + "@oauth.pickteam.local";
+        // 제공자별 고유 이메일 생성: oauth_kakao_123456789@no-reply.pickteam.local
+        String generatedEmail = "oauth_" + provider + "_" + providerId + "@no-reply.pickteam.local";
 
         log.info("이메일 없는 OAuth 사용자를 위한 고유 이메일 생성: {} -> {}",
                 maskProviderId(providerId), maskEmail(generatedEmail));

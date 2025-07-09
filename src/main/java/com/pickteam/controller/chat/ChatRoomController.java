@@ -129,6 +129,21 @@ public class ChatRoomController {
 
 
     /**
+     * 메시지를 삭제합니다.
+     *
+     * @param messageId
+     * @param accountId
+     * @param workspaceId
+     * @param chatRoomId
+     */
+    @PatchMapping("/{chatRoomId}/messages/{messageId}/delete")
+    public void deleteMessage(@PathVariable Long messageId, @RequestParam Long accountId, @PathVariable Long workspaceId,
+                              @PathVariable Long chatRoomId) {
+        chatMessageService.deleteMessage(messageId, accountId, workspaceId, chatRoomId);
+    }
+
+
+    /**
      * 채팅방에 참여합니다.
      *
      * @param workspaceId 워크스페이스 ID
@@ -136,6 +151,7 @@ public class ChatRoomController {
      * @param accountId   사용자 ID
      * @return 참여 멤버 정보
      */
+
     @PostMapping("/{chatRoomId}/join")
     public ResponseEntity<ApiResponse<ChatMemberResponse>> joinChatRoom(
             @PathVariable Long workspaceId,

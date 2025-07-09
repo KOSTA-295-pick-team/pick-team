@@ -38,6 +38,11 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
     public String generateOAuthUrl() {
         log.debug("구글 OAuth URL 생성 시작");
 
+        // 설정값 디버깅 로그 추가
+        log.info("구글 OAuth 설정 확인 - Client ID: {}, Redirect URI: {}",
+                oauthConfig.getGoogle().getClientId().substring(0, 10) + "***",
+                oauthConfig.getGoogle().getRedirectUri());
+
         String state = generateState(); // CSRF 방지용 state 값 생성
 
         String oauthUrl = UriComponentsBuilder.fromUriString(GOOGLE_AUTH_URL)

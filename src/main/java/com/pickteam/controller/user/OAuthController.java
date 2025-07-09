@@ -7,12 +7,14 @@ import com.pickteam.service.user.OAuthService;
 import com.pickteam.service.user.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.IOException;
+import java.net.URI;
 
 /**
  * OAuth 소셜 로그인 컨트롤러
@@ -117,7 +119,13 @@ public class OAuthController {
 
             log.info("OAuth 로그인 성공 - 제공자: {}", provider);
 
-            return ResponseEntity.ok(ApiResponse.success("OAuth 로그인이 성공적으로 완료되었습니다", jwtResponse));
+            // 프론트엔드로 리다이렉트 (토큰을 URL 파라미터로 전달)
+            String frontendUrl = String.format("http://localhost:3000/oauth/success?accessToken=%s&refreshToken=%s",
+                    jwtResponse.getAccessToken(), jwtResponse.getRefreshToken());
+
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create(frontendUrl))
+                    .build();
 
         } catch (IllegalArgumentException e) {
             log.error("잘못된 OAuth 제공자: {}", provider, e);

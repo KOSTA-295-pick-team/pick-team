@@ -58,6 +58,11 @@ public class SecurityConfig {
 
                 // URL 접근 권한 설정
                 .authorizeHttpRequests(auth -> auth
+                        // 정적 리소스 (인증 없이 접근 가능)
+                        .requestMatchers("/favicon.ico", "/error", "/actuator/health",
+                                "/.well-known/**", "/robots.txt", "/sitemap.xml")
+                        .permitAll()
+
                         // 인증 없이 접근 가능한 URL
                         .requestMatchers("/api/users/register", "/api/users/login", "/api/users/login/",
                                 "/api/users/login/enhanced")

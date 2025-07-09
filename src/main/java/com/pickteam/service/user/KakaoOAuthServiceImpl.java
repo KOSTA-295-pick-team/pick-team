@@ -44,7 +44,7 @@ public class KakaoOAuthServiceImpl implements KakaoOAuthService {
                 .queryParam("client_id", oauthConfig.getKakao().getClientId())
                 .queryParam("redirect_uri", oauthConfig.getKakao().getRedirectUri())
                 .queryParam("response_type", "code")
-                .queryParam("scope", "profile_nickname,profile_image,account_email")
+                .queryParam("scope", "profile_nickname,profile_image")
                 .queryParam("state", state)
                 .build()
                 .toUriString();

@@ -54,8 +54,8 @@ public class OAuthServiceImpl implements OAuthService {
             OAuthUserInfo oauthUserInfo = getOAuthUserInfo(provider, code);
             log.debug("OAuth 사용자 정보 조회 완료 - 이메일: {}", maskEmail(oauthUserInfo.getEmail()));
 
-            // 2. 기존 계정 확인 (이메일 기준)
-            Optional<Account> existingAccount = findAccountByEmail(oauthUserInfo.getEmail());
+            // 2. 기존 계정 확인 (이메일 또는 providerId 기준)
+            Optional<Account> existingAccount = findExistingAccount(oauthUserInfo);
 
             Account account;
             boolean isFirstLogin = false;
@@ -185,6 +185,33 @@ public class OAuthServiceImpl implements OAuthService {
     }
 
     /**
+     * 이메일 또는 제공자 정보로 기존 계정 조회
+     * 이메일이 없는 경우 providerId로 조회
+     */
+    private Optional<Account> findExistingAccount(OAuthUserInfo oauthUserInfo) {
+        // 1. 이메일이 있는 경우 이메일로 조회
+        if (oauthUserInfo.getEmail() != null && !oauthUserInfo.getEmail().trim().isEmpty()) {
+            Optional<Account> emailAccount = findAccountByEmail(oauthUserInfo.getEmail());
+            if (emailAccount.isPresent()) {
+                return emailAccount;
+            }
+        }
+
+        // 2. 이메일이 없거나 이메일로 찾지 못한 경우 providerId로 조회
+        return findAccountByProvider(oauthUserInfo.getProvider(), oauthUserInfo.getProviderId());
+    }
+
+    /**
+     * OAuth 제공자 정보로 기존 계정 조회 (이메일이 없는 경우 대비)
+     */
+    private Optional<Account> findAccountByProvider(AuthProvider provider, String providerId) {
+        if (provider == null || providerId == null || providerId.trim().isEmpty()) {
+            return Optional.empty();
+        }
+        return accountRepository.findByProviderAndProviderIdAndDeletedAtIsNull(provider, providerId);
+    }
+
+    /**
      * 이메일로 계정 조회 (소프트 삭제된 계정 제외)
      */
     private Optional<Account> findAccountByEmail(String email) {
@@ -198,18 +225,25 @@ public class OAuthServiceImpl implements OAuthService {
      * OAuth 정보로 신규 계정 생성
      */
     private Account createAccountFromOAuth(OAuthUserInfo oauthUserInfo) {
-        // 이메일 중복 체크 (혹시나 하는 추가 안전장치)
-        if (accountRepository.existsByEmail(oauthUserInfo.getEmail())) {
-            throw new DuplicateEmailException("이미 사용 중인 이메일입니다: " + oauthUserInfo.getEmail());
+        String email = oauthUserInfo.getEmail();
+
+        // 이메일이 있는 경우에만 중복 체크
+        if (email != null && !email.trim().isEmpty()) {
+            if (accountRepository.existsByEmail(email)) {
+                throw new DuplicateEmailException("이미 사용 중인 이메일입니다: " + email);
+            }
+        } else {
+            // 이메일이 없는 경우 providerId 기반 고유 이메일 생성
+            email = generateUniqueEmailFromProvider(oauthUserInfo);
         }
 
         Account account = Account.builder()
-                .email(oauthUserInfo.getEmail())
+                .email(email)
                 .name(oauthUserInfo.getDisplayName())
                 .password("") // OAuth 사용자는 비밀번호 없음
                 .provider(oauthUserInfo.getProvider())
                 .providerId(oauthUserInfo.getProviderId())
-                .socialEmail(oauthUserInfo.getEmail())
+                .socialEmail(oauthUserInfo.getEmail()) // 실제 소셜 이메일 (null일 수 있음)
                 .socialName(oauthUserInfo.getName())
                 .socialProfileUrl(oauthUserInfo.getProfileImageUrl())
                 .profileImageUrl(oauthUserInfo.getProfileImageUrl()) // 소셜 프로필 이미지를 기본 프로필로 설정
@@ -262,5 +296,31 @@ public class OAuthServiceImpl implements OAuthService {
         }
 
         return localPart.charAt(0) + "***" + localPart.charAt(localPart.length() - 1) + "@" + domain;
+    }
+
+    /**
+     * 이메일이 없는 OAuth 사용자를 위한 고유 이메일 생성
+     */
+    private String generateUniqueEmailFromProvider(OAuthUserInfo oauthUserInfo) {
+        String provider = oauthUserInfo.getProvider().name().toLowerCase();
+        String providerId = oauthUserInfo.getProviderId();
+
+        // 제공자별 고유 이메일 생성: kakao123456789@oauth.pickteam.local
+        String generatedEmail = provider + providerId + "@oauth.pickteam.local";
+
+        log.info("이메일 없는 OAuth 사용자를 위한 고유 이메일 생성: {} -> {}",
+                maskProviderId(providerId), maskEmail(generatedEmail));
+
+        return generatedEmail;
+    }
+
+    /**
+     * ProviderId 마스킹 (로그용)
+     */
+    private String maskProviderId(String providerId) {
+        if (providerId == null || providerId.length() <= 4) {
+            return "***";
+        }
+        return "***" + providerId.substring(providerId.length() - 4);
     }
 }

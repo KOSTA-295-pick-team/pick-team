@@ -44,7 +44,10 @@ public enum ProblemType {
     // ===== 데이터 무결성 관련 에러 (DATA_) =====
     DATA_INTEGRITY_VIOLATION("DATA_INTEGRITY_VIOLATION", "Data Integrity Violation"),
     CONSTRAINT_VIOLATION("CONSTRAINT_VIOLATION", "Constraint Violation"),
-    DUPLICATE_ENTRY("DUPLICATE_ENTRY", "Duplicate Entry");
+    DUPLICATE_ENTRY("DUPLICATE_ENTRY", "Duplicate Entry"),
+
+    // ===== 리소스 관련 에러 (RESOURCE_) =====
+    NOT_FOUND("RESOURCE_NOT_FOUND", "Resource Not Found");
 
     private final String type;
     private final String title;

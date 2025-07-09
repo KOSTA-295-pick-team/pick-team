@@ -397,11 +397,22 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 예상치 못한 모든 예외 처리
+     * 예상치 못한 모든 예외 처리 (더 상세한 로깅)
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleGenericException(Exception ex) {
-        log.error("예상치 못한 오류 발생", ex);
+        // 상세한 로깅으로 원인 파악 개선
+        log.error("예상치 못한 오류 발생 - 예외 클래스: {}, 메시지: {}",
+                ex.getClass().getSimpleName(), ex.getMessage(), ex);
+
+        // 스택트레이스의 첫 번째 요소도 로깅
+        if (ex.getStackTrace().length > 0) {
+            StackTraceElement firstElement = ex.getStackTrace()[0];
+            log.error("오류 발생 위치: {}:{}:{}",
+                    firstElement.getClassName(),
+                    firstElement.getMethodName(),
+                    firstElement.getLineNumber());
+        }
 
         ProblemDetail problemDetail = createProblemDetail(
                 ProblemType.UNEXPECTED_ERROR,
@@ -495,5 +506,33 @@ public class GlobalExceptionHandler {
                 DATABASE_LOCK_TIMEOUT_INSTANCE);
 
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problemDetail);
+    }
+
+    /**
+     * NoResourceFoundException 처리 (Spring 6.0+)
+     * - 정적 리소스가 존재하지 않을 때 발생
+     * - favicon.ico, robots.txt 등의 404 에러 처리
+     */
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ProblemDetail> handleNoResourceFoundException(
+            org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+
+        // 정적 리소스(favicon, robots.txt 등)의 경우 로그 레벨을 낮춤
+        String resourcePath = ex.getResourcePath();
+        if (resourcePath != null && (resourcePath.contains("favicon") ||
+                resourcePath.contains("robots.txt") ||
+                resourcePath.contains(".well-known"))) {
+            log.debug("정적 리소스 미존재: {}", resourcePath);
+        } else {
+            log.warn("리소스를 찾을 수 없음: {}", resourcePath);
+        }
+
+        ProblemDetail problemDetail = createProblemDetail(
+                ProblemType.NOT_FOUND,
+                HttpStatus.NOT_FOUND,
+                "요청하신 리소스를 찾을 수 없습니다.",
+                "/resource-not-found");
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
     }
 }

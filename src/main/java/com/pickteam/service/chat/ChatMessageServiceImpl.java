@@ -141,16 +141,16 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         message.markDeleted();//soft-delete 처리
         chatMessageRepository.save(message);
     }
-
-    @Override
-    public Page<ChatMessageResponse> searchMessagesByUser(Long chatRoomId, Long accountId, Pageable pageable) {
-        return null;
-    }
-
-
-    @Override
-    public Page<ChatMessageResponse> searchMessagesByContent(Long chatRoomId, String keyword, Pageable pageable) {
-        return null;
-    }
-
+// ------------------------------------- DEPRECATED --------------------------------------------------------------
+//    //TODO : 채팅방 검색 기능이 필요할 경우 구현
+//    @Override
+//    public Page<ChatMessageResponse> searchMessagesByUser(Long chatRoomId, Long accountId, Pageable pageable) {
+//        return null;
+//    }
+//
+//    //TODO : 채팅방 검색 기능이 필요할 경우 구현
+//    @Override
+//    public Page<ChatMessageResponse> searchMessagesByContent(Long chatRoomId, String keyword, Pageable pageable) {
+//        return null;
+//    }
 }

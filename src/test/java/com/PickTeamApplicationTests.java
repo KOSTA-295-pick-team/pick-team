@@ -142,7 +142,7 @@ class PickTeamApplicationTests {
     @Test
     @DisplayName("화상회의채널 참여자삭제 TEST")
     void deleteVideoChannelParticipants() throws VideoConferenceException {
-        videoConferenceService.deleteVideoChannelParticipant(1L);
+        videoConferenceService.deleteVideoChannelParticipant(1L,2L);
     }
 
     @Test

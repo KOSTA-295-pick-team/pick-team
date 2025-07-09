@@ -18,15 +18,20 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Autowired
     AuthHandler authHandler;
 
+    @Autowired
+    AuthHandshakeInterceptor authHandshakeInterceptor;
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws").setHandshakeHandler(authHandler).setAllowedOriginPatterns("*");//.withSockJS();
+        registry.addEndpoint("/ws").addInterceptors(authHandshakeInterceptor).setHandshakeHandler(authHandler).setAllowedOriginPatterns("*");//.withSockJS();
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.setApplicationDestinationPrefixes("/pub");
+        registry.setUserDestinationPrefix("/user");
         registry.enableSimpleBroker("/sub");
+
     }
 
     @Override

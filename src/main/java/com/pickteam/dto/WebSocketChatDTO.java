@@ -14,4 +14,5 @@ public class WebSocketChatDTO {
     private String senderEmail;
     private String senderName;
     private String message;
+    private String type;
 }

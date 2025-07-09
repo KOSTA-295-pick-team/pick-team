@@ -2,24 +2,27 @@ package com.pickteam.controller;
 
 
 import com.pickteam.dto.VideoChannelDTO;
+import com.pickteam.dto.VideoConferenceMsgDTO;
 import com.pickteam.dto.VideoMemberDTO;
 import com.pickteam.exception.VideoConferenceException;
 import com.pickteam.security.UserPrincipal;
 import com.pickteam.service.VideoConferenceService;
-import io.livekit.server.WebhookReceiver;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import livekit.LivekitWebhook.WebhookEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,41 +33,36 @@ import java.util.Map;
 @RequiredArgsConstructor
 @RequestMapping(("/api/workspaces/{workspaceId:\\d+}/video-channels"))
 public class VideoConferenceController {
-    @Value("${livekit.api.key:devkey}")
-    private String LIVEKIT_API_KEY;
-
-    @Value("${livekit.api.secret:secret}")
-    private String LIVEKIT_API_SECRET;
-
 
     private final VideoConferenceService videoConferenceService;
 
+    @PreAuthorize("@videoConferenceAuthService.canViewChannels(#userDetails.id,#workspaceId)")
     @GetMapping
-    public ResponseEntity<?> getChannels(@PathVariable Long workspaceId, @RequestParam(required = false) Long accountId) throws VideoConferenceException {
+    public ResponseEntity<?> getChannels(@PathVariable Long workspaceId, @AuthenticationPrincipal UserPrincipal userDetails) throws VideoConferenceException {
 
-        List<VideoChannelDTO> videoChannels = videoConferenceService.selectVideoChannels(workspaceId, accountId);
+        List<VideoChannelDTO> videoChannels = videoConferenceService.selectVideoChannels(workspaceId, userDetails.getId());
 
         return ResponseEntity.ok(videoChannels);
     }
 
+    @PreAuthorize("@videoConferenceAuthService.canCreateChannel(#userDetails.id,#workspaceId)")
     @PostMapping
-    public ResponseEntity<?> createChannel(@PathVariable Long workspaceId, @Valid @RequestBody VideoChannelDTO videoChannelDTO) throws VideoConferenceException {
+    public ResponseEntity<?> createChannel(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable Long workspaceId, @Valid @RequestBody VideoChannelDTO videoChannelDTO) throws VideoConferenceException {
         videoConferenceService.insertVideoChannel(workspaceId, videoChannelDTO.getName());
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
-    
-    /*
-    현재 사용자 기능 완성되지 않아 사용불가
-     */
-//    @PostMapping("/{channelId}")
-//    public ResponseEntity<?> joinChannel(@AuthenticationPrincipal UserDetails userDetails, @PathVariable("channelId") Long channelId) {
-//
-//        //첫번째 인자는 사용자 id 값 전달
-//        videoConferenceService.joinVideoChannel(channelId);
-//
-//        return ResponseEntity.status(HttpStatus.CREATED).build();
-//    }
 
+    @PreAuthorize("@videoConferenceAuthService.canJoinChannel(#userDetails.id,#workspaceId)")
+    @PostMapping("/{channelId}")
+    public ResponseEntity<?> joinChannel(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable("channelId") Long channelId) {
+
+        //첫번째 인자는 사용자 id 값 전달
+        videoConferenceService.joinVideoChannel(userDetails.getId(), channelId);
+
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{channelId:\\d+}")
     public ResponseEntity<?> deleteChannel(@PathVariable("channelId") Long channelId) throws VideoConferenceException {
 
@@ -73,45 +71,52 @@ public class VideoConferenceController {
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("@videoConferenceAuthService.canViewParticipants(#userDetails.id,#channelId)")
     @GetMapping("/{channelId:\\d+}/video-members")
-    public ResponseEntity<?> getParticipants(@PathVariable("channelId") Long channelId) throws VideoConferenceException {
+    public ResponseEntity<?> getParticipants(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable("channelId") Long channelId) throws VideoConferenceException {
 
         List<VideoMemberDTO> participants = videoConferenceService.selectVideoChannelParticipants(channelId);
 
         return ResponseEntity.ok(participants);
     }
 
+    @PreAuthorize("hasRole('ADMIN') or @videoConferenceAuthService.canLeaveChannel(#userDetails.id,#channelId,#memberId)")
     @DeleteMapping("/{channelId:\\d+}/video-members/{memberId}")
-    public ResponseEntity<?> leaveChannel(@PathVariable Long memberId) throws VideoConferenceException {
+    public ResponseEntity<?> leaveChannel(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable Long memberId, @PathVariable Long channelId) throws VideoConferenceException {
 
-        videoConferenceService.deleteVideoChannelParticipant(memberId);
+        videoConferenceService.deleteVideoChannelParticipant(memberId, channelId);
 
         return ResponseEntity.noContent().build();
     }
 
+
+    @PreAuthorize("@videoConferenceAuthService.canJoInConference(#userDetails.id,#channelId)")
     @PostMapping(value = "/{channelId:\\d+}/join-conference")
-    public ResponseEntity<Map<String, String>> joinVideoConferenceRoom(@AuthenticationPrincipal UserDetails userDetails, @PathVariable  Long channelId) throws VideoConferenceException {
+    public ResponseEntity<Map<String, String>> joinVideoConferenceRoom(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable Long channelId) throws VideoConferenceException {
 
-        UserPrincipal userPrincipal = (UserPrincipal) userDetails;
-
-        String jwt = videoConferenceService.joinVideoConferenceRoom(userPrincipal.getId(),channelId,userPrincipal.getUsername());  // accountId는 userDetails에서 user id 뽑아서 넘기기
+        System.out.println("userDetails.getId() = " + userDetails.getId());
+        String jwt = videoConferenceService.joinVideoConferenceRoom(userDetails.getId(), channelId, userDetails.getName(), userDetails.getEmail());
 
         return ResponseEntity.ok(Map.of("token", jwt));
     }
 
+    @PreAuthorize("@videoConferenceAuthService.canCallLiveKitWebhook(#request)")
     @PostMapping(value = "/livekit/webhooks", consumes = "application/webhook+json")
-    public ResponseEntity<String> receiveWebhook(@RequestHeader("Authorization") String authHeader, @RequestBody String body) {
-        WebhookReceiver webhookReceiver = new WebhookReceiver(LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
-        try {
-            WebhookEvent event = webhookReceiver.receive(body, authHeader);
-            System.out.println("LiveKit Webhook: " + event.toString());
-        } catch (Exception e) {
-            System.err.println("Error validating webhook event: " + e.getMessage());
-        }
+    public ResponseEntity<String> receiveWebhook(HttpServletRequest request, @RequestHeader("Authorization") String authHeader, @RequestBody String body) throws Exception{
+
+        videoConferenceService.handleLiveKitHookEvent(authHeader, body);
+
         return ResponseEntity.ok("ok");
     }
 
+    @MessageMapping("/video/{roomId}")
+    public void handleVideoConferenceControll(@DestinationVariable Long roomId, VideoConferenceMsgDTO msgDTO, Principal principal) throws VideoConferenceException {
 
+
+        UserPrincipal principalUser = (UserPrincipal) ((UsernamePasswordAuthenticationToken) principal).getPrincipal();
+
+        videoConferenceService.handleVideoConferenceEvent(principalUser.getUsername(), roomId, msgDTO.getType());
+    }
 
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleVideoConferenceException(Exception e) {

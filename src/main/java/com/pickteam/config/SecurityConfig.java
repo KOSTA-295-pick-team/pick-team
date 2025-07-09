@@ -5,6 +5,7 @@ import com.pickteam.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -16,6 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -66,7 +68,10 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers("/api/users/check-id", "/api/users/validate-password").permitAll()
                         .requestMatchers("/api/users/email/request", "/api/users/email/verify").permitAll()
-
+                        //웹소켓 서버 접속 요청에 대해 permitall설정
+                        .requestMatchers("/ws").permitAll()
+                        //livekit 서버에서 전송하는 hook 메시지에 대해 permitall설정
+                        .requestMatchers(new RegexRequestMatcher("/api/workspaces/\\d+/video-channels/livekit/webhooks",null)).permitAll()
                         // ADMIN 권한 필요
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 

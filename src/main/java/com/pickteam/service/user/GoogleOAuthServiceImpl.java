@@ -89,7 +89,12 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
 
             if (response.getStatusCode() == HttpStatus.OK) {
                 JsonNode tokenResponse = objectMapper.readTree(response.getBody());
-                String accessToken = tokenResponse.get("access_token").asText();
+                JsonNode accessTokenNode = tokenResponse.get("access_token");
+                if (accessTokenNode == null || accessTokenNode.isNull()) {
+                    log.error("구글 Access Token 응답에 access_token 필드가 없음");
+                    throw new RuntimeException("구글 Access Token 응답이 올바르지 않습니다");
+                }
+                String accessToken = accessTokenNode.asText();
 
                 log.info("구글 Access Token 발급 성공");
                 return accessToken;

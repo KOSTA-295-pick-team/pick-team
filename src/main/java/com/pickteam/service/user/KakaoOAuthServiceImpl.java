@@ -82,7 +82,12 @@ public class KakaoOAuthServiceImpl implements KakaoOAuthService {
 
             if (response.getStatusCode() == HttpStatus.OK) {
                 JsonNode tokenResponse = objectMapper.readTree(response.getBody());
-                String accessToken = tokenResponse.get("access_token").asText();
+                JsonNode accessTokenNode = tokenResponse.get("access_token");
+                if (accessTokenNode == null || accessTokenNode.isNull()) {
+                    log.error("카카오 Access Token 응답에 access_token 필드가 없음");
+                    throw new RuntimeException("카카오 Access Token 응답이 올바르지 않습니다");
+                }
+                String accessToken = accessTokenNode.asText();
 
                 log.info("카카오 Access Token 발급 성공");
                 return accessToken;

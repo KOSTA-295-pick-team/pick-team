@@ -35,8 +35,8 @@ public class JwtAuthenticationResponse {
     private UserProfileResponse user;
 
     /**
-     * 프론트엔드 호환성을 위한 token 필드 (accessToken과 동일)
-     * Redis 직렬화에서 제외 (accessToken이 이미 token으로 직렬화됨)
+     * OAuth 및 내부 로직용 토큰 접근자
+     * JSON 직렬화에서는 제외되고, accessToken 필드가 "token"으로 직렬화됨
      */
     @com.fasterxml.jackson.annotation.JsonIgnore
     public String getToken() {

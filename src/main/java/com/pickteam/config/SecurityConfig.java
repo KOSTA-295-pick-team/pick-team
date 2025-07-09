@@ -67,6 +67,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/check-id", "/api/users/validate-password").permitAll()
                         .requestMatchers("/api/users/email/request", "/api/users/email/verify").permitAll()
 
+                        // OAuth 인증 관련 경로 (인증 없이 접근 가능)
+                        .requestMatchers("/api/auth/oauth/*/login", "/api/auth/oauth/*/callback").permitAll()
+                        .requestMatchers("/api/auth/oauth/google/login", "/api/auth/oauth/google/callback").permitAll()
+                        .requestMatchers("/api/auth/oauth/kakao/login", "/api/auth/oauth/kakao/callback").permitAll()
+
                         // 프로필 이미지는 공개 접근 허용
                         .requestMatchers("/profile-images/**").permitAll()
 

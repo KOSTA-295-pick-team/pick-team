@@ -32,7 +32,7 @@ public interface ChatRoomService {
     /**
      * 채팅방을 삭제합니다.
      */
-    void deleteChatRoom(Long chatRoomId, Long accountId);
+    void deleteChatRoom(Long chatRoomId, Long workspaceId);
 
     /**
      * ID로 채팅방 상세 정보를 조회합니다.

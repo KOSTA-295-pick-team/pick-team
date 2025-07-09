@@ -27,7 +27,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class ChatRoomServiceImpl implements ChatRoomService{
+public class ChatRoomServiceImpl implements ChatRoomService {
 
     //자신의 Repository 선언
     private final ChatRoomRepository chatRoomRepository;
@@ -46,6 +46,7 @@ public class ChatRoomServiceImpl implements ChatRoomService{
 
     /**
      * 채팅방 목록 읽어오기
+     *
      * @param workspaceId
      * @param pageable
      * @return
@@ -55,16 +56,17 @@ public class ChatRoomServiceImpl implements ChatRoomService{
         // 워크스페이스 존재 확인
         Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(workspaceId)
                 .orElseThrow(() -> new EntityNotFoundException("워크스페이스를 찾을 수 없습니다."));
-    
+
         // 페이징된 채팅방 목록 조회
         Page<ChatRoom> chatRoomPage = chatRoomRepository.findByWorkspaceAndIsDeletedFalse(workspace, pageable);
-    
+
         // ChatRoomResponse로 변환
         return chatRoomPage.map(ChatRoomResponse::from);
     }
 
     /**
      * 채팅방 생성
+     *
      * @param creatorId
      * @param request
      * @return
@@ -88,10 +90,10 @@ public class ChatRoomServiceImpl implements ChatRoomService{
                 .build();
         chatroom = chatRoomRepository.save(chatroom);
         //memberIds 순회하면서 ChatMember 생성
-        for(Long memberId : memberIds) {
+        for (Long memberId : memberIds) {
             ChatMember chatMember = ChatMember.builder()
                     .account(accountRepository.findById(memberId)
-                            .orElseThrow(()-> new EntityNotFoundException("대상 멤버를 찾을 수 없습니다.")))
+                            .orElseThrow(() -> new EntityNotFoundException("대상 멤버를 찾을 수 없습니다.")))
                     .chatRoom(chatroom)
                     .lastReadMessage(null)
                     .build();
@@ -103,23 +105,25 @@ public class ChatRoomServiceImpl implements ChatRoomService{
         return ChatRoomResponse.from(chatroom);
     }
 
-    // ------------------------- Work in Progress --------------------------------
 
     /**
      * 채팅방 제목 변경
+     *
      * @param requestUserId
      * @param request
      * @return
      */
     @Override
     @Transactional
-    public ChatRoomResponse updateChatRoomTitle(Long requestUserId, ChatRoomUpdateTitleRequest request, Long workspaceId, Long chatId) {
+    public ChatRoomResponse updateChatRoomTitle(Long requestUserId, ChatRoomUpdateTitleRequest request,
+                                                Long workspaceId, Long chatRoomId) {
         //workspaceId가 유효한지 검사
         Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(workspaceId)
-                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다."));;
-        
+                .orElseThrow(() -> new EntityNotFoundException("워크스페이스를 찾을 수 없습니다."));
+
         //requestUserId가 chatRoom안에 속해 있는지 검사
-        Optional<ChatRoom> chatroom = chatRoomRepository.findByIdAndIsDeletedFalse(chatId);
+        Optional<ChatRoom> chatroom = Optional.ofNullable(chatRoomRepository.findByIdAndIsDeletedFalse(chatRoomId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다")));
 
         //채팅방의 멤버라면 채팅방 제목을 변경 처리
         //방장 여부나 방장을 검사하는 로직이 별도로 없으므로 누구나 변경 가능하도록 처리
@@ -127,13 +131,14 @@ public class ChatRoomServiceImpl implements ChatRoomService{
         boolean isMember = chatroom.get().getChatMembers().stream()
                 .anyMatch(m -> m.getAccount().getId().equals(requestUserId));
 
-        if(isMember) chatroom.get().setName(request.getNewName());//채팅방 이름 변경처리
+        if (isMember) chatroom.get().setName(request.getNewName());//채팅방 이름 변경처리
         else throw new EntityNotFoundException("채팅방의 멤버가 아닙니다.");
         return ChatRoomResponse.from(chatroom.orElse(null));
     }
 
     /**
-     *1:1 채팅방 생성
+     * 1:1 채팅방 생성
+     *
      * @param creatorId
      * @param request
      * @return
@@ -148,12 +153,24 @@ public class ChatRoomServiceImpl implements ChatRoomService{
         return response;
     }
 
-    //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     //채팅방 삭제
     @Override
-    public void deleteChatRoom(Long chatRoomId, Long accountId) {
-    
+    @Transactional
+    public void deleteChatRoom(Long chatRoomId, Long workspaceId) {
+        //채팅방 삭제
+        //방장이 직접 삭제하는 경우는 없고, 모든 사용자가 나갔을 때 이 메소드를 통해 삭제 요청이 온다.
+        Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(workspaceId)
+                .orElseThrow(() -> new EntityNotFoundException("워크스페이스를 찾을 수 없습니다."));
+
+        Optional<ChatRoom> chatroom = Optional.ofNullable(chatRoomRepository.findByIdAndIsDeletedFalse(chatRoomId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다")));
+
+        chatroom.get().markDeleted();
+        chatRoomRepository.save(chatroom.get());
+
+
     }
+    // ------------------------- Work in Progress --------------------------------
 
     //TODO : 임시로 선언만 해둔 메소드이며 구현 예정임 (WIP)
     //채팅방 상세정보 가져오기

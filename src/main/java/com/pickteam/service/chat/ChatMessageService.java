@@ -67,6 +67,6 @@ public interface ChatMessageService {
      * @param messageId
      * @param accountId
      */
-    void deleteMessage(Long messageId, Long accountId);
+    void deleteMessage(Long messageId, Long accountId, Long WorkspaceId, Long chatId);
 
 }

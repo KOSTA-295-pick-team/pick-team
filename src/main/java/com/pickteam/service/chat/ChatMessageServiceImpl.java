@@ -3,12 +3,15 @@ package com.pickteam.service.chat;
 import com.pickteam.domain.chat.ChatMessage;
 import com.pickteam.domain.chat.ChatRoom;
 import com.pickteam.domain.user.Account;
+import com.pickteam.domain.workspace.WorkspaceMember;
 import com.pickteam.dto.chat.ChatMessageListResponse;
 import com.pickteam.dto.chat.ChatMessageRequest;
 import com.pickteam.dto.chat.ChatMessageResponse;
 import com.pickteam.repository.chat.ChatMessageRepository;
 import com.pickteam.repository.chat.ChatRoomRepository;
 import com.pickteam.repository.user.AccountRepository;
+import com.pickteam.repository.workspace.WorkspaceMemberRepository;
+import com.pickteam.repository.workspace.WorkspaceRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +29,9 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     private final ChatMessageRepository chatMessageRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final AccountRepository accountRepository;
+    private final WorkspaceRepository workspaceRepository;
+    private final WorkspaceMemberRepository workspaceMemberRepository;
+
 
     @Override
     public ChatMessageListResponse getMessagesAfter(Long chatRoomId, Long messageId, Pageable pageable) {
@@ -101,8 +107,39 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     }
 
     @Override
-    public void deleteMessage(Long messageId, Long accountId) {
+    @Transactional
+    public void deleteMessage(Long messageId, Long accountId, Long workspaceId, Long chatRoomId) {
+        //작성자 혹은 워크스페이스 관리자만 메시지를 삭제할 수 있다
+        //accountId가 워크스페이스 관리자인지 검사한다.
+        //accountId와 chatMessage의 작성자를 비교해 작성자가 아니면 예외를 던진다
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다."));
 
+        ChatMessage message = chatMessageRepository.findById(messageId)
+                .orElseThrow(() -> new EntityNotFoundException("메시지를 찾을 수 없습니다."));
+
+        if (!message.getChatRoom().getId().equals(chatRoomId)) {
+            throw new IllegalArgumentException("해당 채팅방에 속한 메시지가 아닙니다.");
+        }
+
+        //요청자에게 삭제 권한이 있는지 검사 (작성자 혹은 워크스페이스 관리자)
+        List<WorkspaceMember> members = workspaceMemberRepository
+                .findByAccountIdAndStatus(accountId, WorkspaceMember.MemberStatus.ACTIVE);
+
+        //레포지토리에서 리스트 형태로 결과를 주므로 결과물을 리스트로 받은 뒤 필터한다
+        WorkspaceMember targetMember = members.stream()
+                .filter(m -> m.getWorkspace().getId().equals(workspaceId))
+                .findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("해당 워크스페이스의 멤버가 아닙니다."));
+
+        //작성자인지 먼저 검사
+        if (!message.getAccount().getId().equals(accountId)
+                && targetMember.getRole() != WorkspaceMember.MemberRole.ADMIN) {
+            throw new IllegalArgumentException("메시지 삭제 권한이 없습니다.");
+        }
+        //여기까지 내려왔으면 메시지를 삭제한다.
+        message.markDeleted();//soft-delete 처리
+        chatMessageRepository.save(message);
     }
 
     @Override

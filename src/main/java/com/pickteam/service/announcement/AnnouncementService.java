@@ -4,6 +4,7 @@ import com.pickteam.domain.announcement.Announcement;
 import com.pickteam.domain.team.Team;
 import com.pickteam.domain.user.Account;
 import com.pickteam.dto.announcement.AnnouncementCreateRequest;
+import com.pickteam.dto.announcement.AnnouncementPageResponse;
 import com.pickteam.dto.announcement.AnnouncementResponse;
 import com.pickteam.dto.announcement.AnnouncementUpdateRequest;
 import com.pickteam.repository.announcement.AnnouncementRepository;
@@ -13,11 +14,11 @@ import com.pickteam.repository.workspace.WorkspaceRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 공지사항 서비스
@@ -79,76 +80,6 @@ public class AnnouncementService {
     }
 
     /**
-     * 워크스페이스의 모든 공지사항 조회
-     *
-     * @param workspaceId 워크스페이스 ID
-     * @return 공지사항 목록 (최신순 정렬)
-     * @throws IllegalArgumentException 잘못된 워크스페이스 ID인 경우
-     * @throws EntityNotFoundException 워크스페이스를 찾을 수 없는 경우
-     */
-    public List<AnnouncementResponse> getAnnouncementsByWorkspace(Long workspaceId) {
-        log.info("워크스페이스 공지사항 조회 요청 - 워크스페이스 ID: {}", workspaceId);
-
-        validateWorkspaceId(workspaceId);
-        // 워크스페이스 존재 여부 확인
-        validateWorkspaceExists(workspaceId);
-
-        try {
-            List<Announcement> announcements = announcementRepository
-                    .findByWorkspaceIdAndIsDeletedFalseOrderByCreatedAtDesc(workspaceId);
-
-            log.info("워크스페이스 공지사항 조회 완료 - 워크스페이스 ID: {}, 개수: {}",
-                    workspaceId, announcements.size());
-
-            return announcements.stream()
-                    .map(AnnouncementResponse::from)
-                    .collect(Collectors.toList());
-
-        } catch (Exception e) {
-            log.error("워크스페이스 공지사항 조회 실패 - 워크스페이스 ID: {}, 오류: {}",
-                    workspaceId, e.getMessage(), e);
-            throw new RuntimeException("공지사항 조회 중 오류가 발생했습니다.", e);
-        }
-    }
-
-    /**
-     * 팀별 공지사항 조회 (워크스페이스 보안 검증 포함)
-     *
-     * @param workspaceId 워크스페이스 ID (보안 검증용)
-     * @param teamId 팀 ID
-     * @return 해당 팀의 공지사항 목록 (최신순 정렬)
-     * @throws IllegalArgumentException 잘못된 ID이거나 워크스페이스-팀 불일치인 경우
-     * @throws EntityNotFoundException 팀을 찾을 수 없는 경우
-     */
-    public List<AnnouncementResponse> getAnnouncementsByTeam(Long workspaceId, Long teamId) {
-        log.info("팀 공지사항 조회 요청 - 워크스페이스 ID: {}, 팀 ID: {}", workspaceId, teamId);
-
-        validateWorkspaceId(workspaceId);
-        validateTeamId(teamId);
-
-        // 팀 존재 여부 확인 및 워크스페이스 일치 검증
-        Team team = findTeamById(teamId);
-        validateTeamBelongsToWorkspace(team, workspaceId);
-
-        try {
-            List<Announcement> announcements = announcementRepository
-                    .findByTeamIdAndIsDeletedFalseOrderByCreatedAtDesc(teamId);
-
-            log.info("팀 공지사항 조회 완료 - 워크스페이스 ID: {}, 팀 ID: {}, 개수: {}",
-                    workspaceId, teamId, announcements.size());
-
-            return announcements.stream()
-                    .map(AnnouncementResponse::from)
-                    .collect(Collectors.toList());
-
-        } catch (Exception e) {
-            log.error("팀 공지사항 조회 실패 - 워크스페이스 ID: {}, 팀 ID: {}, 오류: {}",
-                    workspaceId, teamId, e.getMessage(), e);
-            throw e;
-        }
-    }
-
-    /**
      * 단일 공지사항 상세 조회 (워크스페이스 보안 검증 포함)
      *
      * @param workspaceId 워크스페이스 ID (보안 검증용)
@@ -177,33 +108,6 @@ public class AnnouncementService {
         } catch (Exception e) {
             log.error("공지사항 조회 실패 - 워크스페이스 ID: {}, 공지사항 ID: {}, 오류: {}",
                     workspaceId, announcementId, e.getMessage(), e);
-            throw e;
-        }
-    }
-
-    /**
-     * 단일 공지사항 상세 조회
-     *
-     * @param announcementId 공지사항 ID
-     * @return 공지사항 상세 정보
-     * @throws EntityNotFoundException 공지사항을 찾을 수 없는 경우
-     * @throws IllegalArgumentException 잘못된 공지사항 ID인 경우
-     */
-    public AnnouncementResponse getAnnouncement(Long announcementId) {
-        log.info("공지사항 조회 요청 - ID: {}", announcementId);
-
-        validateAnnouncementId(announcementId);
-
-        try {
-            Announcement announcement = findAnnouncementById(announcementId);
-
-            log.info("공지사항 조회 완료 - ID: {}, 제목: {}",
-                    announcementId, announcement.getTitle());
-
-            return AnnouncementResponse.from(announcement);
-
-        } catch (Exception e) {
-            log.error("공지사항 조회 실패 - ID: {}, 오류: {}", announcementId, e.getMessage(), e);
             throw e;
         }
     }
@@ -295,6 +199,87 @@ public class AnnouncementService {
         } catch (Exception e) {
             log.error("공지사항 삭제 실패 - 워크스페이스 ID: {}, 공지사항 ID: {}, 계정 ID: {}, 오류: {}",
                     workspaceId, announcementId, accountId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    /**
+     * 워크스페이스의 공지사항 페이징 조회
+     *
+     * @param workspaceId 워크스페이스 ID
+     * @param page 페이지 번호 (0부터 시작)
+     * @param size 페이지 크기
+     * @return 공지사항 페이징 응답
+     * @throws IllegalArgumentException 잘못된 워크스페이스 ID인 경우
+     * @throws EntityNotFoundException 워크스페이스를 찾을 수 없는 경우
+     */
+    public AnnouncementPageResponse getAnnouncementsByWorkspaceWithPaging(Long workspaceId, int page, int size) {
+        log.info("워크스페이스 공지사항 페이징 조회 요청 - 워크스페이스 ID: {}, 페이지: {}, 크기: {}", 
+                workspaceId, page, size);
+
+        validateWorkspaceId(workspaceId);
+        validateWorkspaceExists(workspaceId);
+        validatePagingParams(page, size);
+
+        try {
+            Pageable pageable = PageRequest.of(page, size);
+            Page<Announcement> announcementPage = announcementRepository
+                    .findByWorkspaceIdAndIsDeletedFalse(workspaceId, pageable);
+
+            Page<AnnouncementResponse> responsePage = announcementPage
+                    .map(AnnouncementResponse::from);
+
+            log.info("워크스페이스 공지사항 페이징 조회 완료 - 워크스페이스 ID: {}, 총 개수: {}, 현재 페이지: {}/{}",
+                    workspaceId, responsePage.getTotalElements(), page + 1, responsePage.getTotalPages());
+
+            return AnnouncementPageResponse.from(responsePage);
+
+        } catch (Exception e) {
+            log.error("워크스페이스 공지사항 페이징 조회 실패 - 워크스페이스 ID: {}, 오류: {}",
+                    workspaceId, e.getMessage(), e);
+            throw new RuntimeException("공지사항 조회 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    /**
+     * 팀별 공지사항 페이징 조회 (워크스페이스 보안 검증 포함)
+     *
+     * @param workspaceId 워크스페이스 ID (보안 검증용)
+     * @param teamId 팀 ID
+     * @param page 페이지 번호 (0부터 시작)
+     * @param size 페이지 크기
+     * @return 해당 팀의 공지사항 페이징 응답
+     * @throws IllegalArgumentException 잘못된 ID이거나 워크스페이스-팀 불일치인 경우
+     * @throws EntityNotFoundException 팀을 찾을 수 없는 경우
+     */
+    public AnnouncementPageResponse getAnnouncementsByTeamWithPaging(Long workspaceId, Long teamId, int page, int size) {
+        log.info("팀 공지사항 페이징 조회 요청 - 워크스페이스 ID: {}, 팀 ID: {}, 페이지: {}, 크기: {}", 
+                workspaceId, teamId, page, size);
+
+        validateWorkspaceId(workspaceId);
+        validateTeamId(teamId);
+        validatePagingParams(page, size);
+
+        // 팀 존재 여부 확인 및 워크스페이스 일치 검증
+        Team team = findTeamById(teamId);
+        validateTeamBelongsToWorkspace(team, workspaceId);
+
+        try {
+            Pageable pageable = PageRequest.of(page, size);
+            Page<Announcement> announcementPage = announcementRepository
+                    .findByTeamIdAndIsDeletedFalse(teamId, pageable);
+
+            Page<AnnouncementResponse> responsePage = announcementPage
+                    .map(AnnouncementResponse::from);
+
+            log.info("팀 공지사항 페이징 조회 완료 - 워크스페이스 ID: {}, 팀 ID: {}, 총 개수: {}, 현재 페이지: {}/{}",
+                    workspaceId, teamId, responsePage.getTotalElements(), page + 1, responsePage.getTotalPages());
+
+            return AnnouncementPageResponse.from(responsePage);
+
+        } catch (Exception e) {
+            log.error("팀 공지사항 페이징 조회 실패 - 워크스페이스 ID: {}, 팀 ID: {}, 오류: {}",
+                    workspaceId, teamId, e.getMessage(), e);
             throw e;
         }
     }
@@ -418,6 +403,25 @@ public class AnnouncementService {
     private void validateDeletePermission(Announcement announcement, Long accountId) {
         if (!announcement.isAuthor(accountId)) {
             throw new IllegalArgumentException("공지사항을 삭제할 권한이 없습니다.");
+        }
+    }
+
+    /**
+     * 페이징 파라미터 유효성 검증
+     *
+     * @param page 페이지 번호
+     * @param size 페이지 크기
+     * @throws IllegalArgumentException 잘못된 페이징 파라미터인 경우
+     */
+    private void validatePagingParams(int page, int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException("페이지 번호는 0 이상이어야 합니다.");
+        }
+        if (size <= 0) {
+            throw new IllegalArgumentException("페이지 크기는 1 이상이어야 합니다.");
+        }
+        if (size > 50) {
+            throw new IllegalArgumentException("페이지 크기는 50 이하여야 합니다.");
         }
     }
 }

@@ -4,6 +4,7 @@ import com.pickteam.domain.chat.ChatMember;
 import com.pickteam.domain.chat.ChatRoom;
 import com.pickteam.dto.ApiResponse;
 import com.pickteam.dto.chat.*;
+import com.pickteam.security.UserPrincipal;
 import com.pickteam.service.chat.ChatMemberService;
 import com.pickteam.service.chat.ChatMessageService;
 import com.pickteam.service.chat.ChatRoomService;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,6 +28,7 @@ public class ChatRoomController {
     private final ChatRoomService chatRoomService;
     private final ChatMessageService chatMessageService;
     private final ChatMemberService chatMemberService;
+
 
     /**
      * 워크스페이스의 채팅방 목록을 조회합니다.
@@ -51,8 +54,9 @@ public class ChatRoomController {
      * @return 생성된 채팅방 정보
      */
     @PostMapping("/create")
-    public ResponseEntity<ApiResponse<ChatRoomResponse>> createChatRoom(@RequestParam Long creatorId,
+    public ResponseEntity<ApiResponse<ChatRoomResponse>> createChatRoom(@AuthenticationPrincipal UserPrincipal account,
                                                                         @RequestBody ChatRoomCreateRequest request) {
+        Long creatorId = account.getId();
         ChatRoomResponse response = chatRoomService.createChatRoom(creatorId, request);
         return ResponseEntity.ok(ApiResponse.success("채팅방 생성 성공", response));
     }
@@ -67,11 +71,12 @@ public class ChatRoomController {
      * @return 변경된 채팅방 정보
      */
     @PatchMapping("/{chatRoomId}/updateTitle")
-    ResponseEntity<ApiResponse<ChatRoomResponse>> updateChatRoomTitle(@RequestParam Long requestUserId,
+    ResponseEntity<ApiResponse<ChatRoomResponse>> updateChatRoomTitle(@AuthenticationPrincipal UserPrincipal account,
                                                                       @RequestBody ChatRoomUpdateTitleRequest request,
                                                                       @PathVariable Long workspaceId,
                                                                       @PathVariable Long chatRoomId
     ) {
+        Long requestUserId = account.getId();
         ChatRoomResponse response = chatRoomService.updateChatRoomTitle(requestUserId, request, workspaceId, chatRoomId);
         return ResponseEntity.ok(ApiResponse.success("채팅방 제목 변경 성공", response));
     }
@@ -85,8 +90,9 @@ public class ChatRoomController {
      * @return 생성된 DM 채팅방 정보
      */
     @PostMapping("/create-dm")
-    ResponseEntity<ApiResponse<ChatRoomResponse>> createDmChatRoom(@RequestParam Long creatorId,
+    ResponseEntity<ApiResponse<ChatRoomResponse>> createDmChatRoom(@AuthenticationPrincipal UserPrincipal account,
                                                                    @RequestBody ChatRoomCreateRequest request) {
+        Long creatorId = account.getId();
         ChatRoomResponse response = chatRoomService.createDmChatRoom(creatorId, request);
         return ResponseEntity.ok(ApiResponse.success("채팅방 생성 성공", response));
     }
@@ -139,8 +145,9 @@ public class ChatRoomController {
     // 🚨 TODO: 인증된 사용자 기준으로 accountId 처리할 것
     // 현재는 연동 테스트를 위한 임시 구현
     @PatchMapping("/{chatRoomId}/messages/{messageId}/delete")
-    public void deleteMessage(@PathVariable Long messageId, @RequestParam Long accountId, @PathVariable Long workspaceId,
+    public void deleteMessage(@PathVariable Long messageId, @AuthenticationPrincipal UserPrincipal account, @PathVariable Long workspaceId,
                               @PathVariable Long chatRoomId) {
+        Long accountId = account.getId();
         chatMessageService.deleteMessage(messageId, accountId, workspaceId, chatRoomId);
     }
 
@@ -159,8 +166,9 @@ public class ChatRoomController {
     public ResponseEntity<ApiResponse<ChatMemberResponse>> joinChatRoom(
             @PathVariable Long workspaceId,
             @PathVariable Long chatRoomId,
-            @RequestParam Long accountId
+            @AuthenticationPrincipal UserPrincipal account
     ) {
+        Long accountId = account.getId();
         ChatMember joinedMember = chatMemberService.joinChatRoom(accountId, workspaceId, chatRoomId);
         return ResponseEntity.ok(ApiResponse.success("채팅방 입장 성공", ChatMemberResponse.from(joinedMember)));
     }
@@ -179,8 +187,9 @@ public class ChatRoomController {
     public ResponseEntity<ApiResponse<Void>> leaveChatRoom(
             @PathVariable Long workspaceId,
             @PathVariable Long chatRoomId,
-            @RequestParam Long accountId
+            @AuthenticationPrincipal UserPrincipal account
     ) {
+        Long accountId = account.getId();
         chatMemberService.leaveChatRoom(workspaceId, chatRoomId, accountId);
         return ResponseEntity.ok(ApiResponse.success("채팅방 퇴장 성공", null));
     }
@@ -201,9 +210,10 @@ public class ChatRoomController {
     public ResponseEntity<ApiResponse<Void>> updateLastReadMessage(
             @PathVariable Long workspaceId,
             @PathVariable Long chatRoomId,
-            @RequestParam Long accountId,
+            @AuthenticationPrincipal UserPrincipal account,
             @RequestParam Long messageId
     ) {
+        Long accountId = account.getId();
         chatMemberService.updateLastReadMessage(workspaceId, chatRoomId, accountId, messageId);
         return ResponseEntity.ok(ApiResponse.success("마지막 읽은 메시지 갱신 완료", null));
     }

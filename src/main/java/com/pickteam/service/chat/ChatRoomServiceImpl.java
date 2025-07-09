@@ -3,7 +3,9 @@ package com.pickteam.service.chat;
 import com.pickteam.domain.chat.ChatMember;
 import com.pickteam.domain.chat.ChatRoom;
 import com.pickteam.domain.chat.ChatMessage;
+import com.pickteam.domain.enums.ChatRoomType;
 import com.pickteam.domain.workspace.Workspace;
+import com.pickteam.domain.workspace.WorkspaceMember;
 import com.pickteam.dto.chat.ChatRoomCreateRequest;
 import com.pickteam.dto.chat.ChatRoomDetailResponse;
 import com.pickteam.dto.chat.ChatRoomResponse;
@@ -12,6 +14,7 @@ import com.pickteam.repository.chat.ChatMemberRepository;
 import com.pickteam.repository.chat.ChatRoomRepository;
 import com.pickteam.repository.team.TeamRepository;
 import com.pickteam.repository.user.AccountRepository;
+import com.pickteam.repository.workspace.WorkspaceMemberRepository;
 import com.pickteam.repository.workspace.WorkspaceRepository;
 import com.pickteam.service.WorkspaceService;
 import jakarta.persistence.EntityNotFoundException;
@@ -21,9 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -43,6 +44,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     private final AccountRepository accountRepository;
     private final TeamRepository teamRepository;
     private final ChatMemberRepository chatMemberRepository;
+    private final WorkspaceMemberRepository workspaceMemberRepository;
 
     /**
      * 채팅방 목록 읽어오기
@@ -77,9 +79,24 @@ public class ChatRoomServiceImpl implements ChatRoomService {
         Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(request.getWorkspaceId())
                 .orElseThrow(() -> new EntityNotFoundException("해당하는 워크스페이스가 없습니다."));
 
+        //creator가 해당 워크스페이스 멤버인지 확인
+        List<WorkspaceMember> memberList = workspaceMemberRepository
+                .findByAccountIdAndStatus(creatorId, WorkspaceMember.MemberStatus.ACTIVE);
+
+        boolean isMember = memberList.stream()
+                .anyMatch(m -> m.getWorkspace().getId().equals(request.getWorkspaceId()));
+
+        if (!isMember) {
+            throw new IllegalArgumentException("워크스페이스 멤버가 아닙니다.");
+        }
 
         List<Long> memberIds = request.getChatMemberIdList();
         List<ChatMember> chatMembers = new ArrayList<>();
+
+        //중복 멤버 검사 (멤버 목록 사이즈와 해시셋으로 뽑은 중복 제거 사이즈를 비교)
+        if (memberIds.size() != new HashSet<>(memberIds).size()) {
+            throw new IllegalArgumentException("채팅방 멤버에 중복된 사용자가 포함되어 있습니다.");
+        }
 
         ChatRoom chatroom = ChatRoom.builder()
                 .name(request.getName())

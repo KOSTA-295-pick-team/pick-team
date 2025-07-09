@@ -71,7 +71,6 @@ public class JwtTokenProvider {
                 .signWith(getSigningKey())
                 .compact();
 
-        log.debug("JWT Access Token 생성 완료 - 사용자 ID: {}, 토큰 길이: {}", userId, token.length());
         return token;
     }
 
@@ -133,9 +132,7 @@ public class JwtTokenProvider {
                     .parseSignedClaims(token);
             return true;
         } catch (MalformedJwtException e) {
-            log.warn("잘못된 형식의 JWT 토큰이 감지되었습니다. 토큰 길이: {}, 토큰 시작: {}",
-                    token == null ? 0 : token.length(),
-                    token == null ? "null" : (token.length() > 20 ? token.substring(0, 20) + "..." : token));
+            log.warn("잘못된 형식의 JWT 토큰이 감지되었습니다");
         } catch (ExpiredJwtException e) {
             log.warn("만료된 JWT 토큰이 감지되었습니다");
         } catch (UnsupportedJwtException e) {

@@ -163,9 +163,6 @@ public class UserController {
 
         JwtAuthenticationResponse response = authService.authenticateWithClientInfo(request, sessionInfo, httpRequest);
         log.info("개선된 로그인 성공 - 이메일: {}", maskEmail(request.getEmail()));
-        log.info("로그인 응답 토큰 정보 - Access Token 길이: {}, Token Type: {}",
-                response.getAccessToken() != null ? response.getAccessToken().length() : 0,
-                response.getTokenType());
         return ResponseEntity.ok(ApiResponse.success(UserControllerMessages.LOGIN_SUCCESS, response));
     }
 

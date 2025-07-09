@@ -450,9 +450,6 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = generateAccessToken(account.getId(), account.getEmail(), account.getName());
         String refreshToken = generateRefreshTokenWithSessionInfo(account.getId(), sessionInfo, httpRequest);
 
-        log.debug("로그인 토큰 생성 완료 - Access Token 길이: {}, Refresh Token 길이: {}",
-                accessToken.length(), refreshToken.length());
-
         // 4. 로그인 성공 로깅
         RefreshToken tokenEntity = refreshTokenRepository.findByToken(refreshToken)
                 .orElseThrow(() -> new IllegalStateException("생성된 RefreshToken을 찾을 수 없습니다"));

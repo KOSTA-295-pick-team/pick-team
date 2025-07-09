@@ -590,6 +590,9 @@ public class AuthServiceImpl implements AuthService {
             // Refresh Token 생성
             String refreshToken = generateRefreshToken(account.getId());
 
+            // 사용자 프로필 정보 생성
+            UserProfileResponse userProfile = mapToUserProfile(account);
+
             log.info("Account 객체로부터 JWT 토큰 생성 완료 - 사용자 ID: {}", account.getId());
 
             return JwtAuthenticationResponse.builder()
@@ -597,6 +600,7 @@ public class AuthServiceImpl implements AuthService {
                     .refreshToken(refreshToken)
                     .tokenType("Bearer")
                     .expiresIn(jwtTokenProvider.getJwtExpirationMs())
+                    .user(userProfile)
                     .build();
 
         } catch (Exception e) {
@@ -638,11 +642,15 @@ public class AuthServiceImpl implements AuthService {
 
             log.info("클라이언트 정보를 포함하여 Account 객체로부터 JWT 토큰 생성 완료 - 사용자 ID: {}", account.getId());
 
+            // 사용자 프로필 정보 생성
+            UserProfileResponse userProfile = mapToUserProfile(account);
+
             return JwtAuthenticationResponse.builder()
                     .accessToken(accessToken)
                     .refreshToken(refreshToken)
                     .tokenType("Bearer")
                     .expiresIn(jwtTokenProvider.getJwtExpirationMs())
+                    .user(userProfile)
                     .build();
 
         } catch (Exception e) {

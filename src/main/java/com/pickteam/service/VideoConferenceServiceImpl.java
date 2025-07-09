@@ -9,7 +9,7 @@ import com.pickteam.exception.VideoConferenceErrorCode;
 import com.pickteam.exception.VideoConferenceException;
 import com.pickteam.repository.VideoChannelRepository;
 import com.pickteam.repository.VideoMemberRepository;
-import com.pickteam.util.VideoConferenceControllMsg;
+import com.pickteam.util.VideoConferenceControlMsg;
 import io.livekit.server.AccessToken;
 import io.livekit.server.RoomJoin;
 import io.livekit.server.RoomName;
@@ -121,7 +121,7 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
         VideoMember member = videoMemberRepository.findById(memberId).orElseThrow(() -> new VideoConferenceException(VideoConferenceErrorCode.MEMBER_NOT_FOUND));
         videoMemberRepository.delete(member);
         messagingTemplate.convertAndSendToUser(member.getAccount().getEmail(), "/sub/chat/" + channelId, new WebSocketChatDTO(null, null, "disconnect", "controll"));
-        messagingTemplate.convertAndSend("/sub/video/" + channelId, new VideoConferenceMsgDTO(VideoConferenceControllMsg.STOP_SCREEN_SHARING_CONFIRMED, member.getAccount().getEmail(), null));
+        messagingTemplate.convertAndSend("/sub/video/" + channelId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.STOP_SCREEN_SHARING_CONFIRMED, member.getAccount().getEmail(), null));
     }
 
 
@@ -140,35 +140,36 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
             throw new VideoConferenceException(VideoConferenceErrorCode.MEMBER_NOT_FOUND);
         }
         AccessToken token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
-        String metadataJson = String.format("{\"userName\":\"%s\"}", username);
+        String metadataJson = String.format("{\"userName\":\"%s\"}", username.replace("\"", "\\\"").replace("\n", "\\n"));
 
         token.setName(username);
         token.setMetadata(metadataJson);
         token.setIdentity(userEmail);
+        token.setTtl(3600);
         token.addGrants(new RoomJoin(true), new RoomName(String.valueOf(videoChannelId)));
         return token.toJwt();
 
     }
 
     @Override
-    public void handleVideoConferenceEvent(String userEmail, Long roomId, VideoConferenceControllMsg event) {
-        if (VideoConferenceControllMsg.GET_PARTICIPANTS.equals(event)) {
-            messagingTemplate.convertAndSendToUser(userEmail,"/sub/video/" + roomId, new VideoConferenceMsgDTO(VideoConferenceControllMsg.GET_PARTICIPANTS_CONFIRMED, null, participantsList.get(roomId)));
-        } else if (VideoConferenceControllMsg.START_SCREEN_SHARING.equals(event)) {
+    public void handleVideoConferenceEvent(String userEmail, Long roomId, VideoConferenceControlMsg event) {
+        if (VideoConferenceControlMsg.GET_PARTICIPANTS.equals(event)) {
+            messagingTemplate.convertAndSendToUser(userEmail, "/sub/video/" + roomId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.GET_PARTICIPANTS_CONFIRMED, null, participantsList.get(roomId)));
+        } else if (VideoConferenceControlMsg.START_SCREEN_SHARING.equals(event)) {
             String currentSharingUserEmail = currentSharingUser.get(roomId);
             if (currentSharingUserEmail != null) {
-                messagingTemplate.convertAndSendToUser(currentSharingUserEmail, "/sub/video/" + roomId, new VideoConferenceMsgDTO(VideoConferenceControllMsg.STOP_SCREEN_SHARING, null, null));
+                messagingTemplate.convertAndSendToUser(currentSharingUserEmail, "/sub/video/" + roomId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.STOP_SCREEN_SHARING, null, null));
                 sharingWaitingUser.put(roomId, userEmail);
             } else {
-                messagingTemplate.convertAndSendToUser(userEmail, "/sub/video/" + roomId, new VideoConferenceMsgDTO(VideoConferenceControllMsg.START_SCREEN_SHARING_CONFIRMED, userEmail, null));
+                messagingTemplate.convertAndSendToUser(userEmail, "/sub/video/" + roomId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.START_SCREEN_SHARING_CONFIRMED, userEmail, null));
                 currentSharingUser.put(roomId, userEmail);
             }
-        } else if (VideoConferenceControllMsg.STOP_SCREEN_SHARING_CONFIRM.equals(event)) {
+        } else if (VideoConferenceControlMsg.STOP_SCREEN_SHARING_CONFIRM.equals(event)) {
             currentSharingUser.remove(roomId);
-            messagingTemplate.convertAndSend("/sub/video/" + roomId, new VideoConferenceMsgDTO(VideoConferenceControllMsg.STOP_SCREEN_SHARING_CONFIRMED, userEmail, null));
+            messagingTemplate.convertAndSend("/sub/video/" + roomId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.STOP_SCREEN_SHARING_CONFIRMED, userEmail, null));
             if (sharingWaitingUser.get(roomId) != null) {
                 currentSharingUser.put(roomId, sharingWaitingUser.get(roomId));
-                messagingTemplate.convertAndSendToUser(currentSharingUser.get(roomId), "/sub/video/" + roomId, new VideoConferenceMsgDTO(VideoConferenceControllMsg.START_SCREEN_SHARING_CONFIRMED, currentSharingUser.get(roomId), null));
+                messagingTemplate.convertAndSendToUser(currentSharingUser.get(roomId), "/sub/video/" + roomId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.START_SCREEN_SHARING_CONFIRMED, currentSharingUser.get(roomId), null));
                 sharingWaitingUser.remove(roomId);
             }
         }
@@ -195,14 +196,16 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
                     participantsList.put(channelId, new ArrayList<ParticipantDTO>());
                     participantsList.get(channelId).add(participantDTO);
                 }
-            }else{
+            } else {
                 if (participantsList.containsKey(channelId)) {
-                    participantsList.get(channelId).forEach(participantDTO -> {if(participantDTO.getIdentity().equals(event.getParticipant().getIdentity())) {
-                        participantsList.get(channelId).remove(participantDTO);
-                    }});
+                    participantsList.get(channelId).forEach(participantDTO -> {
+                        if (participantDTO.getIdentity().equals(event.getParticipant().getIdentity())) {
+                            participantsList.get(channelId).remove(participantDTO);
+                        }
+                    });
                 }
             }
-            messagingTemplate.convertAndSend("/sub/video/" + channelId, new VideoConferenceMsgDTO(VideoConferenceControllMsg.GET_PARTICIPANTS_CONFIRMED, null, participantsList.get(channelId)));
+            messagingTemplate.convertAndSend("/sub/video/" + channelId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.GET_PARTICIPANTS_CONFIRMED, null, participantsList.get(channelId)));
         }
     }
 }

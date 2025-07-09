@@ -1,6 +1,6 @@
 package com.pickteam.dto;
 
-import com.pickteam.util.VideoConferenceControllMsg;
+import com.pickteam.util.VideoConferenceControlMsg;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,7 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class VideoConferenceMsgDTO {
-    private VideoConferenceControllMsg type;
+    private VideoConferenceControlMsg type;
     private String userEmail;
     private List<ParticipantDTO> participants;
 }

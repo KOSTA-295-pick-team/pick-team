@@ -19,6 +19,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.http.HttpMethod;
 
 import java.util.Arrays;
 
@@ -80,7 +81,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/files/*/download").authenticated()
 
                         // 전체 사용자 프로필 조회는 공개 (팀 매칭용)
-                        .requestMatchers("/api/users", "/api/users/recommend").permitAll()
+                        .requestMatchers("/api/users").permitAll()
+
+                        // 특정 사용자 프로필 조회는 공개 (팀 매칭용)
+                        .requestMatchers(HttpMethod.GET, "/api/users/{userId}").permitAll()
 
                         // ADMIN 권한 필요
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

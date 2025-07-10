@@ -3,19 +3,24 @@ package com.pickteam.service.chat;
 import com.pickteam.domain.chat.ChatMember;
 import com.pickteam.domain.chat.ChatMessage;
 import com.pickteam.domain.chat.ChatRoom;
+import com.pickteam.domain.enums.SseEventType;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.workspace.Workspace;
+import com.pickteam.dto.chat.ChatMemberJoinNotificationDto;
+import com.pickteam.dto.chat.ChatMemberLeaveNotificationDto;
 import com.pickteam.dto.chat.ChatMemberResponse;
 import com.pickteam.repository.chat.ChatMemberRepository;
 import com.pickteam.repository.chat.ChatMessageRepository;
 import com.pickteam.repository.chat.ChatRoomRepository;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.workspace.WorkspaceRepository;
+import com.pickteam.service.sse.SseService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,6 +33,7 @@ public class ChatMemberServiceImpl implements ChatMemberService {
     private final ChatMessageRepository chatMessageRepository;
     private final WorkspaceRepository workspaceRepository;
     private final AccountRepository accountRepository;
+    private final SseService sseService;
 
     @Override
     @Transactional
@@ -57,7 +63,38 @@ public class ChatMemberServiceImpl implements ChatMemberService {
                 .lastReadMessage(null)
                 .build();
 
-        return chatMemberRepository.save(chatMember);
+        ChatMember savedChatMember = chatMemberRepository.save(chatMember);
+
+        notifyChatMemberJoined(chatId, accountId);
+
+        return savedChatMember;
+    }
+
+    /**
+     * 채팅방 멤버 입장을 다른 멤버들에게 알립니다.
+     * 
+     * @param chatRoomId 채팅방 ID
+     * @param joinedAccountId 입장한 사용자 ID
+     */
+    private void notifyChatMemberJoined(Long chatRoomId, Long joinedAccountId) {
+        // 채팅방의 활성 멤버 목록 조회
+        List<ChatMember> activeMembers = chatMemberRepository.findAllByChatRoomIdAndIsDeletedFalse(chatRoomId);
+        
+        // 입장한 사용자 정보 조회
+        Account joinedAccount = accountRepository.findById(joinedAccountId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+        
+        // 알림 DTO 생성
+        ChatMemberJoinNotificationDto notificationDto = ChatMemberJoinNotificationDto.from(chatRoomId, joinedAccount);
+
+        // 모든 활성 멤버에게 SSE 이벤트 전송
+        activeMembers.forEach(member -> {
+            sseService.sendToUser(
+                member.getAccount().getId(),
+                SseEventType.CHAT_MEMBER_JOINED.name(),
+                notificationDto
+            );
+        });
     }
 
     @Transactional
@@ -76,6 +113,35 @@ public class ChatMemberServiceImpl implements ChatMemberService {
         // chatRoom에서 사용자 제거 처리 (soft-delete)
         chatMember.markDeleted();
         chatMemberRepository.save(chatMember);
+
+        notifyChatMemberLeft(chatRoomId, accountId);
+    }
+
+    /**
+     * 채팅방 멤버 퇴장을 다른 멤버들에게 알립니다.
+     * 
+     * @param chatRoomId 채팅방 ID
+     * @param leftAccountId 퇴장한 사용자 ID
+     */
+    private void notifyChatMemberLeft(Long chatRoomId, Long leftAccountId) {
+        // 채팅방의 남은 활성 멤버 목록 조회
+        List<ChatMember> remainingMembers = chatMemberRepository.findAllByChatRoomIdAndIsDeletedFalse(chatRoomId);
+        
+        // 퇴장한 사용자 정보 조회
+        Account leftAccount = accountRepository.findById(leftAccountId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+        
+        // 알림 DTO 생성
+        ChatMemberLeaveNotificationDto notificationDto = ChatMemberLeaveNotificationDto.from(chatRoomId, leftAccount);
+
+        // 남은 활성 멤버들에게 SSE 이벤트 전송
+        remainingMembers.forEach(member -> {
+            sseService.sendToUser(
+                member.getAccount().getId(),
+                SseEventType.CHAT_MEMBER_LEFT.name(),
+                notificationDto
+            );
+        });
     }
 
     @Override

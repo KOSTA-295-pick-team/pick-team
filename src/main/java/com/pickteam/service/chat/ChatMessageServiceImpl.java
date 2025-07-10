@@ -1,17 +1,22 @@
 package com.pickteam.service.chat;
 
+import com.pickteam.domain.chat.ChatMember;
 import com.pickteam.domain.chat.ChatMessage;
 import com.pickteam.domain.chat.ChatRoom;
+import com.pickteam.domain.enums.SseEventType;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.workspace.WorkspaceMember;
 import com.pickteam.dto.chat.ChatMessageListResponse;
+import com.pickteam.dto.chat.ChatMessageNotificationDto;
 import com.pickteam.dto.chat.ChatMessageRequest;
 import com.pickteam.dto.chat.ChatMessageResponse;
+import com.pickteam.repository.chat.ChatMemberRepository;
 import com.pickteam.repository.chat.ChatMessageRepository;
 import com.pickteam.repository.chat.ChatRoomRepository;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.workspace.WorkspaceMemberRepository;
 import com.pickteam.repository.workspace.WorkspaceRepository;
+import com.pickteam.service.sse.SseService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +25,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +38,8 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     private final AccountRepository accountRepository;
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
-
+    private final ChatMemberRepository chatMemberRepository;
+    private final SseService sseService;
 
     @Override
     public ChatMessageListResponse getMessagesAfter(Long chatRoomId, Long messageId, Pageable pageable) {
@@ -73,7 +81,6 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         return ChatMessageListResponse.from(messages.map(ChatMessageResponse::from));
     }
 
-
     /**
      * 메시지 전송
      *
@@ -103,7 +110,13 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 .content(request.getContent())
                 .build();
 
-        return ChatMessageResponse.from(chatMessageRepository.save(message));
+        ChatMessage savedMessage = chatMessageRepository.save(message);
+        ChatMessageResponse response = ChatMessageResponse.from(savedMessage);
+
+        // 채팅방의 모든 멤버에게 새 메시지 알림 전송
+        notifyNewMessage(chatRoomId, response);
+
+        return response;
     }
 
     @Override
@@ -137,20 +150,62 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 && targetMember.getRole() != WorkspaceMember.MemberRole.ADMIN) {
             throw new IllegalArgumentException("메시지 삭제 권한이 없습니다.");
         }
-        //여기까지 내려왔으면 메시지를 삭제한다.
-        message.markDeleted();//soft-delete 처리
+
+        message.markDeleted(); //soft-delete 처리
         chatMessageRepository.save(message);
+
+        // 메시지 삭제 알림 전송
+        notifyMessageDeleted(chatRoomId, messageId);
     }
-// ------------------------------------- DEPRECATED --------------------------------------------------------------
-//    //TODO : 채팅방 검색 기능이 필요할 경우 구현
-//    @Override
-//    public Page<ChatMessageResponse> searchMessagesByUser(Long chatRoomId, Long accountId, Pageable pageable) {
-//        return null;
-//    }
-//
-//    //TODO : 채팅방 검색 기능이 필요할 경우 구현
-//    @Override
-//    public Page<ChatMessageResponse> searchMessagesByContent(Long chatRoomId, String keyword, Pageable pageable) {
-//        return null;
-//    }
+
+    /**
+     * 채팅방의 모든 활성 멤버에게 새 메시지 이벤트를 전송한다.
+     * 발신자를 포함한 모든 멤버가 이벤트를 수신한다.
+     */
+    private void notifyNewMessage(Long chatRoomId, ChatMessageResponse message) {
+        List<ChatMember> activeMembers = chatMemberRepository.findAllByChatRoomIdAndIsDeletedFalse(chatRoomId);
+        
+        ChatMessageNotificationDto notificationDto = ChatMessageNotificationDto.from(message);
+        
+        activeMembers.forEach(member -> {
+            sseService.sendToUser(
+                member.getAccount().getId(),
+                SseEventType.NEW_CHAT_MESSAGE.name(),
+                notificationDto
+            );
+        });
+    }
+
+    /**
+     * 채팅방의 모든 활성 멤버에게 메시지 삭제 이벤트를 전송한다.
+     */
+    private void notifyMessageDeleted(Long chatRoomId, Long messageId) {
+        List<ChatMember> activeMembers = chatMemberRepository.findAllByChatRoomIdAndIsDeletedFalse(chatRoomId);
+        
+        Map<String, Object> eventData = new HashMap<>();
+        eventData.put("messageId", messageId);
+        eventData.put("chatRoomId", chatRoomId);
+
+        // 모든 멤버에게 메시지 삭제 이벤트 전송
+        activeMembers.forEach(member -> {
+            sseService.sendToUser(
+                member.getAccount().getId(),
+                SseEventType.CHAT_MESSAGE_DELETED.name(),
+                eventData
+            );
+        });
+    }
+
+    // ------------------------------------- DEPRECATED --------------------------------------------------------------
+    //    //TODO : 채팅방 검색 기능이 필요할 경우 구현
+    //    @Override
+    //    public Page<ChatMessageResponse> searchMessagesByUser(Long chatRoomId, Long accountId, Pageable pageable) {
+    //        return null;
+    //    }
+    //
+    //    //TODO : 채팅방 검색 기능이 필요할 경우 구현
+    //    @Override
+    //    public Page<ChatMessageResponse> searchMessagesByContent(Long chatRoomId, String keyword, Pageable pageable) {
+    //        return null;
+    //    }
 }

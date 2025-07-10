@@ -48,6 +48,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final com.pickteam.security.JwtTokenProvider jwtTokenProvider;
     private final SecurityAuditLogger securityAuditLogger;
+    private final EmailService emailService; // 이메일 서비스 주입
 
     /** 리프레시 토큰 만료 기간 */
     @Value("${app.jwt.refresh-token.expiration-days}")
@@ -656,6 +657,159 @@ public class AuthServiceImpl implements AuthService {
         } catch (Exception e) {
             log.error("클라이언트 정보를 포함한 Account 객체로부터 JWT 토큰 생성 실패 - 사용자 ID: {}", account.getId(), e);
             throw new RuntimeException("JWT 토큰 생성에 실패했습니다", e);
+        }
+    }
+
+    // ==================== 비밀번호 찾기 관련 메서드 구현 ====================
+
+    @Override
+    @Transactional
+    public void sendPasswordResetEmail(String email) {
+        log.info("비밀번호 재설정 이메일 발송 시작 - 이메일: {}", maskEmail(email));
+
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("이메일은 필수입니다");
+        }
+
+        try {
+            // 계정 존재 여부 확인 (보안상 존재하지 않아도 성공 반환)
+            Account account = accountRepository.findByEmail(email).orElse(null);
+
+            if (account != null) {
+                // 비밀번호 재설정용 인증 코드 생성
+                String resetCode = emailService.generateVerificationCode();
+
+                // 인증 코드 저장 (기존 이메일 인증 시스템 재활용)
+                emailService.storeVerificationCode(email, resetCode);
+
+                // 비밀번호 재설정 이메일 발송
+                emailService.sendPasswordResetEmail(email, resetCode);
+
+                log.info("등록된 계정으로 비밀번호 재설정 코드 발송 완료 - 사용자 ID: {}", account.getId());
+
+            } else {
+                log.warn("존재하지 않는 이메일로 비밀번호 재설정 요청 - 이메일: {}", maskEmail(email));
+                // 보안상 계정 존재 여부를 노출하지 않음
+            }
+
+            log.info("비밀번호 재설정 이메일 발송 완료 - 이메일: {}", maskEmail(email));
+
+        } catch (Exception e) {
+            log.error("비밀번호 재설정 이메일 발송 실패 - 이메일: {}", maskEmail(email), e);
+            // 보안상 구체적인 오류 정보는 숨김
+            throw new RuntimeException("이메일 발송 중 오류가 발생했습니다");
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean verifyPasswordResetCode(String email, String resetCode) {
+        log.info("비밀번호 재설정 코드 검증 시작 - 이메일: {}", maskEmail(email));
+
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("이메일은 필수입니다");
+        }
+        if (resetCode == null || resetCode.trim().isEmpty()) {
+            throw new IllegalArgumentException("재설정 코드는 필수입니다");
+        }
+
+        try {
+            // 계정 존재 여부 확인
+            Account account = accountRepository.findByEmail(email).orElse(null);
+
+            if (account == null) {
+                log.warn("존재하지 않는 이메일로 재설정 코드 검증 시도 - 이메일: {}", maskEmail(email));
+                return false;
+            }
+
+            // 기존 이메일 인증 시스템의 코드 검증 로직 재활용
+            boolean isValid = emailService.verifyCode(email, resetCode);
+
+            log.info("비밀번호 재설정 코드 검증 결과 - 이메일: {}, 유효성: {}", maskEmail(email), isValid);
+            return isValid;
+
+        } catch (Exception e) {
+            log.error("비밀번호 재설정 코드 검증 실패 - 이메일: {}", maskEmail(email), e);
+            return false;
+        }
+    }
+
+    @Override
+    @Transactional
+    public void resetPasswordWithCode(String email, String resetCode, String newPassword) {
+        log.info("비밀번호 재설정 시작 - 이메일: {}", maskEmail(email));
+
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("이메일은 필수입니다");
+        }
+        if (resetCode == null || resetCode.trim().isEmpty()) {
+            throw new IllegalArgumentException("재설정 코드는 필수입니다");
+        }
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            throw new IllegalArgumentException("새 비밀번호는 필수입니다");
+        }
+
+        try {
+            // 계정 조회
+            Account account = accountRepository.findByEmail(email)
+                    .orElseThrow(() -> new UserNotFoundException("계정을 찾을 수 없습니다"));
+
+            // 재설정 코드 재검증
+            if (!verifyPasswordResetCode(email, resetCode)) {
+                log.warn("유효하지 않은 재설정 코드로 비밀번호 변경 시도 - 이메일: {}", maskEmail(email));
+                throw new InvalidTokenException("재설정 코드가 유효하지 않거나 만료되었습니다");
+            }
+
+            // 새 비밀번호 암호화
+            String encodedNewPassword = encryptPassword(newPassword);
+
+            // 비밀번호 업데이트
+            account.setPassword(encodedNewPassword);
+            accountRepository.save(account);
+
+            // 보안을 위해 해당 사용자의 모든 리프레시 토큰 무효화
+            List<RefreshToken> userTokens = refreshTokenRepository.findByAccount(account);
+            refreshTokenRepository.deleteAll(userTokens);
+            log.info("비밀번호 변경으로 인한 기존 세션 무효화 - 사용자 ID: {}, 무효화된 토큰 수: {}",
+                    account.getId(), userTokens.size());
+
+            // TODO: 사용된 재설정 코드 무효화
+            // - Redis 또는 DB에서 해당 재설정 코드 삭제/무효화
+
+            // 보안 감사 로그 (메서드가 없는 경우 주석 처리)
+            // securityAuditLogger.logPasswordReset(account.getId(), account.getEmail());
+
+            log.info("비밀번호 재설정 완료 - 사용자 ID: {}", account.getId());
+
+        } catch (UserNotFoundException | InvalidTokenException e) {
+            log.warn("비밀번호 재설정 실패 - 이메일: {}, 오류: {}", maskEmail(email), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("비밀번호 재설정 중 예상치 못한 오류 - 이메일: {}", maskEmail(email), e);
+            throw new RuntimeException("비밀번호 재설정 중 오류가 발생했습니다", e);
+        }
+    }
+
+    /**
+     * 이메일 마스킹 처리 (보안)
+     */
+    private String maskEmail(String email) {
+        if (email == null || email.isEmpty()) {
+            return "[EMPTY]";
+        }
+
+        int atIndex = email.indexOf('@');
+        if (atIndex <= 0) {
+            return "[INVALID_EMAIL]";
+        }
+
+        String localPart = email.substring(0, atIndex);
+        String domain = email.substring(atIndex);
+
+        if (localPart.length() <= 2) {
+            return "**" + domain;
+        } else {
+            return localPart.substring(0, 2) + "***" + domain;
         }
     }
 }

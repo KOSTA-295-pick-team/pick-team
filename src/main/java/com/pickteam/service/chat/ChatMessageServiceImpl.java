@@ -10,6 +10,7 @@ import com.pickteam.dto.chat.ChatMessageListResponse;
 import com.pickteam.dto.chat.ChatMessageNotificationDto;
 import com.pickteam.dto.chat.ChatMessageRequest;
 import com.pickteam.dto.chat.ChatMessageResponse;
+import com.pickteam.dto.chat.ChatMessageDeletedNotificationDto;
 import com.pickteam.repository.chat.ChatMemberRepository;
 import com.pickteam.repository.chat.ChatMessageRepository;
 import com.pickteam.repository.chat.ChatRoomRepository;
@@ -182,16 +183,14 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     private void notifyMessageDeleted(Long chatRoomId, Long messageId) {
         List<ChatMember> activeMembers = chatMemberRepository.findAllByChatRoomIdAndIsDeletedFalse(chatRoomId);
         
-        Map<String, Object> eventData = new HashMap<>();
-        eventData.put("messageId", messageId);
-        eventData.put("chatRoomId", chatRoomId);
+        ChatMessageDeletedNotificationDto notificationDto = ChatMessageDeletedNotificationDto.of(chatRoomId, messageId);
 
         // 모든 멤버에게 메시지 삭제 이벤트 전송
         activeMembers.forEach(member -> {
             sseService.sendToUser(
                 member.getAccount().getId(),
                 SseEventType.CHAT_MESSAGE_DELETED.name(),
-                eventData
+                notificationDto
             );
         });
     }

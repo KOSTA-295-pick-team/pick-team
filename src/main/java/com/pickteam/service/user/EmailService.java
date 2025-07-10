@@ -18,5 +18,5 @@ public interface EmailService {
     boolean isEmailVerified(String email);
 
     // 비밀번호 재설정 메일 발송
-    void sendPasswordResetEmail(String email, String resetToken);
+    void sendPasswordResetEmail(String email, String resetCode);
 }

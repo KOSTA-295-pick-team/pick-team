@@ -74,7 +74,7 @@ public class SecurityConfig {
 
                         // OAuth 인증 관련 경로 (인증 없이 접근 가능)
                         .requestMatchers("/api/auth/oauth/*/login", "/api/auth/oauth/*/callback",
-                                "/api/auth/oauth/exchange-token")
+                                "/api/auth/oauth/exchange-token", "/api/auth/oauth/deleted-account/*")
                         .permitAll()
 
                         // 프로필 이미지는 공개 접근 허용

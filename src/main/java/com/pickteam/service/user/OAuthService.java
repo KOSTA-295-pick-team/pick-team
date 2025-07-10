@@ -59,4 +59,13 @@ public interface OAuthService {
      * @return 연동 상태 (true: 연동됨, false: 연동 안됨)
      */
     boolean isOAuthLinked(Long userId, AuthProvider provider);
+
+    /**
+     * 삭제된 계정 정보 조회 (OAuth 로그인 실패 시 상세 정보 제공용)
+     * 
+     * @param accountId 삭제된 계정 ID
+     * @throws OAuthDeletedAccountException 항상 발생 (삭제된 계정 정보와 함께)
+     * @throws RuntimeException             계정을 찾을 수 없거나 삭제되지 않은 계정인 경우
+     */
+    void getDeletedAccountInfo(Long accountId);
 }

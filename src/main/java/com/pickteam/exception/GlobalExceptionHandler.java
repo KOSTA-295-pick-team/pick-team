@@ -6,6 +6,7 @@ import com.pickteam.exception.email.EmailSendException;
 import com.pickteam.exception.user.UserNotFoundException;
 import com.pickteam.exception.user.DuplicateEmailException;
 import com.pickteam.exception.user.AccountWithdrawalException;
+import com.pickteam.exception.user.OAuthDeletedAccountException;
 import com.pickteam.exception.auth.AuthenticationException;
 import com.pickteam.exception.auth.UnauthorizedException;
 import com.pickteam.exception.auth.InvalidTokenException;
@@ -49,6 +50,7 @@ public class GlobalExceptionHandler {
     private static final String INVALID_TOKEN_INSTANCE = "/invalid-token";
     private static final String SESSION_EXPIRED_INSTANCE = "/session-expired";
     private static final String ACCOUNT_WITHDRAWAL_ERROR_INSTANCE = "/account-withdrawal-error";
+    private static final String OAUTH_DELETED_ACCOUNT_INSTANCE = "/oauth-deleted-account";
     private static final String ILLEGAL_STATE_INSTANCE = "/illegal-state";
     private static final String DATA_INTEGRITY_VIOLATION_INSTANCE = "/data-integrity-violation";
     private static final String RUNTIME_ERROR_INSTANCE = "/runtime-error";
@@ -268,6 +270,60 @@ public class GlobalExceptionHandler {
                 DUPLICATE_EMAIL_INSTANCE);
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(problemDetail);
+    }
+
+    /**
+     * OAuth 삭제된 계정 예외 처리
+     */
+    @ExceptionHandler(OAuthDeletedAccountException.class)
+    public ResponseEntity<ProblemDetail> handleOAuthDeletedAccountException(OAuthDeletedAccountException ex) {
+        log.warn("OAuth 삭제된 계정 로그인 시도 - 계정 ID: {}, 제공자: {}", ex.getAccountId(), ex.getProvider());
+
+        // 삭제된 계정 정보를 포함한 상세 응답 생성
+        Map<String, Object> extensions = new HashMap<>();
+        extensions.put("accountStatus", "DELETED");
+        extensions.put("accountId", ex.getAccountId());
+        extensions.put("deletedAt", ex.getDeletedAt());
+        extensions.put("permanentDeletionDate", ex.getPermanentDeletionDate());
+        extensions.put("provider", ex.getProvider());
+
+        // 남은 일수 계산
+        long remainingDays = 0;
+        if (ex.getPermanentDeletionDate() != null) {
+            remainingDays = java.time.temporal.ChronoUnit.DAYS.between(
+                    LocalDateTime.now(), ex.getPermanentDeletionDate());
+            remainingDays = Math.max(0, remainingDays);
+            extensions.put("remainingDays", remainingDays);
+        }
+
+        extensions.put("canReactivate", false);
+        extensions.put("supportContact", "support@pickteam.com");
+
+        // 사용자 친화적인 상세 메시지 생성
+        StringBuilder detailMessage = new StringBuilder();
+        detailMessage.append("삭제된 계정입니다.\n\n");
+
+        if (ex.getProvider() != null) {
+            detailMessage.append(ex.getProvider()).append(" 계정이 삭제되어 있습니다.\n");
+        }
+
+        if (remainingDays > 0) {
+            detailMessage.append("계정 영구 삭제까지 ").append(remainingDays).append("일 남았습니다.\n\n");
+        } else {
+            detailMessage.append("계정이 영구 삭제되었습니다.\n\n");
+        }
+
+        detailMessage.append("계정 복구나 문의사항이 있으시면\n");
+        detailMessage.append("support@pickteam.com로 연락주세요.");
+
+        ProblemDetail problemDetail = createProblemDetail(
+                ProblemType.OAUTH_DELETED_ACCOUNT,
+                HttpStatus.FORBIDDEN,
+                detailMessage.toString(),
+                OAUTH_DELETED_ACCOUNT_INSTANCE,
+                extensions);
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problemDetail);
     }
 
     /**

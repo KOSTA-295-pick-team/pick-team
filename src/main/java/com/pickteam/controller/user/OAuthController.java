@@ -4,6 +4,7 @@ import com.pickteam.domain.enums.AuthProvider;
 import com.pickteam.dto.ApiResponse;
 import com.pickteam.dto.security.JwtAuthenticationResponse;
 import com.pickteam.dto.user.TempCodeRequest;
+import com.pickteam.exception.user.OAuthDeletedAccountException;
 import com.pickteam.service.user.OAuthService;
 import com.pickteam.service.user.AuthService;
 import com.pickteam.service.user.OAuthStateService;
@@ -169,6 +170,14 @@ public class OAuthController {
             log.error("잘못된 OAuth 제공자: {}", provider, e);
             oauthStateService.clearStoredState(); // 예외 발생 시 state 정리
             String redirectUrl = String.format("%s/oauth/success?error=%s", frontendUrl, "invalid_provider");
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create(redirectUrl))
+                    .build();
+        } catch (OAuthDeletedAccountException e) {
+            log.warn("삭제된 계정으로 OAuth 로그인 시도 - 제공자: {}, 계정ID: {}", provider, e.getAccountId());
+            oauthStateService.clearStoredState(); // 예외 발생 시 state 정리
+            String redirectUrl = String.format("%s/oauth/success?error=%s&accountId=%d",
+                    frontendUrl, "deleted_account", e.getAccountId());
             return ResponseEntity.status(HttpStatus.FOUND)
                     .location(URI.create(redirectUrl))
                     .build();
@@ -370,6 +379,36 @@ public class OAuthController {
             log.error("OAuth 계정 연동 상태 확인 중 오류 - 제공자: {}", provider, e);
             return ResponseEntity.internalServerError()
                     .body(ApiResponse.error("연동 상태 확인 중 오류가 발생했습니다"));
+        }
+    }
+
+    /**
+     * 삭제된 계정 정보 조회 (OAuth 로그인 실패 시 상세 정보 제공)
+     * 
+     * @param accountId 삭제된 계정 ID
+     * @return 삭제된 계정의 상세 정보 (RFC 9457 형식)
+     */
+    @GetMapping("/deleted-account/{accountId}")
+    public ResponseEntity<ApiResponse<Object>> getDeletedAccountInfo(@PathVariable Long accountId) {
+
+        log.info("삭제된 계정 정보 조회 요청 - 계정 ID: {}", accountId);
+
+        try {
+            // OAuthDeletedAccountException을 직접 던져서 GlobalExceptionHandler가 처리하도록 함
+            // 이를 통해 일관된 RFC 9457 응답 형식을 보장
+            oauthService.getDeletedAccountInfo(accountId);
+
+            // 이 라인에 도달하면 안됨 (계정이 삭제되지 않은 경우)
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("요청한 계정은 삭제된 계정이 아닙니다"));
+
+        } catch (OAuthDeletedAccountException e) {
+            // GlobalExceptionHandler가 처리하도록 다시 throw
+            throw e;
+        } catch (Exception e) {
+            log.error("삭제된 계정 정보 조회 실패 - 계정 ID: {}", accountId, e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("계정 정보를 조회할 수 없습니다"));
         }
     }
 }

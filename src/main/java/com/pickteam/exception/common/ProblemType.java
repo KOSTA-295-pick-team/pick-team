@@ -16,6 +16,7 @@ public enum ProblemType {
     DUPLICATE_EMAIL("DUPLICATE_EMAIL", "Duplicate Email"),
     ACCOUNT_WITHDRAWAL_IN_PROGRESS("ACCOUNT_WITHDRAWAL_IN_PROGRESS", "Account Withdrawal In Progress"),
     EMAIL_NOT_VERIFIED("EMAIL_NOT_VERIFIED", "Email Not Verified"),
+    OAUTH_DELETED_ACCOUNT("OAUTH_DELETED_ACCOUNT", "OAuth Deleted Account"),
 
     // ===== 인증 관련 에러 (AUTH_) =====
     AUTHENTICATION_FAILED("AUTHENTICATION_FAILED", "Authentication Failed"),

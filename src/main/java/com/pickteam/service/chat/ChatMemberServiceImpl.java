@@ -34,6 +34,7 @@ public class ChatMemberServiceImpl implements ChatMemberService {
     private final WorkspaceRepository workspaceRepository;
     private final AccountRepository accountRepository;
     private final SseService sseService;
+    private final ChatRoomService chatRoomService;
 
     @Override
     @Transactional
@@ -115,6 +116,13 @@ public class ChatMemberServiceImpl implements ChatMemberService {
         chatMemberRepository.save(chatMember);
 
         notifyChatMemberLeft(chatRoomId, accountId);
+
+        // 남은 활성 멤버가 있는지 확인
+        List<ChatMember> remainingActiveMembers = chatMemberRepository.findAllByChatRoomIdAndIsDeletedFalse(chatRoomId);
+        if (remainingActiveMembers.isEmpty()) {
+            // 활성 멤버가 없으면 채팅방도 soft-delete 처리
+            chatRoomService.deleteChatRoom(chatRoomId, workspaceId);
+        }
     }
 
     /**

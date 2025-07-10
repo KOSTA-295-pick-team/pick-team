@@ -1,28 +1,28 @@
-// ChatMessageResponse.java
 package com.pickteam.dto.chat;
 
+import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
-
 import java.time.LocalDateTime;
 import com.pickteam.domain.chat.ChatMessage;
 
 @Getter
-@Setter
+@Builder
 public class ChatMessageResponse {
-    private Long id;
-    private String content;
-    private Long senderId;
-    private LocalDateTime sentAt;
-    //private boolean edited;
+    private final Long id;
+    private final String content;
+    private final Long senderId;
+    private final Long chatRoomId;
+    private final LocalDateTime sentAt;
+    //private final boolean edited;
 
     public static ChatMessageResponse from(ChatMessage chatMessage) {
-        ChatMessageResponse response = new ChatMessageResponse();
-        response.id = chatMessage.getId();
-        response.content = chatMessage.getContent();
-        response.senderId = chatMessage.getAccount().getId();//Account의 Id 정보 (Entity를 직접 노출시키지 않는다)
-        response.sentAt = chatMessage.getCreatedAt();
-//        response.edited = chatMessage.isEdited(); //수정여부 (아직 entity에 필드 없음)
-        return response;
+        return ChatMessageResponse.builder()
+                .id(chatMessage.getId())
+                .content(chatMessage.getContent())
+                .senderId(chatMessage.getAccount().getId())
+                .chatRoomId(chatMessage.getChatRoom().getId())
+                .sentAt(chatMessage.getCreatedAt())
+                //.edited(chatMessage.isEdited())
+                .build();
     }
 }

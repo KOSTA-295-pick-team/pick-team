@@ -24,12 +24,12 @@ jobs:
           distribution: 'temurin'  # AdoptOpenJDK의 Temurin 배포판 사용
 
       - name: 브랜치 환경 로그 확인
-        run:
+        run: |
           echo "현재 브랜치"
           echo "${GITHUB_REF_NAME}"
 
       - name: Spring 환경변수 주입 (.env 대체) # .env 파일의 내용을 secret으로부터 읽어다 통째로 주입 (dev)
-        run:
+        run: |
           if [ "${GITHUB_REF_NAME}" == "main" ]; then
             echo "${{ secrets.ENV_DEV }}" > .env # main 브랜치일 경우 DEV 환경변수 적용
             echo "EC2_HOST=${{ secrets.EC2_HOST_DEV }}" >> $GITHUB_ENV

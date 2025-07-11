@@ -28,18 +28,17 @@ jobs:
           echo "현재 브랜치"
           echo "${GITHUB_REF_NAME}"
 
-      # .env 파일의 내용을 secret으로부터 읽어다 통째로 주입 (dev)
-      - name: Spring 환경변수 주입 (.env 대체)
+      - name: Spring 환경변수 주입 (.env 대체) # .env 파일의 내용을 secret으로부터 읽어다 통째로 주입 (dev)
         run:
           if [ "${GITHUB_REF_NAME}" == "main" ]; then
-          echo "${{ secrets.ENV_DEV }}" > .env # main 브랜치일 경우 DEV 환경변수 적용
-          echo "EC2_HOST=${{ secrets.EC2_HOST_DEV }}" >> $GITHUB_ENV
+            echo "${{ secrets.ENV_DEV }}" > .env # main 브랜치일 경우 DEV 환경변수 적용
+            echo "EC2_HOST=${{ secrets.EC2_HOST_DEV }}" >> $GITHUB_ENV
           elif [ "${GITHUB_REF_NAME}" == "production" ]; then
-          echo "${{ secrets.ENV_PROD }}" > .env #production 브랜치일 경우 PROD 환경변수 적용
-          echo "EC2_HOST=${{ secrets.EC2_HOST_PROD }}" >> $GITHUB_ENV
+            echo "${{ secrets.ENV_PROD }}" > .env #production 브랜치일 경우 PROD 환경변수 적용
+            echo "EC2_HOST=${{ secrets.EC2_HOST_PROD }}" >> $GITHUB_ENV
           else
-          echo "지원되지 않는 브랜치입니다. 종료합니다." #예외처리
-          exit 1
+            echo "지원되지 않는 브랜치입니다. 종료합니다." #예외처리
+            exit 1
           fi
 
       - name: 자동 이미지 태그 설정 (브랜치명 + 날짜 + SHA)
@@ -48,7 +47,6 @@ jobs:
           TODAY=$(date +%Y%m%d)
           IMAGE_TAG="${{ GITHUB_REF_NAME }}-$TODAY-$SHORT_SHA"
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-
 
       - name: mvnw 실행 권한 부여
         run: chmod +x ./mvnw  # mvnw 파일(Wrapper)에 실행 권한 부여
@@ -67,11 +65,10 @@ jobs:
         run: docker build -t ${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }} .  # 애플리케이션을 도커 이미지로 빌드
 
       - name: Docker 이미지 푸시
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }} .  # 빌드한 이미지를 Docker Hub에 업로드
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}   # 빌드한 이미지를 Docker Hub에 업로드
 
 
-      #EC2로 전송
-      - name: EC2에 docker-compose.yml + .env 전송
+      - name: EC2에 docker-compose.yml + .env 전송 #EC2로 전송
         uses: appleboy/scp-action@v0.1.7  # EC2로 파일 전송하는 액션(SCP 방식)
         with:
           host: ${{ env.EC2_HOST }}  # EC2 호스트 주소

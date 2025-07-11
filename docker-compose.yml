@@ -74,6 +74,9 @@ services:
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}  # Livekit api key
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}  # Livekit api secret
       LIVEKIT_SERVER_IP: ${LIVEKIT_SERVER_IP}  # Livekit server ip
+      DOCKER_USERNAME : ${DOCKER_USERNAME}
+      DOCKER_ACCESS_TOKEN : ${DOCKER_ACCESS_TOKEN}
+
       JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Seoul -Dfile.encoding=UTF-8"  # JVM 시간대/인코딩 설정
 
     networks:

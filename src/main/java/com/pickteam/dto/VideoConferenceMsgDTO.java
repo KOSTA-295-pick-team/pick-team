@@ -15,5 +15,5 @@ import java.util.List;
 public class VideoConferenceMsgDTO {
     private VideoConferenceControlMsg type;
     private String userEmail;
-    private List<ParticipantDTO> participants;
+    private List<VideoMemberDTO> participants;
 }

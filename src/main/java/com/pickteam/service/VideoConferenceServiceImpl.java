@@ -16,6 +16,7 @@ import io.livekit.server.RoomName;
 import io.livekit.server.WebhookReceiver;
 import livekit.LivekitWebhook;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,23 +27,24 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class VideoConferenceServiceImpl implements VideoConferenceService {
 
-    @Value("${LIVEKIT_API_KEY}")
+    @Value("${livekit.api.key}")
     private String LIVEKIT_API_KEY;
 
-    @Value("${LIVEKIT_API_SECRET}")
+    @Value("${livekit.api.secret}")
     private String LIVEKIT_API_SECRET;
 
     private final VideoChannelRepository videoChannelRepository;
 
     private final VideoMemberRepository videoMemberRepository;
 
-    private ModelMapper modelMapper = new ModelMapper();
+    @Autowired
+    private ModelMapper modelMapper;
 
-    private Map<Long, List<ParticipantDTO>> participantsList = new HashMap<>();
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
@@ -81,14 +83,25 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
     @Override
     public void joinVideoChannel(Long accountId, Long videoChannelId) {
 
-        videoMemberRepository.save(VideoMember.builder().account(Account.builder().id(accountId).build()).
-                videoChannel(VideoChannel.builder().id(videoChannelId).id(videoChannelId).build()).build());
+        videoMemberRepository.save(VideoMember.builder().account(Account.builder().id(accountId).build()).videoChannel(VideoChannel.builder().id(videoChannelId).id(videoChannelId).build()).build());
+        videoMemberRepository.flush();
+        List<VideoMember> members = videoMemberRepository.findAll();
+        List<VideoMemberDTO> memberDTOList = members.stream().map(member -> {
+            VideoMemberDTO memberDTO = modelMapper.map(member.getAccount(), VideoMemberDTO.class);
+            memberDTO.setJoinDate(member.getCreatedAt());
+            memberDTO.setId(member.getId());
+            memberDTO.setUserId(member.getAccount().getId());
+            return memberDTO;
+        }).collect(Collectors.toList());
 
+        messagingTemplate.convertAndSend("/sub/video/" + videoChannelId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.GET_PARTICIPANTS_CONFIRMED, null, memberDTOList));
     }
 
     @Transactional
     @Override
     public void deleteVideoChannel(Long videoChannelId) throws VideoConferenceException {
+
+        messagingTemplate.convertAndSend("/sub/video/" + videoChannelId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.SHOULD_OUT_CHANNEL, null, null));
 
         VideoChannel channel = videoChannelRepository.findById(videoChannelId).orElseThrow(() -> new VideoConferenceException(VideoConferenceErrorCode.CHANNEL_NOT_FOUND));
 
@@ -109,6 +122,7 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
         return members.stream().map(member -> {
             VideoMemberDTO memberDTO = modelMapper.map(member.getAccount(), VideoMemberDTO.class);
             memberDTO.setJoinDate(member.getCreatedAt());
+            memberDTO.setId(member.getId());
             memberDTO.setUserId(member.getAccount().getId());
             return memberDTO;
         }).collect(Collectors.toList());
@@ -120,8 +134,24 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
 
         VideoMember member = videoMemberRepository.findById(memberId).orElseThrow(() -> new VideoConferenceException(VideoConferenceErrorCode.MEMBER_NOT_FOUND));
         videoMemberRepository.delete(member);
+        videoMemberRepository.flush();
+        List<VideoMember> members = videoMemberRepository.findAll();
+        if (members.isEmpty()) {
+            VideoChannel channel = videoChannelRepository.findById(channelId).orElseThrow(() -> new VideoConferenceException(VideoConferenceErrorCode.CHANNEL_NOT_FOUND));
+            channel.markDeleted();
+        }
         messagingTemplate.convertAndSendToUser(member.getAccount().getEmail(), "/sub/chat/" + channelId, new WebSocketChatDTO(null, null, "disconnect", "controll"));
         messagingTemplate.convertAndSend("/sub/video/" + channelId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.STOP_SCREEN_SHARING_CONFIRMED, member.getAccount().getEmail(), null));
+        if (!members.isEmpty()) {
+            List<VideoMemberDTO> memberDTOList = members.stream().map(m -> {
+                VideoMemberDTO memberDTO = modelMapper.map(m.getAccount(), VideoMemberDTO.class);
+                memberDTO.setJoinDate(m.getCreatedAt());
+                memberDTO.setId(member.getId());
+                memberDTO.setUserId(m.getAccount().getId());
+                return memberDTO;
+            }).collect(Collectors.toList());
+            messagingTemplate.convertAndSend("/sub/video/" + channelId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.GET_PARTICIPANTS_CONFIRMED, null, memberDTOList));
+        }
     }
 
 
@@ -153,9 +183,7 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
 
     @Override
     public void handleVideoConferenceEvent(String userEmail, Long roomId, VideoConferenceControlMsg event) {
-        if (VideoConferenceControlMsg.GET_PARTICIPANTS.equals(event)) {
-            messagingTemplate.convertAndSendToUser(userEmail, "/sub/video/" + roomId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.GET_PARTICIPANTS_CONFIRMED, null, participantsList.get(roomId)));
-        } else if (VideoConferenceControlMsg.START_SCREEN_SHARING.equals(event)) {
+        if (VideoConferenceControlMsg.START_SCREEN_SHARING.equals(event)) {
             String currentSharingUserEmail = currentSharingUser.get(roomId);
             if (currentSharingUserEmail != null) {
                 messagingTemplate.convertAndSendToUser(currentSharingUserEmail, "/sub/video/" + roomId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.STOP_SCREEN_SHARING, null, null));
@@ -180,32 +208,8 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
         WebhookReceiver webhookReceiver = new WebhookReceiver(LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
 
         LivekitWebhook.WebhookEvent event = webhookReceiver.receive(body, authHeader);
-        if ("participant_joined".equals(event.getEvent()) || "participant_left".equals(event.getEvent())) {
-            Long channelId = Long.parseLong(event.getRoom().getName());
-            if ("participant_joined".equals(event.getEvent())) {
-                ParticipantDTO participantDTO = new ParticipantDTO();
-                participantDTO.setIdentity(event.getParticipant().getIdentity());
-                participantDTO.setName(event.getParticipant().getName());
-                participantDTO.setJoinedAt(new Date(event.getParticipant().getJoinedAt()));
-                participantDTO.setMetaData(event.getParticipant().getMetadata());
-                participantDTO.setState(event.getParticipant().getState().name());
 
-                if (participantsList.containsKey(channelId)) {
-                    participantsList.get(channelId).add(participantDTO);
-                } else {
-                    participantsList.put(channelId, new ArrayList<ParticipantDTO>());
-                    participantsList.get(channelId).add(participantDTO);
-                }
-            } else {
-                if (participantsList.containsKey(channelId)) {
-                    participantsList.get(channelId).forEach(participantDTO -> {
-                        if (participantDTO.getIdentity().equals(event.getParticipant().getIdentity())) {
-                            participantsList.get(channelId).remove(participantDTO);
-                        }
-                    });
-                }
-            }
-            messagingTemplate.convertAndSend("/sub/video/" + channelId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.GET_PARTICIPANTS_CONFIRMED, null, participantsList.get(channelId)));
-        }
+        log.info(event.toString());
     }
+
 }

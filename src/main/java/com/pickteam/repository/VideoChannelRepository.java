@@ -8,11 +8,10 @@ import java.util.List;
 
 public interface VideoChannelRepository extends JpaRepository<VideoChannel, Long> {
 
-    @Query("select v from VideoChannel v where v.workspace.id=?1")
+    @Query("select v from VideoChannel v where v.workspace.id=?1 and v.isDeleted=false")
     List<VideoChannel> selectChannelsByWorkSpaceId(Long workspaceId);
 
-    @Query("select v from VideoChannel v join v.members m where v.workspace.id=?1 and m.account.id=?2")
+    @Query("select v from VideoChannel v join v.members m where v.workspace.id=?1 and m.account.id=?2 and v.isDeleted=false")
     List<VideoChannel> selectChannelsByWorkSpaceId(Long workspaceId, Long accountId);
-
 
 }

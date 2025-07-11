@@ -20,13 +20,14 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 @Component
 public class AuthChannelInterceptor implements ChannelInterceptor {
 
 
-    private Map<String,Long> sessionChannelAccessCache = new HashMap<>();
+    private Map<String,Long> sessionChannelAccessCache = new ConcurrentHashMap<>();
 
     @Autowired
     private VideoMemberRepository videoMemberRepository;
@@ -58,6 +59,7 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
             if (vm == null) {
                 throw new WebSocketChatException(WebSocketChatErrorCode.CANNOT_ACCESS_CHANNEL);
             }
+
             sessionChannelAccessCache.put(sessionId,Long.parseLong(destChannelId));
 
         }

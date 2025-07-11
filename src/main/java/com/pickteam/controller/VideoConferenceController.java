@@ -36,7 +36,7 @@ public class VideoConferenceController {
 
     private final VideoConferenceService videoConferenceService;
 
-    @PreAuthorize("@videoConferenceAuthService.canViewChannels(#userDetails.id,#workspaceId)")
+    @PreAuthorize("hasRole('ADMIN')  or @videoConferenceAuthService.canViewChannels(#userDetails.id,#workspaceId)")
     @GetMapping
     public ResponseEntity<?> getChannels(@PathVariable Long workspaceId, @AuthenticationPrincipal UserPrincipal userDetails) throws VideoConferenceException {
 
@@ -45,26 +45,26 @@ public class VideoConferenceController {
         return ResponseEntity.ok(videoChannels);
     }
 
-    @PreAuthorize("@videoConferenceAuthService.canCreateChannel(#userDetails.id,#workspaceId)")
+    @PreAuthorize("hasRole('ADMIN') or @videoConferenceAuthService.canCreateChannel(#userDetails.id,#workspaceId)")
     @PostMapping
     public ResponseEntity<?> createChannel(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable Long workspaceId, @Valid @RequestBody VideoChannelDTO videoChannelDTO) throws VideoConferenceException {
         videoConferenceService.insertVideoChannel(workspaceId, videoChannelDTO.getName());
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    @PreAuthorize("@videoConferenceAuthService.canJoinChannel(#userDetails.id,#workspaceId)")
+    @PreAuthorize("hasRole('ADMIN') or  @videoConferenceAuthService.canJoinChannel(#userDetails.id,#workspaceId)")
     @PostMapping("/{channelId}")
     public ResponseEntity<?> joinChannel(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable("channelId") Long channelId) {
 
-        //첫번째 인자는 사용자 id 값 전달
+
         videoConferenceService.joinVideoChannel(userDetails.getId(), channelId);
 
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or @videoConferenceAuthService.isWorkspaceAdmin(#userDetails.id,#workspaceId)")
     @DeleteMapping("/{channelId:\\d+}")
-    public ResponseEntity<?> deleteChannel(@PathVariable("channelId") Long channelId) throws VideoConferenceException {
+    public ResponseEntity<?> deleteChannel(@AuthenticationPrincipal UserPrincipal userDetails,@PathVariable("channelId") Long channelId) throws VideoConferenceException {
 
         videoConferenceService.deleteVideoChannel(channelId);
 
@@ -80,7 +80,7 @@ public class VideoConferenceController {
         return ResponseEntity.ok(participants);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or @videoConferenceAuthService.canLeaveChannel(#userDetails.id,#channelId,#memberId)")
+    @PreAuthorize("hasRole('ADMIN') or @videoConferenceAuthService.isWorkspaceAdmin(#userDetails.id,#workspaceId) or @videoConferenceAuthService.canLeaveChannel(#userDetails.id,#channelId,#memberId)")
     @DeleteMapping("/{channelId:\\d+}/video-members/{memberId}")
     public ResponseEntity<?> leaveChannel(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable Long memberId, @PathVariable Long channelId) throws VideoConferenceException {
 
@@ -90,11 +90,11 @@ public class VideoConferenceController {
     }
 
 
-    @PreAuthorize("@videoConferenceAuthService.canJoInConference(#userDetails.id,#channelId)")
+    @PreAuthorize("@videoConferenceAuthService.canJoinConference(#userDetails.id,#channelId)")
     @PostMapping(value = "/{channelId:\\d+}/join-conference")
     public ResponseEntity<Map<String, String>> joinVideoConferenceRoom(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable Long channelId) throws VideoConferenceException {
 
-        System.out.println("userDetails.getId() = " + userDetails.getId());
+
         String jwt = videoConferenceService.joinVideoConferenceRoom(userDetails.getId(), channelId, userDetails.getName(), userDetails.getEmail());
 
         return ResponseEntity.ok(Map.of("token", jwt));

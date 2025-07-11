@@ -1,7 +1,10 @@
 package com.pickteam.service;
 
+import com.pickteam.domain.workspace.Workspace;
+import com.pickteam.repository.VideoChannelRepository;
 import com.pickteam.repository.VideoMemberRepository;
 import com.pickteam.repository.workspace.WorkspaceMemberRepository;
+import com.pickteam.repository.workspace.WorkspaceRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,27 +18,28 @@ public class VideoConferenceAuthServiceImpl implements VideoConferenceAuthServic
 
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final VideoMemberRepository videoMemberRepository;
+    private final WorkspaceRepository workspaceRepository;
 
-    @Value("${LIVEKIT_SERVER_IP}")
+    @Value("${livekit.server.ip}")
     private String liveKitServerIp;
 
     @Override
-    public boolean canViewChannels(Long accountId, Long WorkSpaceId) {
-        return workspaceMemberRepository.existsActiveByWorkspaceIdAndAccountId(WorkSpaceId, accountId);
+    public boolean canViewChannels(Long accountId, Long workSpaceId) {
+        return workspaceMemberRepository.existsActiveByWorkspaceIdAndAccountId(workSpaceId, accountId);
     }
 
     @Override
-    public boolean canCreateChannel(Long accountId, Long WorkSpaceId) {
-        return workspaceMemberRepository.existsActiveByWorkspaceIdAndAccountId(WorkSpaceId, accountId);
+    public boolean canCreateChannel(Long accountId, Long workSpaceId) {
+        return workspaceMemberRepository.existsActiveByWorkspaceIdAndAccountId(workSpaceId, accountId);
     }
 
     @Override
-    public boolean canJoinChannel(Long accountId, Long WorkSpaceId) {
-        return workspaceMemberRepository.existsActiveByWorkspaceIdAndAccountId(WorkSpaceId, accountId);
+    public boolean canJoinChannel(Long accountId, Long workSpaceId) {
+        return workspaceMemberRepository.existsActiveByWorkspaceIdAndAccountId(workSpaceId, accountId);
     }
 
     @Override
-    public boolean canLeaveChannel(Long accountId, Long channelId,Long memberId ) {
+    public boolean canLeaveChannel(Long accountId, Long channelId, Long memberId) {
         return videoMemberRepository.findByAccountIdAndVideoChannelId(accountId, channelId).getId().equals(memberId);
     }
 
@@ -45,12 +49,21 @@ public class VideoConferenceAuthServiceImpl implements VideoConferenceAuthServic
     }
 
     @Override
-    public boolean canJoInConference(Long accountId, Long channelId) {
+    public boolean canJoinConference(Long accountId, Long channelId) {
         return videoMemberRepository.findByAccountIdAndVideoChannelId(accountId, channelId) != null;
     }
 
     @Override
     public boolean canCallLiveKitWebhook(HttpServletRequest request) {
         return liveKitServerIp.equals(request.getRemoteAddr());
+    }
+
+    @Override
+    public boolean isWorkspaceAdmin(Long accountId, Long workspaceId) {
+        Workspace workspace = workspaceRepository.findById(workspaceId).get();
+        if (workspace.getIsDeleted()) {
+            return false;
+        }
+        return accountId.equals(workspace.getAccount().getId());
     }
 }

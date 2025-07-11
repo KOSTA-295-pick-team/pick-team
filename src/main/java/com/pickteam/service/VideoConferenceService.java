@@ -28,4 +28,5 @@ public interface VideoConferenceService {
     public void handleVideoConferenceEvent(String userEmail, Long roomId, VideoConferenceControlMsg event);
 
     public void handleLiveKitHookEvent(String authHeader,String body) throws Exception;
+
 }

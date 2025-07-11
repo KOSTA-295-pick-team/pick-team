@@ -85,6 +85,6 @@ jobs:
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
             cd ~/cicd-docker  # 도커 파일이 위치한 경로로 이동
-            docker pull ${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}  # 최신 이미지 가져오기
-            docker-compose down  # 기존 컨테이너 종료
-            docker-compose up -d  # 백그라운드로 새 컨테이너 실행
+            sudo docker pull ${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}  # 최신 이미지 가져오기
+            sudo docker-compose down  # 기존 컨테이너 종료
+            sudo docker-compose up -d  # 백그라운드로 새 컨테이너 실행

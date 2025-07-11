@@ -66,6 +66,7 @@ public class WorkspaceController {
         WorkspaceResponse response = workspaceService.joinWorkspaceById(userId, workspaceId, password);
         return ResponseEntity.ok(ApiResponse.success("워크스페이스 참여 성공", response));
     }
+
     
     /**
      * 사용자가 속한 워크스페이스 목록 조회

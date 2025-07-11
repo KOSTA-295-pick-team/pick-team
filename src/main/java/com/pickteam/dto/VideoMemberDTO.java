@@ -34,6 +34,8 @@ public class VideoMemberDTO {
 
     private String dislikeWorkstyle;
 
+    private String profileImageUrl;
+
     private LocalDateTime joinDate;
 
 }

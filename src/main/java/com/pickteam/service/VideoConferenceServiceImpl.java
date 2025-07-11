@@ -56,12 +56,9 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
     @Transactional(readOnly = true)
     @Override
     public List<VideoChannelDTO> selectVideoChannels(Long workspaceId, Long accountId) throws VideoConferenceException {
-        List<VideoChannel> channels = new ArrayList<>();
-        if (accountId == null) {
-            channels = videoChannelRepository.selectChannelsByWorkSpaceId(workspaceId);
-        } else {
-            channels = videoChannelRepository.selectChannelsByWorkSpaceId(workspaceId, accountId);
-        }
+
+        List<VideoChannel> channels = videoChannelRepository.selectChannelsByWorkSpaceId(workspaceId);
+
         if (channels.isEmpty()) {
             throw new VideoConferenceException(VideoConferenceErrorCode.CHANNELS_NOT_FOUND);
         }

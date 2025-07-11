@@ -16,6 +16,7 @@ public enum ProblemType {
     DUPLICATE_EMAIL("DUPLICATE_EMAIL", "Duplicate Email"),
     ACCOUNT_WITHDRAWAL_IN_PROGRESS("ACCOUNT_WITHDRAWAL_IN_PROGRESS", "Account Withdrawal In Progress"),
     EMAIL_NOT_VERIFIED("EMAIL_NOT_VERIFIED", "Email Not Verified"),
+    OAUTH_DELETED_ACCOUNT("OAUTH_DELETED_ACCOUNT", "OAuth Deleted Account"),
 
     // ===== 인증 관련 에러 (AUTH_) =====
     AUTHENTICATION_FAILED("AUTHENTICATION_FAILED", "Authentication Failed"),
@@ -44,7 +45,10 @@ public enum ProblemType {
     // ===== 데이터 무결성 관련 에러 (DATA_) =====
     DATA_INTEGRITY_VIOLATION("DATA_INTEGRITY_VIOLATION", "Data Integrity Violation"),
     CONSTRAINT_VIOLATION("CONSTRAINT_VIOLATION", "Constraint Violation"),
-    DUPLICATE_ENTRY("DUPLICATE_ENTRY", "Duplicate Entry");
+    DUPLICATE_ENTRY("DUPLICATE_ENTRY", "Duplicate Entry"),
+
+    // ===== 리소스 관련 에러 (RESOURCE_) =====
+    NOT_FOUND("RESOURCE_NOT_FOUND", "Resource Not Found");
 
     private final String type;
     private final String title;

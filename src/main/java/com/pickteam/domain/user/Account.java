@@ -6,6 +6,7 @@ import com.pickteam.domain.chat.ChatMember;
 import com.pickteam.domain.chat.ChatMessage;
 import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.enums.UserRole;
+import com.pickteam.domain.enums.AuthProvider;
 import com.pickteam.domain.kanban.KanbanTaskComment;
 import com.pickteam.domain.kanban.KanbanTaskMember;
 import com.pickteam.domain.notification.NotificationLog;
@@ -90,6 +91,30 @@ public class Account extends BaseSoftDeleteSupportEntity {
     /** 기피하는 작업 스타일 (팀 매칭 알고리즘에서 제외) */
     @Builder.Default
     private String dislikeWorkstyle = "정보없음";
+
+    // === OAuth 소셜 로그인 관련 필드 ===
+
+    /** OAuth 인증 제공자 (LOCAL, GOOGLE, KAKAO) */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private AuthProvider provider = AuthProvider.LOCAL;
+
+    /** 소셜 로그인 제공자의 고유 사용자 ID */
+    @Column(name = "provider_id")
+    private String providerId;
+
+    /** 소셜 로그인에서 제공받은 이메일 (백업/검증용) */
+    @Column(name = "social_email")
+    private String socialEmail;
+
+    /** 소셜 로그인에서 제공받은 이름 (백업/검증용) */
+    @Column(name = "social_name")
+    private String socialName;
+
+    /** 소셜 로그인에서 제공받은 프로필 이미지 URL */
+    @Column(name = "social_profile_url")
+    private String socialProfileUrl;
 
     /**
      * 계정 영구 삭제 예정일
@@ -270,4 +295,60 @@ public class Account extends BaseSoftDeleteSupportEntity {
         return false;
     }
 
+    // === OAuth 관련 유틸리티 메서드 ===
+
+    /**
+     * 소셜 로그인 사용자인지 확인
+     * 
+     * @return 소셜 로그인 사용자면 true, 로컬 회원가입이면 false
+     */
+    public boolean isSocialUser() {
+        return this.provider != null && this.provider.isSocial();
+    }
+
+    /**
+     * OAuth 계정 정보 업데이트
+     * 소셜 로그인 시 최신 정보로 동기화
+     * 
+     * @param provider         OAuth 제공자
+     * @param providerId       제공자별 고유 ID
+     * @param socialEmail      소셜에서 제공한 이메일
+     * @param socialName       소셜에서 제공한 이름
+     * @param socialProfileUrl 소셜 프로필 이미지 URL
+     */
+    public void updateOAuthInfo(AuthProvider provider, String providerId,
+            String socialEmail, String socialName, String socialProfileUrl) {
+        this.provider = provider;
+        this.providerId = providerId;
+        this.socialEmail = socialEmail;
+        this.socialName = socialName;
+        this.socialProfileUrl = socialProfileUrl;
+
+        // 이메일이 없으면 소셜에서 제공한 이메일 사용
+        if (this.email == null && socialEmail != null) {
+            this.email = socialEmail;
+        }
+
+        // 이름이 없으면 소셜에서 제공한 이름 사용
+        if (this.name == null && socialName != null) {
+            this.name = socialName;
+        }
+
+        // 프로필 이미지가 없으면 소셜 프로필 이미지 사용
+        if (this.profileImageUrl == null && socialProfileUrl != null) {
+            this.profileImageUrl = socialProfileUrl;
+        }
+    }
+
+    /**
+     * OAuth 계정 연동 해제
+     * 소셜 로그인 정보를 초기화하고 로컬 계정으로 전환
+     */
+    public void unlinkOAuth() {
+        this.provider = AuthProvider.LOCAL;
+        this.providerId = null;
+        this.socialEmail = null;
+        this.socialName = null;
+        this.socialProfileUrl = null;
+    }
 }

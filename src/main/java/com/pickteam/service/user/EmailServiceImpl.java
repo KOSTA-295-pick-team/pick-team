@@ -185,14 +185,28 @@ public class EmailServiceImpl implements EmailService {
     /**
      * 비밀번호 재설정 이메일 발송
      * - 비밀번호 찾기 기능을 위한 이메일 발송
-     * - 현재 미구현 상태 (TODO: 구현 예정)
+     * - 기존 이메일 인증과 동일한 SMTP 설정 사용
      * 
-     * @param email      비밀번호 재설정 메일을 받을 이메일 주소
-     * @param resetToken 비밀번호 재설정용 토큰
+     * @param email     비밀번호 재설정 메일을 받을 이메일 주소
+     * @param resetCode 비밀번호 재설정용 6자리 코드
      */
     @Override
-    public void sendPasswordResetEmail(String email, String resetToken) {
-        // TODO: 구현 예정
+    public void sendPasswordResetEmail(String email, String resetCode) {
+        log.info("비밀번호 재설정 메일 발송 시작: {}", email);
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(email);
+            helper.setSubject("Pick Team 비밀번호 재설정");
+            helper.setText(createPasswordResetEmailContent(resetCode), true);
+            mailSender.send(message);
+            log.info("비밀번호 재설정 메일 발송 완료: {}", email);
+        } catch (MessagingException | UnsupportedEncodingException e) {
+            log.error("비밀번호 재설정 메일 발송 실패: {}", email, e);
+            throw new EmailSendException("비밀번호 재설정 메일 발송에 실패했습니다.", e);
+        }
     }
 
     /**
@@ -206,15 +220,36 @@ public class EmailServiceImpl implements EmailService {
      */
     private String createVerificationEmailContent(String code) {
         return String.format(
-                "<h2>%s</h2>" +
-                        "<p>%s</p>" +
-                        "<h3>인증 코드: <strong>%s</strong></h3>" +
-                        "<p>%s</p>" +
-                        "<p>%s</p>",
-                EmailErrorMessages.EMAIL_HEADER,
-                EmailErrorMessages.EMAIL_GREETING,
-                code,
-                EmailErrorMessages.EMAIL_CODE_INSTRUCTION,
-                EmailErrorMessages.EMAIL_EXPIRY_INFO);
+                "<h2>Pick Team 이메일 인증</h2>" +
+                        "<p>안녕하세요! Pick Team 서비스 이용을 위해 이메일 인증을 완료해주세요.</p>" +
+                        "<h3>인증 코드: <strong style='color: #007bff; font-size: 24px;'>%s</strong></h3>" +
+                        "<p>위 인증 코드를 입력하여 이메일 인증을 완료해주세요.</p>" +
+                        "<p><strong>인증 코드는 5분간 유효합니다.</strong></p>" +
+                        "<p>만약 이메일 인증을 요청하지 않으셨다면, 이 이메일을 무시하시기 바랍니다.</p>" +
+                        "<hr>" +
+                        "<p style='color: #666; font-size: 12px;'>Pick Team 서비스</p>",
+                code);
+    }
+
+    /**
+     * 비밀번호 재설정 이메일 HTML 컨텐츠 생성
+     * - Pick Team 브랜딩이 적용된 HTML 이메일 템플릿
+     * - 재설정 코드가 강조 표시된 사용자 친화적 디자인
+     * - 5분 유효시간 안내 포함
+     * 
+     * @param resetCode 이메일에 포함할 비밀번호 재설정 코드
+     * @return HTML 형태의 이메일 컨텐츠
+     */
+    private String createPasswordResetEmailContent(String resetCode) {
+        return String.format(
+                "<h2>Pick Team 비밀번호 재설정</h2>" +
+                        "<p>안녕하세요! Pick Team 계정의 비밀번호 재설정을 요청하셨습니다.</p>" +
+                        "<h3>재설정 코드: <strong style='color: #007bff; font-size: 24px;'>%s</strong></h3>" +
+                        "<p>위 재설정 코드를 입력하여 새로운 비밀번호를 설정해주세요.</p>" +
+                        "<p><strong>재설정 코드는 5분간 유효합니다.</strong></p>" +
+                        "<p>만약 비밀번호 재설정을 요청하지 않으셨다면, 이 이메일을 무시하시기 바랍니다.</p>" +
+                        "<hr>" +
+                        "<p style='color: #666; font-size: 12px;'>Pick Team 서비스</p>",
+                resetCode);
     }
 }

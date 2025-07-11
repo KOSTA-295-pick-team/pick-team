@@ -62,7 +62,7 @@ public class JwtTokenProvider {
     public String generateAccessToken(Long userId, String email, String name) {
         Date expiryDate = new Date(System.currentTimeMillis() + jwtExpirationMs);
 
-        return Jwts.builder()
+        String token = Jwts.builder()
                 .subject(userId.toString())
                 .claim("email", email)
                 .claim("name", name)
@@ -70,6 +70,8 @@ public class JwtTokenProvider {
                 .expiration(expiryDate)
                 .signWith(getSigningKey())
                 .compact();
+
+        return token;
     }
 
     /** 사용자 ID로 Refresh Token 생성 */

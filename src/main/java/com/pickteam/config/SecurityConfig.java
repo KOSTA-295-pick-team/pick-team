@@ -67,7 +67,7 @@ public class SecurityConfig {
                         .permitAll()
 
                         // SSE 관련 엔드포인트 허용
-                        .requestMatchers("/api/sse/subscribe").permitAll()
+                        .requestMatchers("/api/sse/subscribe", "/api/sse/subscribe-token").permitAll()
 
                         // 회원가입 관련 API (인증 불필요)
                         .requestMatchers("/api/users/register", "/api/users/check-id", "/api/users/validate-password")

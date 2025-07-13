@@ -43,7 +43,7 @@ public class SseService {
      * 기본 메시지 전송 (eventName: "alert")
      */
     public void sendToUser(Long accountId, String message) {
-        System.out.println("이벤트전송 to "+accountId);
+        log.debug("이벤트 전송 시작: accountId={}", accountId);
         sendToUser(accountId, "alert", message);
     }
 

@@ -21,7 +21,7 @@ public class SseService {
      * SSE 연결
      */
     public SseEmitter connect(Long accountId) {
-        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
+        SseEmitter emitter = new SseEmitter(30 * 60 * 1000L); // 30분
 
         emitter.onCompletion(() -> {
             emitters.remove(accountId);

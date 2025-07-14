@@ -1,6 +1,16 @@
 version: '3'  # Docker Compose 파일의 버전. v3은 대부분의 기능을 지원하며 프로덕션 환경에서도 자주 사용됨.
 
 services:
+  redis:
+    image: redis:7.2
+    container_name: pickteam-redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+    networks:
+      - pickteam
+
   springboot-app:  # 서비스 이름 (컨테이너 역할 명시)
     image: ${DOCKER_USERNAME}/kosta-pick-team:${IMAGE_TAG}  # docker 이미지 경로. CI에서 전달된 태그 사용
     container_name: kosta-pick-team-backend  # 실제 생성될 컨테이너의 이름 지정

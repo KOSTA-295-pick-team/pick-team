@@ -1,8 +1,9 @@
 package com.pickteam.repository.workspace;
 
+import com.pickteam.config.QueryDslConfig;
 import com.pickteam.domain.workspace.Workspace;
 import com.pickteam.domain.user.Account;
-import com.pickteam.config.QueryDslConfig;
+import com.pickteam.config.TestQueryDslConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         type = FilterType.ASSIGNABLE_TYPE,
         classes = {WorkspaceRepository.class}
 ))
-@Import(QueryDslConfig.class)
+@Import(TestQueryDslConfig.class)
 @ActiveProfiles("test")
 class WorkspaceRepositoryTest {
 

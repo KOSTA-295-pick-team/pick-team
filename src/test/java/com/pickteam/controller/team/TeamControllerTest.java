@@ -1,11 +1,16 @@
 package com.pickteam.controller.team;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.pickteam.dto.ApiResponse;
+import com.pickteam.config.TestSecurityConfig;
+import com.pickteam.domain.enums.UserRole;
+import com.pickteam.domain.team.TeamMember;
 import com.pickteam.dto.team.TeamCreateRequest;
 import com.pickteam.dto.team.TeamMemberResponse;
 import com.pickteam.dto.team.TeamResponse;
 import com.pickteam.dto.team.TeamUpdateRequest;
+import com.pickteam.dto.user.UserSummaryResponse;
+import com.pickteam.exception.GlobalExceptionHandler;
+import com.pickteam.security.UserPrincipal;
 import com.pickteam.service.team.TeamService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,18 +18,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -76,11 +85,11 @@ class TeamControllerTest {
         // 실제 테스트에서는 Security Context를 Mock해야 하지만
         // 여기서는 Security를 비활성화했으므로 NPE가 발생할 수 있음
         // 실제 구현에서는 TestSecurityConfig를 사용하거나 메서드를 수정해야 함
-        
+
         // 실제 테스트는 Security 문제로 인해 주석 처리
         // 향후 TeamController의 인증 방식을 @RequestParam으로 변경하거나
         // TestSecurityConfig를 사용하여 해결 필요
-        
+
         /*
         mockMvc.perform(get("/api/teams/workspace/{workspaceId}", workspaceId))
                 .andDo(print())
@@ -192,7 +201,7 @@ class TeamControllerTest {
      * 1. @RequestParam Long accountId 추가하여 테스트 가능하게 만들기
      * 2. TestSecurityConfig 사용하여 Mock 인증 설정
      * 3. SecurityContextHolder Mock 설정
-     * 
+     *
      * 현재는 UserPrincipal 의존성으로 인해 실제 HTTP 테스트가 어려운 상태
      */
 

@@ -136,8 +136,6 @@ class VideoConferenceServiceImplTest {
         verify(videoChannelRepository).save(any(VideoChannel.class));
     }
 
-    // 실제 구현에서는 워크스페이스 존재 여부를 확인하지 않으므로 이 테스트는 제거
-
     @Test
     @DisplayName("비디오 채널 참가자 목록 조회 시 정상적으로 반환한다")
     void selectVideoChannelParticipants_ValidChannelId_ReturnsParticipantList() throws VideoConferenceException {

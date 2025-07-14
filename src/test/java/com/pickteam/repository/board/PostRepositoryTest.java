@@ -52,7 +52,7 @@ class PostRepositoryTest {
     @DisplayName("삭제되지 않은 게시글을 ID로 조회할 수 있다")
     void findByIdWithDetailsAndIsDeletedFalse_ExistingId_ReturnsPost() {
         // given
-        Workspace workspace = createAndSaveWorkspace("테스트 워크스페이스");
+        Workspace workspace = createWorkspaceWithAccount("테스트 워크스페이스");
         Team team = createAndSaveTeam("개발팀", workspace);
         Board board = createAndSaveBoard(team);
         Account account = createAndSaveAccount("test@example.com", "홍길동");
@@ -74,7 +74,7 @@ class PostRepositoryTest {
     @DisplayName("삭제된 게시글은 ID로 조회할 수 없다")
     void findByIdWithDetailsAndIsDeletedFalse_DeletedPost_ReturnsEmpty() {
         // given
-        Workspace workspace = createAndSaveWorkspace("테스트 워크스페이스");
+        Workspace workspace = createWorkspaceWithAccount("테스트 워크스페이스");
         Team team = createAndSaveTeam("개발팀", workspace);
         Board board = createAndSaveBoard(team);
         Account account = createAndSaveAccount("test@example.com", "홍길동");
@@ -108,7 +108,7 @@ class PostRepositoryTest {
     @DisplayName("게시판별 게시글을 댓글 수와 함께 페이징 조회할 수 있다")
     void findPostsWithCommentsCount_ValidBoardId_ReturnsPagedPosts() {
         // given
-        Workspace workspace = createAndSaveWorkspace("테스트 워크스페이스");
+        Workspace workspace = createWorkspaceWithAccount("테스트 워크스페이스");
         Team team = createAndSaveTeam("개발팀", workspace);
         Board board = createAndSaveBoard(team);
         Account account = createAndSaveAccount("test@example.com", "홍길동");
@@ -139,7 +139,7 @@ class PostRepositoryTest {
     @DisplayName("게시판에 게시글이 없으면 빈 페이지를 반환한다")
     void findPostsWithCommentsCount_EmptyBoard_ReturnsEmptyPage() {
         // given
-        Workspace workspace = createAndSaveWorkspace("테스트 워크스페이스");
+        Workspace workspace = createWorkspaceWithAccount("테스트 워크스페이스");
         Team team = createAndSaveTeam("개발팀", workspace);
         Board board = createAndSaveBoard(team);
 
@@ -158,7 +158,7 @@ class PostRepositoryTest {
     @DisplayName("삭제된 게시글은 페이징 조회에 포함되지 않는다")
     void findPostsWithCommentsCount_ExcludesDeletedPosts() {
         // given
-        Workspace workspace = createAndSaveWorkspace("테스트 워크스페이스");
+        Workspace workspace = createWorkspaceWithAccount("테스트 워크스페이스");
         Team team = createAndSaveTeam("개발팀", workspace);
         Board board = createAndSaveBoard(team);
         Account account = createAndSaveAccount("test@example.com", "홍길동");
@@ -181,7 +181,7 @@ class PostRepositoryTest {
     }
 
     // 테스트 헬퍼 메서드들
-    private Workspace createAndSaveWorkspace(String name) {
+    private Workspace createWorkspaceWithAccount(String name) {
         // 1) Account 생성 및 저장
         Account account = Account.builder()
                 .email("unique_" + System.nanoTime() + "@example.com") // 유니크 이메일 권장

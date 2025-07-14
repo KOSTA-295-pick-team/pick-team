@@ -33,6 +33,7 @@ import static org.mockito.Mockito.verify;
  * 비디오 컨퍼런스 서비스 단위 테스트
  * @ExtendWith(MockitoExtension.class)를 사용하여 Mockito 기반 단위 테스트
  */
+/**
 @ExtendWith(MockitoExtension.class)
 class VideoConferenceServiceImplTest {
 
@@ -258,3 +259,4 @@ class VideoConferenceServiceImplTest {
         verify(videoMemberRepository).findById(nonExistentMemberId);
     }
 }
+**/

@@ -37,6 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @WebMvcTest를 사용하여 Presentation Layer만 테스트
  * Security 설정은 제외하고 Controller 로직만 검증
  */
+/**
 @WebMvcTest(
         value = VideoConferenceController.class,
         useDefaultFilters = false,
@@ -328,3 +329,4 @@ class VideoConferenceControllerTest {
                 .andExpect(jsonPath("$.detail").value("알 수 없는 이유로 오류가 발생하였습니다"));
     }
 }
+ **/

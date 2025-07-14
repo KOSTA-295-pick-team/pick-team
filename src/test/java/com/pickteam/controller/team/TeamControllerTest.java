@@ -41,9 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * 팀 컨트롤러 단위 테스트
  * @WebMvcTest를 사용하여 Presentation Layer만 테스트
- * Security 설정은 제외하고 Controller 로직만 검증
- * TeamController는 UserPrincipal을 사용하므로 실제 인증 테스트가 복잡함
- * 여기서는 Security를 비활성화하고 컨트롤러 로직만 테스트
+ * TestSecurityConfig와 Mock 인증을 사용하여 완전한 HTTP 테스트 수행
  */
 @WebMvcTest(
         value = TeamController.class,
@@ -58,6 +56,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration.class
         }
 )
+@TestPropertySource(properties = {
+        "spring.jpa.hibernate.ddl-auto=none",
+        "spring.datasource.initialization-mode=never",
+        "spring.jpa.defer-datasource-initialization=false"
+})
+@Import({TestSecurityConfig.class, GlobalExceptionHandler.class})
 @ActiveProfiles("test")
 class TeamControllerTest {
 
@@ -70,6 +74,20 @@ class TeamControllerTest {
     @MockitoBean
     private TeamService teamService;
 
+    /**
+     * 테스트용 Mock 사용자 생성
+     */
+    private UserPrincipal createTestUser() {
+        return new UserPrincipal(
+                1L,
+                "test@example.com",
+                "테스트 사용자",
+                "password",
+                UserRole.USER,
+                List.of()
+        );
+    }
+
     @Test
     @DisplayName("워크스페이스별 팀 목록을 조회할 수 있다")
     void getTeamsByWorkspace_ValidWorkspaceId_ReturnsTeamsList() throws Exception {
@@ -77,29 +95,21 @@ class TeamControllerTest {
         Long workspaceId = 1L;
         TeamResponse teamResponse = createTeamResponse();
 
-        given(teamService.getTeamsByWorkspace(eq(workspaceId), anyLong()))
+        given(teamService.getTeamsByWorkspace(eq(workspaceId), eq(1L)))
                 .willReturn(List.of(teamResponse));
 
         // When & Then
-        // Note: TeamController는 UserPrincipal을 사용하여 현재 사용자 ID를 가져오므로
-        // 실제 테스트에서는 Security Context를 Mock해야 하지만
-        // 여기서는 Security를 비활성화했으므로 NPE가 발생할 수 있음
-        // 실제 구현에서는 TestSecurityConfig를 사용하거나 메서드를 수정해야 함
-
-        // 실제 테스트는 Security 문제로 인해 주석 처리
-        // 향후 TeamController의 인증 방식을 @RequestParam으로 변경하거나
-        // TestSecurityConfig를 사용하여 해결 필요
-
-        /*
-        mockMvc.perform(get("/api/teams/workspace/{workspaceId}", workspaceId))
+        mockMvc.perform(get("/api/teams/workspace/{workspaceId}", workspaceId)
+                        .with(user(createTestUser())))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("팀 목록 조회 성공"))
                 .andExpect(jsonPath("$.data[0].id").value(1L))
-                .andExpect(jsonPath("$.data[0].name").value("테스트 팀"));
+                .andExpect(jsonPath("$.data[0].name").value("테스트 팀"))
+                .andExpect(jsonPath("$.data[0].workspaceId").value(1L));
 
-        verify(teamService).getTeamsByWorkspace(eq(workspaceId), anyLong());
-        */
+        verify(teamService).getTeamsByWorkspace(eq(workspaceId), eq(1L));
     }
 
     @Test
@@ -109,21 +119,21 @@ class TeamControllerTest {
         Long teamId = 1L;
         TeamResponse teamResponse = createTeamResponse();
 
-        given(teamService.getTeam(eq(teamId), anyLong()))
+        given(teamService.getTeam(eq(teamId), eq(1L)))
                 .willReturn(teamResponse);
 
         // When & Then
-        // Security 문제로 인해 주석 처리 (위와 동일한 이유)
-        /*
-        mockMvc.perform(get("/api/teams/{teamId}", teamId))
+        mockMvc.perform(get("/api/teams/{teamId}", teamId)
+                        .with(user(createTestUser())))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("팀 조회 성공"))
                 .andExpect(jsonPath("$.data.id").value(1L))
-                .andExpect(jsonPath("$.data.name").value("테스트 팀"));
+                .andExpect(jsonPath("$.data.name").value("테스트 팀"))
+                .andExpect(jsonPath("$.data.memberCount").value(1));
 
-        verify(teamService).getTeam(eq(teamId), anyLong());
-        */
+        verify(teamService).getTeam(eq(teamId), eq(1L));
     }
 
     @Test
@@ -133,21 +143,98 @@ class TeamControllerTest {
         Long teamId = 1L;
         TeamMemberResponse memberResponse = createTeamMemberResponse();
 
-        given(teamService.getTeamMembers(eq(teamId), anyLong()))
+        given(teamService.getTeamMembers(eq(teamId), eq(1L)))
                 .willReturn(List.of(memberResponse));
 
         // When & Then
-        // Security 문제로 인해 주석 처리
-        /*
-        mockMvc.perform(get("/api/teams/{teamId}/members", teamId))
+        mockMvc.perform(get("/api/teams/{teamId}/members", teamId)
+                        .with(user(createTestUser())))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("팀 멤버 목록 조회 성공"))
                 .andExpect(jsonPath("$.data[0].accountId").value(1L))
                 .andExpect(jsonPath("$.data[0].name").value("테스트 사용자"));
 
-        verify(teamService).getTeamMembers(eq(teamId), anyLong());
-        */
+        verify(teamService).getTeamMembers(eq(teamId), eq(1L));
+    }
+
+    @Test
+    @DisplayName("팀을 생성할 수 있다")
+    void createTeam_ValidRequest_ReturnsTeamResponse() throws Exception {
+        // Given
+        TeamCreateRequest request = new TeamCreateRequest();
+        request.setName("새 팀");
+        request.setWorkspaceId(1L);
+
+        TeamResponse response = createTeamResponse();
+        response.setName("새 팀");
+
+        given(teamService.createTeam(eq(1L), any(TeamCreateRequest.class)))
+                .willReturn(response);
+
+        // When & Then
+        mockMvc.perform(post("/api/teams")
+                        .with(user(createTestUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("팀 생성 성공"))
+                .andExpect(jsonPath("$.data.id").value(1L))
+                .andExpect(jsonPath("$.data.name").value("새 팀"))
+                .andExpect(jsonPath("$.data.workspaceId").value(1L));
+
+        verify(teamService).createTeam(eq(1L), any(TeamCreateRequest.class));
+    }
+
+    @Test
+    @DisplayName("팀을 수정할 수 있다")
+    void updateTeam_ValidRequest_ReturnsUpdatedTeam() throws Exception {
+        // Given
+        Long teamId = 1L;
+        TeamUpdateRequest request = new TeamUpdateRequest();
+        request.setName("수정된 팀명");
+
+        TeamResponse response = createTeamResponse();
+        response.setName("수정된 팀명");
+
+        given(teamService.updateTeam(eq(teamId), eq(1L), any(TeamUpdateRequest.class)))
+                .willReturn(response);
+
+        // When & Then
+        mockMvc.perform(put("/api/teams/{teamId}", teamId)
+                        .with(user(createTestUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("팀 수정 성공"))
+                .andExpect(jsonPath("$.data.id").value(1L))
+                .andExpect(jsonPath("$.data.name").value("수정된 팀명"));
+
+        verify(teamService).updateTeam(eq(teamId), eq(1L), any(TeamUpdateRequest.class));
+    }
+
+    @Test
+    @DisplayName("팀을 삭제할 수 있다")
+    void deleteTeam_ValidTeamId_ReturnsSuccessMessage() throws Exception {
+        // Given
+        Long teamId = 1L;
+        doNothing().when(teamService).deleteTeam(teamId, 1L);
+
+        // When & Then
+        mockMvc.perform(delete("/api/teams/{teamId}", teamId)
+                        .with(user(createTestUser())))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("팀 삭제 성공"))
+                .andExpect(jsonPath("$.data").isEmpty());
+
+        verify(teamService).deleteTeam(teamId, 1L);
     }
 
     @Test
@@ -197,42 +284,44 @@ class TeamControllerTest {
     }
 
     /**
-     * 향후 TeamController 개선 방안:
-     * 1. @RequestParam Long accountId 추가하여 테스트 가능하게 만들기
-     * 2. TestSecurityConfig 사용하여 Mock 인증 설정
-     * 3. SecurityContextHolder Mock 설정
-     *
-     * 현재는 UserPrincipal 의존성으로 인해 실제 HTTP 테스트가 어려운 상태
+     * 테스트용 팀 응답 객체 생성
      */
-
     private TeamResponse createTeamResponse() {
+        UserSummaryResponse leader = UserSummaryResponse.builder()
+                .id(1L)
+                .name("테스트 사용자")
+                .email("test@example.com")
+                .build();
+
         TeamResponse response = new TeamResponse();
         response.setId(1L);
         response.setName("테스트 팀");
         response.setWorkspaceId(1L);
         response.setWorkspaceName("테스트 워크스페이스");
+        response.setLeader(leader);
         response.setMemberCount(1);
+        response.setMembers(List.of());
         response.setCreatedAt(LocalDateTime.now());
         response.setUpdatedAt(LocalDateTime.now());
         return response;
     }
 
+    /**
+     * 테스트용 팀 멤버 응답 객체 생성
+     */
     private TeamMemberResponse createTeamMemberResponse() {
         TeamMemberResponse response = new TeamMemberResponse();
+        response.setId(1L);
         response.setAccountId(1L);
         response.setName("테스트 사용자");
         response.setEmail("test@example.com");
-        response.setTeamRole(com.pickteam.domain.team.TeamMember.TeamRole.LEADER);
+        response.setTeamRole(TeamMember.TeamRole.LEADER);
+        response.setTeamStatus(TeamMember.TeamStatus.ACTIVE);
         response.setJoinedAt(LocalDateTime.now());
+        response.setAge(25);
+        response.setMbti("ENFP");
+        response.setDisposition("적극적");
+        response.setIntroduction("안녕하세요");
         return response;
-    }
-
-    // AssertJ import를 위한 정적 메서드
-    private static org.assertj.core.api.AbstractStringAssert<?> assertThat(String actual) {
-        return org.assertj.core.api.Assertions.assertThat(actual);
-    }
-
-    private static <T> org.assertj.core.api.ListAssert<T> assertThat(List<T> actual) {
-        return org.assertj.core.api.Assertions.assertThat(actual);
     }
 }

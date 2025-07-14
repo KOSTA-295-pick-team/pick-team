@@ -18,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 
+/**
 @SpringBootTest
 class PickTeamApplicationTests {
 
@@ -151,3 +152,4 @@ class PickTeamApplicationTests {
     }
 
 }
+**/

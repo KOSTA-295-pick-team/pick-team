@@ -8,6 +8,9 @@ services:
     ports:
       - ${PORT_NO}:${PORT_NO}  # 호스트의 8081 포트를 컨테이너의 8081 포트에 매핑 (환경변수 따라 세팅)
 
+    volumes:
+      - ${UPLOAD_DOCKER_VOLUME_PATH}  # Spring 내에서 /app/uploads로 접근
+
     environment:  # 컨테이너에 전달할 환경변수 설정
       PORT_NO: ${PORT_NO}  # Port no
       DATABASE_TYPE: ${DATABASE_TYPE}  # Database type

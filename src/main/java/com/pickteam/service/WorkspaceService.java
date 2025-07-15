@@ -12,13 +12,20 @@ import com.pickteam.repository.workspace.WorkspaceMemberRepository;
 import com.pickteam.repository.workspace.WorkspaceRepository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.Random;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +37,9 @@ public class WorkspaceService {
     private final BlacklistRepository blacklistRepository;
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
+    
+    @Value("${app.upload.dir}")
+    private String uploadPath;
     
     /**
      * 워크스페이스 생성
@@ -411,6 +421,72 @@ public class WorkspaceService {
         workspaceRepository.save(workspace);
     }
     
+    /**
+     * 워크스페이스 아이콘 업로드
+     */
+    @Transactional
+    public String uploadWorkspaceIcon(Long workspaceId, Long accountId, MultipartFile file) {
+        // 워크스페이스 존재 확인
+        Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(workspaceId)
+                .orElseThrow(() -> new RuntimeException("워크스페이스를 찾을 수 없습니다."));
+        
+        // 권한 확인 (워크스페이스 소유자 또는 관리자만 가능)
+        WorkspaceMember member = workspaceMemberRepository.findByWorkspaceIdAndAccountId(workspaceId, accountId)
+                .orElseThrow(() -> new RuntimeException("워크스페이스 멤버가 아닙니다."));
+        
+        if (member.getRole() != WorkspaceMember.MemberRole.OWNER && 
+            member.getRole() != WorkspaceMember.MemberRole.ADMIN) {
+            throw new RuntimeException("워크스페이스 아이콘 변경 권한이 없습니다.");
+        }
+        
+        // 파일 검증
+        if (file.isEmpty()) {
+            throw new RuntimeException("파일이 비어있습니다.");
+        }
+        
+        // 파일 크기 검증 (5MB 제한)
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new RuntimeException("파일 크기는 5MB 이하여야 합니다.");
+        }
+        
+        // 파일 타입 검증
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new RuntimeException("이미지 파일만 업로드 가능합니다.");
+        }
+        
+        try {
+            // 업로드 디렉토리 생성
+            Path uploadDir = Paths.get(uploadPath, "workspace-icons");
+            if (!Files.exists(uploadDir)) {
+                Files.createDirectories(uploadDir);
+            }
+            
+            // 파일명 생성 (UUID + 원본 확장자)
+            String originalFilename = file.getOriginalFilename();
+            String extension = originalFilename != null && originalFilename.contains(".") 
+                ? originalFilename.substring(originalFilename.lastIndexOf(".")) 
+                : "";
+            String filename = UUID.randomUUID().toString() + extension;
+            
+            // 파일 저장
+            Path filePath = uploadDir.resolve(filename);
+            Files.copy(file.getInputStream(), filePath);
+            
+            // 파일 URL 생성
+            String iconUrl = "/uploads/workspace-icons/" + filename;
+            
+            // 워크스페이스 아이콘 URL 업데이트
+            workspace.setIconUrl(iconUrl);
+            workspaceRepository.save(workspace);
+            
+            return iconUrl;
+            
+        } catch (IOException e) {
+            throw new RuntimeException("파일 업로드 중 오류가 발생했습니다.", e);
+        }
+    }
+    
     private String generateInviteCode() {
         // 혼동하기 쉬운 문자 제외: 0(zero), O(oh), 1(one), l(L), I(i)
         final String CHARACTERS = "23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -502,4 +578,4 @@ public class WorkspaceService {
                 .role(account.getRole().toString())
                 .build();
     }
-} 
+}

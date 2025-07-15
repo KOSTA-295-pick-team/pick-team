@@ -191,6 +191,7 @@ public class AuthServiceImpl implements AuthService {
      * @throws UserNotFoundException 사용자가 존재하지 않을 시
      */
     @Override
+    @Transactional
     public JwtAuthenticationResponse refreshToken(RefreshTokenRequest request) {
         log.info("토큰 갱신 시도");
 
@@ -297,6 +298,7 @@ public class AuthServiceImpl implements AuthService {
      * @param token   저장할 토큰 문자열
      * @return 저장된 RefreshToken 엔티티
      */
+    @Transactional
     private RefreshToken createAndSaveRefreshToken(Account account, String token) {
         refreshTokenRepository.deleteByAccount(account);
         LocalDateTime now = LocalDateTime.now();

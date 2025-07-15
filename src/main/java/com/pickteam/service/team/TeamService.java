@@ -5,6 +5,7 @@ import com.pickteam.domain.team.TeamMember;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.workspace.Workspace;
 import com.pickteam.domain.workspace.WorkspaceMember;
+import com.pickteam.domain.board.Board;
 import com.pickteam.dto.team.*;
 import com.pickteam.dto.user.UserSummaryResponse;
 import com.pickteam.repository.team.TeamMemberRepository;
@@ -12,6 +13,7 @@ import com.pickteam.repository.team.TeamRepository;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.workspace.WorkspaceMemberRepository;
 import com.pickteam.repository.workspace.WorkspaceRepository;
+import com.pickteam.repository.board.BoardRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,7 @@ public class TeamService {
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final AccountRepository accountRepository;
+    private final BoardRepository boardRepository;
     
     /**
      * 팀 생성 (워크스페이스의 모든 멤버가 가능)
@@ -57,6 +60,13 @@ public class TeamService {
                 .build();
         
         team = teamRepository.save(team);
+        
+        // 팀 생성 시 자동으로 게시판 생성
+        Board board = Board.builder()
+                .team(team)
+                .build();
+        
+        boardRepository.save(board);
         
         // 생성자를 팀장으로 추가
         TeamMember teamLeader = TeamMember.builder()
@@ -231,6 +241,11 @@ public class TeamService {
         List<TeamMember> members = teamMemberRepository.findActiveMembers(team.getId());
         TeamMember leader = teamMemberRepository.findTeamLeader(team.getId()).orElse(null);
         
+        // 팀의 게시판 ID 조회
+        Long boardId = boardRepository.findByTeamAndIsDeletedFalse(team)
+                .map(Board::getId)
+                .orElse(null);
+        
         return TeamResponse.builder()
                 .id(team.getId())
                 .name(team.getName())
@@ -239,6 +254,7 @@ public class TeamService {
                 .leader(leader != null ? convertToUserSummary(leader.getAccount()) : null)
                 .memberCount(members.size())
                 .members(members.stream().map(this::convertToTeamMemberResponse).collect(Collectors.toList()))
+                .boardId(boardId)
                 .createdAt(team.getCreatedAt())
                 .updatedAt(team.getUpdatedAt())
                 .build();

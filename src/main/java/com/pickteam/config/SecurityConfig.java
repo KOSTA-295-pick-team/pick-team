@@ -79,7 +79,10 @@ public class SecurityConfig {
                         // 프로필 이미지는 공개 접근 허용
                         .requestMatchers("/profile-images/**").permitAll()
 
-                        // 업로드 파일 직접 접근 차단 (보안 강화)
+                        // 워크스페이스 아이콘은 공개 접근 허용
+                        .requestMatchers("/uploads/workspace-icons/**").permitAll()
+
+                        // 기타 업로드 파일 직접 접근 차단 (보안 강화)
                         .requestMatchers("/uploads/**").denyAll()
 
                         // 파일 다운로드는 컨트롤러를 통해서만 허용 (인증 필요)

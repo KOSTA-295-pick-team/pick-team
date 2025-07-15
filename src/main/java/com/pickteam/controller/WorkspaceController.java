@@ -8,9 +8,11 @@ import com.pickteam.service.WorkspaceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.validation.Valid;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.List;
@@ -101,7 +103,23 @@ public class WorkspaceController {
     }
     
     /**
-     * 워크스페이스 설정 업데이트
+     * 워크스페이스 아이콘 업로드
+     */
+    @PostMapping(value = "/{workspaceId}/icon", consumes = {"multipart/form-data"})
+    public ResponseEntity<ApiResponse<Map<String, String>>> uploadWorkspaceIcon(
+            @PathVariable Long workspaceId,
+            @RequestParam("file") MultipartFile file) {
+        Long userId = getCurrentUserId();
+        String iconUrl = workspaceService.uploadWorkspaceIcon(workspaceId, userId, file);
+        
+        Map<String, String> response = new HashMap<>();
+        response.put("iconUrl", iconUrl);
+        
+        return ResponseEntity.ok(ApiResponse.success("워크스페이스 아이콘 업로드 성공", response));
+    }
+
+    /**
+     * 워크스페이스 정보 업데이트
      */
     @PutMapping("/{workspaceId}")
     public ResponseEntity<ApiResponse<WorkspaceResponse>> updateWorkspace(
@@ -184,4 +202,4 @@ public class WorkspaceController {
         workspaceService.deleteWorkspace(workspaceId, userId);
         return ResponseEntity.ok(ApiResponse.success("워크스페이스 삭제 성공", null));
     }
-} 
+}

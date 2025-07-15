@@ -4,13 +4,14 @@ package com.pickteam.dto.chat;
 import com.pickteam.domain.enums.ChatRoomType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.List;
 
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class ChatRoomCreateRequest {
     @NotNull(message = "워크스페이스 ID는 필수입니다.")
     private Long workspaceId;

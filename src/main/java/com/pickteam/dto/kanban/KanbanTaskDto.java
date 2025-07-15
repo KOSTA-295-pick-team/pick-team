@@ -20,6 +20,8 @@ public class KanbanTaskDto {
     private Long kanbanListId;
     private Integer order;
     private Boolean isApproved;
+    private Boolean completionRequested;
+    private String completionRequestMessage;
     private List<KanbanTaskAttachDto> attachments;
     private List<KanbanTaskCommentDto> comments;
     private List<KanbanTaskMemberDto> members;

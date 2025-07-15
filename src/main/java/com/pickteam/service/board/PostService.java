@@ -49,7 +49,7 @@ public class PostService {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. accountId: " + accountId));
 
-        Board board = boardRepository.findById(dto.getBoardId())
+        Board board = boardRepository.findByIdAndIsDeletedFalse(dto.getBoardId())
                 .orElseThrow(() -> new IllegalArgumentException("게시판을 찾을 수 없습니다. boardId: " + dto.getBoardId()));
 
         Integer nextPostNo = postRepository.findMaxPostNoByBoardIdAndIsDeletedFalse(dto.getBoardId()) + 1;

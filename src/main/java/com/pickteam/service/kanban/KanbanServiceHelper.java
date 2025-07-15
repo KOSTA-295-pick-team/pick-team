@@ -306,8 +306,14 @@ public class KanbanServiceHelper {
         if (request.getApproved()) {
             kanbanTask.setIsApproved(true);
             kanbanTask.setCompletionRequested(false);
+            // 승인 시 완료 메시지 초기화
+            kanbanTask.setCompletionRequestMessage(null);
         } else {
             kanbanTask.setCompletionRequested(false);
+            // 거부 시 거부 사유 저장
+            if (request.getApprovalMessage() != null) {
+                kanbanTask.setCompletionRequestMessage("거부됨: " + request.getApprovalMessage());
+                }
         }
         
         kanbanTask = kanbanTaskRepository.save(kanbanTask);

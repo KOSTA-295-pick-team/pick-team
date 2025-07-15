@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.Optional;
+
 @RestController
 @RequestMapping("/api/sse")
 @RequiredArgsConstructor
@@ -39,8 +41,18 @@ public class SseController {
      */
     @GetMapping("/subscribe")
     public SseEmitter subscribe() {
-        Long accountId = sseSessionRepository.resolveAnyPrepared()
-                .orElseThrow(() -> new IllegalStateException("❌ 등록된 SSE 사용자가 없습니다."));
+        log.debug("🔍 SSE subscribe 요청 시작");
+        
+        Optional<Long> accountIdOpt = sseSessionRepository.resolveAnyPrepared();
+        if (accountIdOpt.isEmpty()) {
+            log.warn("❌ 등록된 SSE 사용자가 없습니다. 현재 준비된 세션 수: {}", 
+                    sseSessionRepository.countPreparedSessions());
+            throw new IllegalStateException("❌ 등록된 SSE 사용자가 없습니다.");
+        }
+        
+        Long accountId = accountIdOpt.get();
+        log.info("🔗 SSE 연결 시작: accountId={}", accountId);
+        
         return sseService.connect(accountId);
     }
 }

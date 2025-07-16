@@ -21,6 +21,7 @@ import com.pickteam.service.sse.SseService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatMessageServiceImpl implements ChatMessageService {
@@ -146,10 +148,16 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 .findFirst()
                 .orElseThrow(() -> new EntityNotFoundException("해당 워크스페이스의 멤버가 아닙니다."));
 
-        //작성자인지 먼저 검사
-        if (!message.getAccount().getId().equals(accountId)
-                && targetMember.getRole() != WorkspaceMember.MemberRole.ADMIN) {
-            throw new IllegalArgumentException("메시지 삭제 권한이 없습니다.");
+        //작성자인지 또는 관리자(ADMIN/OWNER)인지 검사
+        boolean isAuthor = message.getAccount().getId().equals(accountId);
+        boolean isAdmin = targetMember.getRole() == WorkspaceMember.MemberRole.ADMIN || 
+                         targetMember.getRole() == WorkspaceMember.MemberRole.OWNER;
+        
+        log.info("메시지 삭제 권한 확인 - 메시지ID: {}, 요청자ID: {}, 작성자ID: {}, 작성자여부: {}, 관리자여부: {}, 워크스페이스역할: {}", 
+                messageId, accountId, message.getAccount().getId(), isAuthor, isAdmin, targetMember.getRole());
+        
+        if (!isAuthor && !isAdmin) {
+            throw new IllegalArgumentException("메시지 삭제 권한이 없습니다. 작성자 또는 워크스페이스 관리자만 삭제할 수 있습니다.");
         }
 
         message.markDeleted(); //soft-delete 처리

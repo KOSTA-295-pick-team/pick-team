@@ -10,6 +10,7 @@ import com.pickteam.repository.workspace.WorkspaceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,11 +63,11 @@ public class KanbanService {
         Team team = teamRepository.findByIdAndIsDeletedFalse(teamId)
                 .orElseThrow(() -> new RuntimeException("Team not found: " + teamId));
         
-        // 첫 번째 칸반 조회
-        Optional<Kanban> firstKanban = kanbanRepository.findFirstByTeamId(teamId);
+        // 첫 번째 칸반 조회 (Pageable 사용)
+        List<Kanban> kanbans = kanbanRepository.findFirstByTeamId(teamId, PageRequest.of(0, 1));
         
-        if (firstKanban.isPresent()) {
-            return helper.convertToDto(firstKanban.get());
+        if (!kanbans.isEmpty()) {
+            return helper.convertToDto(kanbans.get(0));
         }
         
         // 칸반이 없으면 자동 생성
@@ -76,10 +77,10 @@ public class KanbanService {
     @Transactional
     public KanbanDto createKanbanForTeam(Long teamId, Long workspaceId) {
         // 동시성 문제 방지를 위해 다시 한 번 확인
-        Optional<Kanban> existingKanban = kanbanRepository.findFirstByTeamId(teamId);
-        if (existingKanban.isPresent()) {
+        List<Kanban> existingKanbans = kanbanRepository.findFirstByTeamId(teamId, PageRequest.of(0, 1));
+        if (!existingKanbans.isEmpty()) {
             log.info("Kanban already exists for team: {}, returning existing kanban", teamId);
-            return helper.convertToDto(existingKanban.get());
+            return helper.convertToDto(existingKanbans.get(0));
         }
         
         try {
@@ -92,9 +93,11 @@ public class KanbanService {
         } catch (Exception e) {
             // 동시성 문제로 생성 실패 시 다시 조회
             log.warn("Failed to create kanban for team: {}, attempting to find existing", teamId);
-            return kanbanRepository.findFirstByTeamId(teamId)
-                    .map(helper::convertToDto)
-                    .orElseThrow(() -> new RuntimeException("Kanban creation failed for team: " + teamId, e));
+            List<Kanban> kanbans = kanbanRepository.findFirstByTeamId(teamId, PageRequest.of(0, 1));
+            if (!kanbans.isEmpty()) {
+                return helper.convertToDto(kanbans.get(0));
+            }
+            throw new RuntimeException("Kanban creation failed for team: " + teamId, e);
         }
     }
 

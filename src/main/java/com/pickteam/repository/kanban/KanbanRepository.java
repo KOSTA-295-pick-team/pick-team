@@ -1,6 +1,7 @@
 package com.pickteam.repository.kanban;
 
 import com.pickteam.domain.kanban.Kanban;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,9 +17,9 @@ public interface KanbanRepository extends JpaRepository<Kanban, Long> {
     @Query("SELECT k FROM Kanban k WHERE k.team.id = :teamId AND k.isDeleted = false ORDER BY k.order ASC, k.createdAt ASC")
     List<Kanban> findByTeamId(@Param("teamId") Long teamId);
     
-    // 첫 번째 칸반 조회 (현재 요구사항용)
-    @Query("SELECT k FROM Kanban k WHERE k.team.id = :teamId AND k.isDeleted = false ORDER BY k.order ASC, k.createdAt ASC LIMIT 1")
-    Optional<Kanban> findFirstByTeamId(@Param("teamId") Long teamId);
+    // 첫 번째 칸반 조회 (현재 요구사항용) - Pageable 사용
+    @Query("SELECT k FROM Kanban k WHERE k.team.id = :teamId AND k.isDeleted = false ORDER BY k.order ASC, k.createdAt ASC")
+    List<Kanban> findFirstByTeamId(@Param("teamId") Long teamId, Pageable pageable);
     
     @Query("SELECT k FROM Kanban k WHERE k.workspace.id = :workspaceId AND k.isDeleted = false ORDER BY k.order ASC")
     List<Kanban> findByWorkspaceId(@Param("workspaceId") Long workspaceId);

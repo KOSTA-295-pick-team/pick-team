@@ -5,6 +5,7 @@ import com.pickteam.domain.team.TeamMember;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.workspace.Workspace;
 import com.pickteam.domain.workspace.WorkspaceMember;
+import com.pickteam.dto.kanban.KanbanCreateRequest;
 import com.pickteam.dto.team.*;
 import com.pickteam.dto.user.UserSummaryResponse;
 import com.pickteam.repository.team.TeamMemberRepository;
@@ -12,10 +13,10 @@ import com.pickteam.repository.team.TeamRepository;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.workspace.WorkspaceMemberRepository;
 import com.pickteam.repository.workspace.WorkspaceRepository;
-import com.pickteam.service.kanban.KanbanService;
-import com.pickteam.dto.kanban.KanbanCreateRequest;
 import com.pickteam.service.board.BoardService;
+import com.pickteam.service.kanban.KanbanService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class TeamService {
     
     private final TeamRepository teamRepository;
@@ -78,7 +80,7 @@ public class TeamService {
             boardService.createDefaultBoardForTeam(team.getId());
         } catch (Exception e) {
             // 게시판 생성 실패 시 로그만 출력하고 팀 생성은 계속 진행
-            System.err.println("게시판 자동 생성 실패: " + e.getMessage());
+            log.error("게시판 자동 생성 실패 - 팀 ID: {}", team.getId(), e);
         }
         
         // 팀 생성 시 자동으로 칸반 보드 생성
@@ -89,7 +91,7 @@ public class TeamService {
             kanbanService.createKanban(kanbanRequest);
         } catch (Exception e) {
             // 칸반 보드 생성 실패 시 로그만 출력하고 팀 생성은 계속 진행
-            System.err.println("칸반 보드 자동 생성 실패: " + e.getMessage());
+            log.error("칸반 보드 자동 생성 실패 - 팀 ID: {}", team.getId(), e);
         }
         
         return convertToResponse(team);
@@ -306,4 +308,4 @@ public class TeamService {
                 .role(account.getRole().toString())
                 .build();
     }
-} 
+}

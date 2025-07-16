@@ -1,5 +1,6 @@
 package com.pickteam.service.user;
 
+import com.pickteam.domain.enums.AuthProvider;
 import com.pickteam.dto.user.UserLoginRequest;
 import com.pickteam.dto.user.UserProfileResponse;
 import com.pickteam.dto.user.LogoutResponse;

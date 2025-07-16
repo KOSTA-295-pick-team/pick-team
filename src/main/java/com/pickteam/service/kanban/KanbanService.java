@@ -31,9 +31,10 @@ public class KanbanService {
 
     @Transactional
     public KanbanDto createKanban(KanbanCreateRequest request) {
-        Team team = teamRepository.findById(request.getTeamId())
+        // Soft Delete 고려한 일관성 있는 조회
+        Team team = teamRepository.findByIdAndIsDeletedFalse(request.getTeamId())
                 .orElseThrow(() -> new RuntimeException("Team not found"));
-        Workspace workspace = workspaceRepository.findById(request.getWorkspaceId())
+        Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(request.getWorkspaceId())
                 .orElseThrow(() -> new RuntimeException("Workspace not found"));
 
         Kanban kanban = Kanban.builder()
@@ -46,33 +47,30 @@ public class KanbanService {
         return helper.convertToDto(kanban);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public KanbanDto getKanbanByTeamId(Long teamId) {
-        Optional<Kanban> kanbanOpt = kanbanRepository.findByTeamId(teamId);
+        // 한 번에 team 검증과 kanban 조회로 중복 조회 방지
+        Team team = teamRepository.findByIdAndIsDeletedFalse(teamId)
+                .orElseThrow(() -> new RuntimeException("Team not found: " + teamId));
         
-        if (kanbanOpt.isPresent()) {
-            return helper.convertToDto(kanbanOpt.get());
-        }
-        
-        // 칸반 보드가 없으면 자동으로 생성
-        try {
-            // 팀 정보를 조회하여 워크스페이스 ID를 얻음
-            Team team = teamRepository.findByIdAndIsDeletedFalse(teamId)
-                    .orElseThrow(() -> new RuntimeException("Team not found: " + teamId));
-            
-            KanbanCreateRequest createRequest = new KanbanCreateRequest();
-            createRequest.setTeamId(teamId);
-            createRequest.setWorkspaceId(team.getWorkspace().getId());
-            
-            return createKanban(createRequest);
-        } catch (Exception e) {
-            throw new RuntimeException("Kanban not found for team: " + teamId + " and failed to create automatically", e);
-        }
+        return kanbanRepository.findByTeamId(teamId)
+                .map(helper::convertToDto)
+                .orElseGet(() -> {
+                    // 칸반이 없으면 자동 생성
+                    try {
+                        KanbanCreateRequest createRequest = new KanbanCreateRequest();
+                        createRequest.setTeamId(teamId);
+                        createRequest.setWorkspaceId(team.getWorkspace().getId());
+                        return createKanban(createRequest);
+                    } catch (Exception e) {
+                        throw new RuntimeException("Kanban not found for team: " + teamId + " and failed to create automatically", e);
+                    }
+                });
     }
 
     @Transactional
     public KanbanListDto createKanbanList(KanbanListCreateRequest request) {
-        Kanban kanban = kanbanRepository.findById(request.getKanbanId())
+        Kanban kanban = kanbanRepository.findByIdAndIsDeletedFalse(request.getKanbanId())
                 .orElseThrow(() -> new RuntimeException("Kanban not found"));
 
         Integer order = request.getOrder();
@@ -93,7 +91,7 @@ public class KanbanService {
 
     @Transactional
     public KanbanTaskDto createKanbanTask(KanbanTaskCreateRequest request) {
-        KanbanList kanbanList = kanbanListRepository.findById(request.getKanbanListId())
+        KanbanList kanbanList = kanbanListRepository.findByIdAndIsDeletedFalse(request.getKanbanListId())
                 .orElseThrow(() -> new RuntimeException("KanbanList not found"));
 
         Integer order = request.getOrder();
@@ -175,13 +173,13 @@ public class KanbanService {
     }
 
     public KanbanTaskDto getKanbanTask(Long taskId) {
-        KanbanTask kanbanTask = kanbanTaskRepository.findById(taskId)
+        KanbanTask kanbanTask = kanbanTaskRepository.findByIdAndIsDeletedFalse(taskId)
                 .orElseThrow(() -> new RuntimeException("KanbanTask not found"));
         return helper.convertToDto(kanbanTask);
     }
 
     public List<KanbanTaskDto> getTasksByListId(Long listId) {
-        return kanbanTaskRepository.findByKanbanListIdOrderByOrder(listId)
+        return kanbanTaskRepository.findByKanbanListIdOrderByOrderWithFetch(listId)
                 .stream()
                 .map(helper::convertToDto)
                 .collect(Collectors.toList());

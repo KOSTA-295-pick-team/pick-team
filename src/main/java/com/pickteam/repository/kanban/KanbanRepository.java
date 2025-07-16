@@ -20,4 +20,7 @@ public interface KanbanRepository extends JpaRepository<Kanban, Long> {
     
     @Query("SELECT k FROM Kanban k WHERE k.team.id = :teamId AND k.workspace.id = :workspaceId AND k.isDeleted = false")
     Optional<Kanban> findByTeamIdAndWorkspaceId(@Param("teamId") Long teamId, @Param("workspaceId") Long workspaceId);
-} 
+    
+    @Query("SELECT k FROM Kanban k WHERE k.id = :id AND k.isDeleted = false")
+    Optional<Kanban> findByIdAndIsDeletedFalse(@Param("id") Long id);
+}

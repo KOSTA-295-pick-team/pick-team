@@ -18,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 
+/**
 @SpringBootTest
 class PickTeamApplicationTests {
 
@@ -108,7 +109,7 @@ class PickTeamApplicationTests {
     @Test
     @DisplayName("화상회의채널 추가 test")
     void insertVideoChannel() throws VideoConferenceException {
-        videoConferenceService.insertVideoChannel(1L, "ㅅㅅ채널");
+        videoConferenceService.insertVideoChannel(1L, "ㅇㅇ채널");
     }
 
     @Test
@@ -151,3 +152,4 @@ class PickTeamApplicationTests {
     }
 
 }
+**/

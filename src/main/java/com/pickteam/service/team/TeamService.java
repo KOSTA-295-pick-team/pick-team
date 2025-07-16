@@ -12,6 +12,9 @@ import com.pickteam.repository.team.TeamRepository;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.workspace.WorkspaceMemberRepository;
 import com.pickteam.repository.workspace.WorkspaceRepository;
+import com.pickteam.service.kanban.KanbanService;
+import com.pickteam.dto.kanban.KanbanCreateRequest;
+import com.pickteam.service.board.BoardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +33,8 @@ public class TeamService {
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final AccountRepository accountRepository;
+    private final KanbanService kanbanService;
+    private final BoardService boardService;
     
     /**
      * 팀 생성 (워크스페이스의 모든 멤버가 가능)
@@ -67,6 +72,25 @@ public class TeamService {
                 .build();
         
         teamMemberRepository.save(teamLeader);
+        
+        // 팀 생성 시 자동으로 게시판 생성
+        try {
+            boardService.createDefaultBoardForTeam(team.getId());
+        } catch (Exception e) {
+            // 게시판 생성 실패 시 로그만 출력하고 팀 생성은 계속 진행
+            System.err.println("게시판 자동 생성 실패: " + e.getMessage());
+        }
+        
+        // 팀 생성 시 자동으로 칸반 보드 생성
+        try {
+            KanbanCreateRequest kanbanRequest = new KanbanCreateRequest();
+            kanbanRequest.setTeamId(team.getId());
+            kanbanRequest.setWorkspaceId(workspace.getId());
+            kanbanService.createKanban(kanbanRequest);
+        } catch (Exception e) {
+            // 칸반 보드 생성 실패 시 로그만 출력하고 팀 생성은 계속 진행
+            System.err.println("칸반 보드 자동 생성 실패: " + e.getMessage());
+        }
         
         return convertToResponse(team);
     }

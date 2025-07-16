@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,10 +46,28 @@ public class KanbanService {
         return helper.convertToDto(kanban);
     }
 
+    @Transactional
     public KanbanDto getKanbanByTeamId(Long teamId) {
-        Kanban kanban = kanbanRepository.findByTeamId(teamId)
-                .orElseThrow(() -> new RuntimeException("Kanban not found for team: " + teamId));
-        return helper.convertToDto(kanban);
+        Optional<Kanban> kanbanOpt = kanbanRepository.findByTeamId(teamId);
+        
+        if (kanbanOpt.isPresent()) {
+            return helper.convertToDto(kanbanOpt.get());
+        }
+        
+        // 칸반 보드가 없으면 자동으로 생성
+        try {
+            // 팀 정보를 조회하여 워크스페이스 ID를 얻음
+            Team team = teamRepository.findByIdAndIsDeletedFalse(teamId)
+                    .orElseThrow(() -> new RuntimeException("Team not found: " + teamId));
+            
+            KanbanCreateRequest createRequest = new KanbanCreateRequest();
+            createRequest.setTeamId(teamId);
+            createRequest.setWorkspaceId(team.getWorkspace().getId());
+            
+            return createKanban(createRequest);
+        } catch (Exception e) {
+            throw new RuntimeException("Kanban not found for team: " + teamId + " and failed to create automatically", e);
+        }
     }
 
     @Transactional

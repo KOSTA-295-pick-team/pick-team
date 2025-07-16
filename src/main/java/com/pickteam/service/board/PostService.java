@@ -7,6 +7,7 @@ import com.pickteam.dto.board.*;
 import com.pickteam.repository.board.BoardRepository;
 import com.pickteam.repository.board.PostRepository;
 import com.pickteam.repository.user.AccountRepository;
+import com.pickteam.service.board.BoardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,10 +24,19 @@ public class PostService {
     private final PostRepository postRepository;
     private final AccountRepository accountRepository;
     private final BoardRepository boardRepository;
+    private final BoardService boardService;
 
     public Page<PostResponseDto> getPosts(Long boardId, Pageable pageable) {
         Page<Post> posts = postRepository.findPostsWithCommentsCount(boardId, pageable);
         return posts.map(PostResponseDto::from);
+    }
+
+    /**
+     * 팀 ID로 게시글 목록 조회 (게시판 자동 생성 포함)
+     */
+    public Page<PostResponseDto> getPostsByTeamId(Long teamId, Pageable pageable) {
+        Board board = boardService.getBoardByTeamId(teamId);
+        return getPosts(board.getId(), pageable);
     }
 
     public PostResponseDto readPost(Long postId) {
@@ -68,6 +78,20 @@ public class PostService {
 
         // 저장된 객체를 바로 DTO로 변환 (재조회 불필요)
         return PostResponseDto.from(savedPost);
+    }
+
+    /**
+     * 팀 ID로 게시글 생성 (게시판 자동 생성 포함)
+     */
+    @Transactional
+    public PostResponseDto createPostByTeamId(Long teamId, PostCreateDto dto, Long accountId) {
+        // 팀의 게시판을 찾거나 자동 생성
+        Board board = boardService.getBoardByTeamId(teamId);
+        
+        // DTO에 게시판 ID 설정
+        dto.setBoardId(board.getId());
+        
+        return createPost(dto, accountId);
     }
 
     @Transactional

@@ -11,9 +11,7 @@ import jakarta.validation.constraints.NotBlank;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class KanbanListUpdateRequest {
+public class KanbanTaskCommentUpdateRequest {
     @NotBlank
-    private String kanbanListName;
-    
-    private Integer order;
+    private String comment;
 }

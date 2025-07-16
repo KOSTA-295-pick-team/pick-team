@@ -6,6 +6,8 @@ import com.pickteam.dto.kanban.*;
 import com.pickteam.repository.kanban.*;
 import com.pickteam.repository.user.AccountRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -175,6 +177,8 @@ public class KanbanServiceHelper {
                 .kanbanListId(kanbanTask.getKanbanList().getId())
                 .order(kanbanTask.getOrder())
                 .isApproved(kanbanTask.getIsApproved())
+                .completionRequested(kanbanTask.getCompletionRequested())
+                .completionRequestMessage(kanbanTask.getCompletionRequestMessage())
                 .comments(commentDtos)
                 .members(memberDtos)
                 .attachments(attachDtos)
@@ -219,4 +223,100 @@ public class KanbanServiceHelper {
                 .uploaderName("User")
                 .build();
     }
-} 
+
+    // 댓글 관련 메서드들
+    @Transactional
+    public KanbanTaskCommentDto updateComment(Long commentId, KanbanTaskCommentUpdateRequest request, Long userId) {
+        KanbanTaskComment comment = kanbanTaskCommentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("댓글을 찾을 수 없습니다."));
+
+        // 댓글 작성자 확인
+        if (!comment.getAccount().getId().equals(userId)) {
+            throw new RuntimeException("댓글 수정 권한이 없습니다.");
+        }
+
+        comment.setComment(request.getComment());
+        comment = kanbanTaskCommentRepository.save(comment);
+        return convertToDto(comment);
+    }
+
+    @Transactional
+    public void deleteComment(Long commentId, Long userId) {
+        KanbanTaskComment comment = kanbanTaskCommentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("댓글을 찾을 수 없습니다."));
+
+        // 댓글 작성자 확인 (실제 구현에서는 권한 체크 로직 추가 필요)
+        if (!comment.getAccount().getId().equals(userId)) {
+            throw new RuntimeException("댓글 삭제 권한이 없습니다.");
+        }
+
+        comment.markDeleted();
+        kanbanTaskCommentRepository.save(comment);
+    }
+
+    public Page<KanbanTaskCommentDto> getCommentsByTaskId(Long taskId, Pageable pageable) {
+        Page<KanbanTaskComment> comments = kanbanTaskCommentRepository.findByKanbanTaskIdPageable(taskId, pageable);
+        return comments.map(this::convertToDto);
+    }
+
+    // 칸반 리스트 관련 메서드들
+    @Transactional
+    public KanbanListDto updateKanbanList(Long listId, KanbanListUpdateRequest request) {
+        KanbanList kanbanList = kanbanListRepository.findById(listId)
+                .orElseThrow(() -> new RuntimeException("칸반 리스트를 찾을 수 없습니다."));
+
+        if (request.getKanbanListName() != null) {
+            kanbanList.setKanbanListName(request.getKanbanListName());
+        }
+        if (request.getOrder() != null) {
+            kanbanList.setOrder(request.getOrder());
+        }
+
+        kanbanList = kanbanListRepository.save(kanbanList);
+        return convertToDto(kanbanList);
+    }
+
+    @Transactional
+    public void deleteKanbanList(Long listId) {
+        KanbanList kanbanList = kanbanListRepository.findById(listId)
+                .orElseThrow(() -> new RuntimeException("칸반 리스트를 찾을 수 없습니다."));
+
+        kanbanList.markDeleted();
+        kanbanListRepository.save(kanbanList);
+    }
+    
+    // 작업 완료 요청/승인 관련 메서드들
+    @Transactional
+    public KanbanTaskDto requestTaskCompletion(Long cardId, KanbanTaskCompletionRequest request) {
+        KanbanTask kanbanTask = kanbanTaskRepository.findById(cardId)
+                .orElseThrow(() -> new RuntimeException("칸반 태스크를 찾을 수 없습니다."));
+        
+        kanbanTask.setCompletionRequested(true);
+        kanbanTask.setCompletionRequestMessage(request.getMessage());
+        
+        kanbanTask = kanbanTaskRepository.save(kanbanTask);
+        return convertToDto(kanbanTask);
+    }
+    
+    @Transactional
+    public KanbanTaskDto approveTaskCompletion(Long cardId, KanbanTaskCompletionApprovalRequest request) {
+        KanbanTask kanbanTask = kanbanTaskRepository.findById(cardId)
+                .orElseThrow(() -> new RuntimeException("칸반 태스크를 찾을 수 없습니다."));
+        
+        if (request.getApproved()) {
+            kanbanTask.setIsApproved(true);
+            kanbanTask.setCompletionRequested(false);
+            // 승인 시 완료 메시지 초기화
+            kanbanTask.setCompletionRequestMessage(null);
+        } else {
+            kanbanTask.setCompletionRequested(false);
+            // 거부 시 거부 사유 저장
+            if (request.getApprovalMessage() != null) {
+                kanbanTask.setCompletionRequestMessage("거부됨: " + request.getApprovalMessage());
+                }
+        }
+        
+        kanbanTask = kanbanTaskRepository.save(kanbanTask);
+        return convertToDto(kanbanTask);
+    }
+}

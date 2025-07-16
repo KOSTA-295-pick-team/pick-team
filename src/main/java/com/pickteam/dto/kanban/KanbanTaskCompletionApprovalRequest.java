@@ -5,15 +5,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import jakarta.validation.constraints.NotBlank;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class KanbanListUpdateRequest {
-    @NotBlank
-    private String kanbanListName;
-    
-    private Integer order;
+public class KanbanTaskCompletionApprovalRequest {
+    private String approvalMessage; // 승인 시 메시지 (선택사항)
+    private Boolean approved; // true: 승인, false: 거부
 }

@@ -8,6 +8,8 @@ import com.pickteam.repository.kanban.*;
 import com.pickteam.repository.team.TeamRepository;
 import com.pickteam.repository.workspace.WorkspaceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -109,6 +111,45 @@ public class KanbanService {
         return helper.createComment(request, authorId);
     }
 
+    // 댓글 수정
+    @Transactional
+    public KanbanTaskCommentDto updateComment(Long commentId, KanbanTaskCommentUpdateRequest request, Long userId) {
+        return helper.updateComment(commentId, request, userId);
+    }
+
+    // 댓글 삭제
+    @Transactional
+    public void deleteComment(Long commentId, Long userId) {
+        helper.deleteComment(commentId, userId);
+    }
+
+    // 댓글 페이징 조회
+    public Page<KanbanTaskCommentDto> getCommentsByTaskId(Long taskId, Pageable pageable) {
+        return helper.getCommentsByTaskId(taskId, pageable);
+    }
+
+    // 칸반 리스트 관련 메서드들
+    @Transactional
+    public KanbanListDto updateKanbanList(Long listId, KanbanListUpdateRequest request) {
+        return helper.updateKanbanList(listId, request);
+    }
+
+    @Transactional
+    public void deleteKanbanList(Long listId) {
+        helper.deleteKanbanList(listId);
+    }
+    
+    // 작업 완료 요청/승인 관련 메서드들
+    @Transactional
+    public KanbanTaskDto requestTaskCompletion(Long cardId, KanbanTaskCompletionRequest request) {
+        return helper.requestTaskCompletion(cardId, request);
+    }
+    
+    @Transactional
+    public KanbanTaskDto approveTaskCompletion(Long cardId, KanbanTaskCompletionApprovalRequest request) {
+        return helper.approveTaskCompletion(cardId, request);
+    }
+
     @Transactional
     public void deleteKanbanTask(Long taskId) {
         helper.deleteKanbanTask(taskId);
@@ -126,4 +167,4 @@ public class KanbanService {
                 .map(helper::convertToDto)
                 .collect(Collectors.toList());
     }
-} 
+}

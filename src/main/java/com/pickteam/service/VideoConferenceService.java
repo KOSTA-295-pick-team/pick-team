@@ -9,11 +9,13 @@ import java.util.List;
 
 public interface VideoConferenceService {
 
-    public List<VideoChannelDTO> selectVideoChannels(Long workspaceId, Long accountId) throws VideoConferenceException;
+    public List<VideoChannelDTO> selectVideoChannels(Long workspaceId) throws VideoConferenceException;
 
-    public void insertVideoChannel(Long workspaceId, String videoChannelName);
+    public VideoChannelDTO selectVideoChannel(Long channelId) throws VideoConferenceException;
 
-    public void joinVideoChannel(Long accountId, Long videoChannelId);
+    public VideoChannelDTO insertVideoChannel(Long workspaceId, String videoChannelName) throws VideoConferenceException;
+
+    public void joinVideoChannel(Long accountId, Long videoChannelId) throws VideoConferenceException;
 
     public void deleteVideoChannel(Long videoChannelId) throws VideoConferenceException;
 

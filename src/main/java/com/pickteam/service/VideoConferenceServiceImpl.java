@@ -18,8 +18,10 @@ import livekit.LivekitWebhook;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +49,7 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
 
 
     @Autowired
+    @Lazy
     private SimpMessagingTemplate messagingTemplate;
 
     private Map<Long, String> currentSharingUser = new HashMap<>();
@@ -55,7 +58,7 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<VideoChannelDTO> selectVideoChannels(Long workspaceId, Long accountId) throws VideoConferenceException {
+    public List<VideoChannelDTO> selectVideoChannels(Long workspaceId) throws VideoConferenceException {
 
         List<VideoChannel> channels = videoChannelRepository.selectChannelsByWorkSpaceId(workspaceId);
 
@@ -67,22 +70,40 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
 
     }
 
+    @Override
+    public VideoChannelDTO selectVideoChannel(Long channelId) throws VideoConferenceException {
+        VideoChannel vc = videoChannelRepository.findById(channelId).orElseThrow(() -> new VideoConferenceException(VideoConferenceErrorCode.CHANNEL_NOT_FOUND));
+        if (vc.getIsDeleted()) {
+            throw new VideoConferenceException(VideoConferenceErrorCode.CHANNEL_NOT_FOUND);
+        }
+        return modelMapper.map(vc, VideoChannelDTO.class);
+    }
+
     @Transactional
     @Override
-    public void insertVideoChannel(Long workspaceId, String videoChannelName) {
+    public VideoChannelDTO insertVideoChannel(Long workspaceId, String videoChannelName) throws VideoConferenceException {
+        VideoChannel vc = videoChannelRepository.findByName(videoChannelName);
+        if(vc != null && !vc.getIsDeleted()) {
+            throw new VideoConferenceException(VideoConferenceErrorCode.DUPLICATE_CHANNEL_NAME);
+        }
         Workspace workspace = Workspace.builder().id(workspaceId).build();
-
-        videoChannelRepository.save(VideoChannel.builder().name(videoChannelName).workspace(workspace).build());
+        VideoChannel videochannel = VideoChannel.builder().name(videoChannelName).workspace(workspace).build();
+        videoChannelRepository.save(videochannel);
+        VideoChannelDTO videoChannelDTO = new VideoChannelDTO();
+        videoChannelDTO.setName(videoChannelName);
+        videoChannelDTO.setId(videochannel.getId());
+        return videoChannelDTO;
 
     }
 
     @Transactional
     @Override
-    public void joinVideoChannel(Long accountId, Long videoChannelId) {
+    public void joinVideoChannel(Long accountId, Long videoChannelId) throws VideoConferenceException {
 
+        this.selectVideoChannel(videoChannelId);
         videoMemberRepository.save(VideoMember.builder().account(Account.builder().id(accountId).build()).videoChannel(VideoChannel.builder().id(videoChannelId).id(videoChannelId).build()).build());
         videoMemberRepository.flush();
-        List<VideoMember> members = videoMemberRepository.findAll();
+        List<VideoMember> members = videoMemberRepository.selectAccountsByChannelId(videoChannelId);
         List<VideoMemberDTO> memberDTOList = members.stream().map(member -> {
             VideoMemberDTO memberDTO = modelMapper.map(member.getAccount(), VideoMemberDTO.class);
             memberDTO.setJoinDate(member.getCreatedAt());
@@ -98,11 +119,9 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
     @Override
     public void deleteVideoChannel(Long videoChannelId) throws VideoConferenceException {
 
-        messagingTemplate.convertAndSend("/sub/video/" + videoChannelId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.SHOULD_OUT_CHANNEL, null, null));
-
         VideoChannel channel = videoChannelRepository.findById(videoChannelId).orElseThrow(() -> new VideoConferenceException(VideoConferenceErrorCode.CHANNEL_NOT_FOUND));
-
-        videoChannelRepository.delete(channel);
+        channel.markDeleted();
+        messagingTemplate.convertAndSend("/sub/video/" + videoChannelId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.SHOULD_OUT_CHANNEL, null, null));
 
     }
 
@@ -132,23 +151,24 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
         VideoMember member = videoMemberRepository.findById(memberId).orElseThrow(() -> new VideoConferenceException(VideoConferenceErrorCode.MEMBER_NOT_FOUND));
         videoMemberRepository.delete(member);
         videoMemberRepository.flush();
-        List<VideoMember> members = videoMemberRepository.findAll();
+        List<VideoMember> members = videoMemberRepository.selectAccountsByChannelId(channelId);
         if (members.isEmpty()) {
             VideoChannel channel = videoChannelRepository.findById(channelId).orElseThrow(() -> new VideoConferenceException(VideoConferenceErrorCode.CHANNEL_NOT_FOUND));
             channel.markDeleted();
+            return;
         }
         messagingTemplate.convertAndSendToUser(member.getAccount().getEmail(), "/sub/chat/" + channelId, new WebSocketChatDTO(null, null, "disconnect", "controll"));
-        messagingTemplate.convertAndSend("/sub/video/" + channelId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.STOP_SCREEN_SHARING_CONFIRMED, member.getAccount().getEmail(), null));
-        if (!members.isEmpty()) {
-            List<VideoMemberDTO> memberDTOList = members.stream().map(m -> {
-                VideoMemberDTO memberDTO = modelMapper.map(m.getAccount(), VideoMemberDTO.class);
-                memberDTO.setJoinDate(m.getCreatedAt());
-                memberDTO.setId(member.getId());
-                memberDTO.setUserId(m.getAccount().getId());
-                return memberDTO;
-            }).collect(Collectors.toList());
-            messagingTemplate.convertAndSend("/sub/video/" + channelId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.GET_PARTICIPANTS_CONFIRMED, null, memberDTOList));
-        }
+        messagingTemplate.convertAndSendToUser(member.getAccount().getEmail(), "/sub/video/" + channelId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.SHOULD_OUT_CHANNEL, null, null));
+
+        List<VideoMemberDTO> memberDTOList = members.stream().map(m -> {
+            VideoMemberDTO memberDTO = modelMapper.map(m.getAccount(), VideoMemberDTO.class);
+            memberDTO.setJoinDate(m.getCreatedAt());
+            memberDTO.setId(member.getId());
+            memberDTO.setUserId(m.getAccount().getId());
+            return memberDTO;
+        }).collect(Collectors.toList());
+        messagingTemplate.convertAndSend("/sub/video/" + channelId, new VideoConferenceMsgDTO(VideoConferenceControlMsg.GET_PARTICIPANTS_CONFIRMED, null, memberDTOList));
+
     }
 
 
@@ -180,6 +200,7 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
 
     @Override
     public void handleVideoConferenceEvent(String userEmail, Long roomId, VideoConferenceControlMsg event) {
+
         if (VideoConferenceControlMsg.START_SCREEN_SHARING.equals(event)) {
             String currentSharingUserEmail = currentSharingUser.get(roomId);
             if (currentSharingUserEmail != null) {

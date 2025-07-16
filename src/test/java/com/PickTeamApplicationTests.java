@@ -107,7 +107,7 @@ class PickTeamApplicationTests {
 
     @Test
     @DisplayName("화상회의채널 추가 test")
-    void insertVideoChannel() {
+    void insertVideoChannel() throws VideoConferenceException {
         videoConferenceService.insertVideoChannel(1L, "ㅅㅅ채널");
     }
 
@@ -116,7 +116,7 @@ class PickTeamApplicationTests {
     void selectVideoChannel() throws VideoConferenceException {
 //        List<VideoChannelDTO> list = videoConferenceService.selectVideoChannels(1L, null);
 //        list.forEach(System.out::println);
-        List<VideoChannelDTO> list = videoConferenceService.selectVideoChannels(1L, 1L);
+        List<VideoChannelDTO> list = videoConferenceService.selectVideoChannels(1L);
         list.forEach(System.out::println);
     }
 

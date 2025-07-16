@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface KanbanListRepository extends JpaRepository<KanbanList, Long> {
@@ -16,4 +17,7 @@ public interface KanbanListRepository extends JpaRepository<KanbanList, Long> {
     
     @Query("SELECT MAX(kl.order) FROM KanbanList kl WHERE kl.kanban.id = :kanbanId AND kl.isDeleted = false")
     Integer findMaxOrderByKanbanId(@Param("kanbanId") Long kanbanId);
-} 
+    
+    @Query("SELECT kl FROM KanbanList kl WHERE kl.id = :id AND kl.isDeleted = false")
+    Optional<KanbanList> findByIdAndIsDeletedFalse(@Param("id") Long id);
+}

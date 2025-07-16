@@ -1,6 +1,5 @@
 package com.pickteam.domain.kanban;
 
-import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
 import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.team.Team;
 import com.pickteam.domain.workspace.Workspace;
@@ -22,6 +21,11 @@ public class Kanban extends BaseSoftDeleteSupportEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private String name;
+
+    @Column(name = "kanban_order")
+    private Integer order;
+
     @ManyToOne(optional = false)
     private Team team;
 
@@ -30,6 +34,4 @@ public class Kanban extends BaseSoftDeleteSupportEntity {
 
     @OneToMany(mappedBy = "kanban")
     private List<KanbanList> kanbanLists = new ArrayList<>();
-
 }
-

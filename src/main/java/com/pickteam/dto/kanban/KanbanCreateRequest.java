@@ -1,20 +1,17 @@
 package com.pickteam.dto.kanban;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import jakarta.validation.constraints.NotNull;
+import lombok.Data;
 
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class KanbanCreateRequest {
-    @NotNull
+    
+    @NotNull(message = "팀 ID는 필수입니다.")
     private Long teamId;
     
-    @NotNull
+    @NotNull(message = "워크스페이스 ID는 필수입니다.")
     private Long workspaceId;
-} 
+    
+    private String name;
+    private Integer order;
+}

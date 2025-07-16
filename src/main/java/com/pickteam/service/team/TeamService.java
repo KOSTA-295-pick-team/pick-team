@@ -5,7 +5,7 @@ import com.pickteam.domain.team.TeamMember;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.workspace.Workspace;
 import com.pickteam.domain.workspace.WorkspaceMember;
-import com.pickteam.domain.board.Board;
+import com.pickteam.dto.kanban.KanbanCreateRequest;
 import com.pickteam.dto.team.*;
 import com.pickteam.dto.user.UserSummaryResponse;
 import com.pickteam.repository.team.TeamMemberRepository;
@@ -13,8 +13,10 @@ import com.pickteam.repository.team.TeamRepository;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.workspace.WorkspaceMemberRepository;
 import com.pickteam.repository.workspace.WorkspaceRepository;
-import com.pickteam.repository.board.BoardRepository;
+import com.pickteam.service.board.BoardService;
+import com.pickteam.service.kanban.KanbanService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +27,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class TeamService {
     
     private final TeamRepository teamRepository;
@@ -32,7 +35,8 @@ public class TeamService {
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final AccountRepository accountRepository;
-    private final BoardRepository boardRepository;
+    private final KanbanService kanbanService;
+    private final BoardService boardService;
     
     /**
      * 팀 생성 (워크스페이스의 모든 멤버가 가능)
@@ -61,13 +65,6 @@ public class TeamService {
         
         team = teamRepository.save(team);
         
-        // 팀 생성 시 자동으로 게시판 생성
-        Board board = Board.builder()
-                .team(team)
-                .build();
-        
-        boardRepository.save(board);
-        
         // 생성자를 팀장으로 추가
         TeamMember teamLeader = TeamMember.builder()
                 .team(team)
@@ -77,6 +74,25 @@ public class TeamService {
                 .build();
         
         teamMemberRepository.save(teamLeader);
+        
+        // 팀 생성 시 자동으로 게시판 생성
+        try {
+            boardService.createDefaultBoardForTeam(team.getId());
+        } catch (Exception e) {
+            // 게시판 생성 실패 시 로그만 출력하고 팀 생성은 계속 진행
+            log.error("게시판 자동 생성 실패 - 팀 ID: {}", team.getId(), e);
+        }
+        
+        // 팀 생성 시 자동으로 칸반 보드 생성
+        try {
+            KanbanCreateRequest kanbanRequest = new KanbanCreateRequest();
+            kanbanRequest.setTeamId(team.getId());
+            kanbanRequest.setWorkspaceId(workspace.getId());
+            kanbanService.createKanban(kanbanRequest);
+        } catch (Exception e) {
+            // 칸반 보드 생성 실패 시 로그만 출력하고 팀 생성은 계속 진행
+            log.error("칸반 보드 자동 생성 실패 - 팀 ID: {}", team.getId(), e);
+        }
         
         return convertToResponse(team);
     }
@@ -241,11 +257,6 @@ public class TeamService {
         List<TeamMember> members = teamMemberRepository.findActiveMembers(team.getId());
         TeamMember leader = teamMemberRepository.findTeamLeader(team.getId()).orElse(null);
         
-        // 팀의 게시판 ID 조회
-        Long boardId = boardRepository.findByTeamAndIsDeletedFalse(team)
-                .map(Board::getId)
-                .orElse(null);
-        
         return TeamResponse.builder()
                 .id(team.getId())
                 .name(team.getName())
@@ -254,7 +265,6 @@ public class TeamService {
                 .leader(leader != null ? convertToUserSummary(leader.getAccount()) : null)
                 .memberCount(members.size())
                 .members(members.stream().map(this::convertToTeamMemberResponse).collect(Collectors.toList()))
-                .boardId(boardId)
                 .createdAt(team.getCreatedAt())
                 .updatedAt(team.getUpdatedAt())
                 .build();
@@ -298,4 +308,4 @@ public class TeamService {
                 .role(account.getRole().toString())
                 .build();
     }
-} 
+}

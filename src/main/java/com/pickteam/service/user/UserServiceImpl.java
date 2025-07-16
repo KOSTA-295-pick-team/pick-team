@@ -134,12 +134,12 @@ public class UserServiceImpl implements UserService {
             throw new EmailNotVerifiedException(UserErrorMessages.EMAIL_NOT_VERIFIED);
         }
 
-        // 4. 중복 검사 (활성 계정만 확인)
-        if (accountRepository.existsByEmailAndDeletedAtIsNull(request.getEmail())) {
+        // 4. 로컬 계정 중복 검사 (OAuth 계정과 분리)
+        if (accountRepository.existsByEmailAndProviderAndDeletedAtIsNull(request.getEmail(), AuthProvider.LOCAL)) {
             throw new DuplicateEmailException(UserErrorMessages.DUPLICATE_EMAIL);
         }
 
-        // 5. 간소화된 계정 생성 (이메일, 패스워드, 고유한 랜덤 사용자명, 기본 role)
+        // 5. 간소화된 로컬 계정 생성 (이메일, 패스워드, 고유한 랜덤 사용자명, 기본 role)
         String uniqueUsername = generateUniqueRandomUsername();
 
         Account account = Account.builder()
@@ -147,6 +147,7 @@ public class UserServiceImpl implements UserService {
                 .password(authService.encryptPassword(request.getPassword()))
                 .name(uniqueUsername) // 중복되지 않는 랜덤 사용자명
                 .role(UserRole.USER) // 기본값 설정
+                .provider(AuthProvider.LOCAL) // 로컬 계정 명시
                 .build();
 
         accountRepository.save(account);
@@ -162,8 +163,9 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public boolean checkDuplicateId(String email) {
-        // 이메일 중복 확인 (활성 계정만, true: 중복됨, false: 사용가능)
-        return accountRepository.existsByEmailAndDeletedAtIsNull(email);
+        // 로컬 계정 이메일 중복 확인 (활성 계정만, true: 중복됨, false: 사용가능)
+        // OAuth 계정과 분리하여 같은 이메일이라도 provider가 다르면 허용
+        return accountRepository.existsByEmailAndProviderAndDeletedAtIsNull(email, AuthProvider.LOCAL);
     }
 
     /**

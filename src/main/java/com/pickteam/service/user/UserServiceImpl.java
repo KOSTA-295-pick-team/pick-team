@@ -7,6 +7,7 @@ import com.pickteam.domain.user.RefreshToken;
 import com.pickteam.domain.user.UserHashtag;
 import com.pickteam.domain.user.UserHashtagList;
 import com.pickteam.domain.enums.UserRole;
+import com.pickteam.domain.enums.AuthProvider;
 import com.pickteam.exception.email.EmailNotVerifiedException;
 import com.pickteam.exception.user.UserNotFoundException;
 import com.pickteam.exception.validation.ValidationException;
@@ -484,6 +485,12 @@ public class UserServiceImpl implements UserService {
         Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
+        // 소셜 로그인 사용자는 비밀번호 변경 불가
+        if (account.getProvider() != AuthProvider.LOCAL) {
+            log.warn("소셜 로그인 사용자 비밀번호 변경 시도: userId={}, provider={}", userId, account.getProvider());
+            throw new ValidationException("소셜 로그인으로 가입한 사용자는 비밀번호를 변경할 수 없습니다. 해당 소셜 플랫폼에서 비밀번호를 변경해주세요.");
+        }
+
         // 현재 비밀번호 확인
         if (!authService.matchesPassword(request.getCurrentPassword(), account.getPassword())) {
             log.warn("비밀번호 변경 실패 - 현재 비밀번호 불일치: userId={}", userId);
@@ -578,6 +585,7 @@ public class UserServiceImpl implements UserService {
         response.setName(account.getName()); // 엔티티 기본값: "신규 사용자"
         response.setAge(account.getAge()); // 나이는 숫자이므로 null 유지
         response.setRole(account.getRole());
+        response.setProvider(account.getProvider()); // OAuth 제공자 정보 추가
         response.setMbti(account.getMbti()); // 엔티티 기본값: "정보없음"
         response.setDisposition(account.getDisposition()); // 엔티티 기본값: "정보없음"
         response.setIntroduction(account.getIntroduction()); // 엔티티 기본값: "정보없음"
@@ -588,6 +596,10 @@ public class UserServiceImpl implements UserService {
 
         response.setPreferWorkstyle(account.getPreferWorkstyle()); // 엔티티 기본값: "정보없음"
         response.setDislikeWorkstyle(account.getDislikeWorkstyle()); // 엔티티 기본값: "정보없음"
+
+        // 생성일/수정일 정보 추가
+        response.setCreatedAt(account.getCreatedAt());
+        response.setUpdatedAt(account.getUpdatedAt());
 
         // 해시태그 목록 조회 및 설정
         List<UserHashtagList> userHashtagLists = userHashtagListRepository.findByAccountAndIsDeletedFalse(account);

@@ -195,6 +195,7 @@ public class OAuthServiceImpl implements OAuthService {
     /**
      * 이메일 또는 제공자 정보로 기존 계정 조회
      * providerId로 먼저 조회하되, 삭제된 계정도 포함하여 체크
+     * 이메일 조회 시에는 provider도 함께 고려하여 계정 분리
      */
     private Optional<Account> findExistingAccount(OAuthUserInfo oauthUserInfo) {
         log.debug("기존 계정 검색 시작 - Provider: {}, ProviderId: {}, Email: {}",
@@ -218,19 +219,21 @@ public class OAuthServiceImpl implements OAuthService {
             return providerAccount;
         }
 
-        // 2. 이메일이 있는 경우 이메일로 조회 (삭제된 계정 포함)
+        // 2. 이메일이 있는 경우 이메일과 provider로 조회 (삭제된 계정 포함)
+        // provider별로 계정을 분리하여 OAuth와 로컬 계정이 공존할 수 있도록 함
         if (oauthUserInfo.getEmail() != null && !oauthUserInfo.getEmail().trim().isEmpty()) {
-            Optional<Account> emailAccount = findAccountByEmailIncludingDeleted(oauthUserInfo.getEmail());
+            Optional<Account> emailAccount = findAccountByEmailAndProviderIncludingDeleted(
+                    oauthUserInfo.getEmail(), oauthUserInfo.getProvider());
             if (emailAccount.isPresent()) {
                 Account account = emailAccount.get();
                 if (account.getDeletedAt() != null) {
                     // 삭제된 계정인 경우 에러 발생
-                    log.warn("삭제된 계정 이메일로 OAuth 로그인 시도 - Email: {}, 계정 ID: {}",
-                            maskEmail(oauthUserInfo.getEmail()), account.getId());
+                    log.warn("삭제된 계정 이메일로 OAuth 로그인 시도 - Email: {}, Provider: {}, 계정 ID: {}",
+                            maskEmail(oauthUserInfo.getEmail()), oauthUserInfo.getProvider(), account.getId());
                     throw new OAuthDeletedAccountException("삭제된 계정이 있습니다. 일정 기간 후 재가입이 가능합니다.", account);
                 }
-                log.info("기존 계정 발견 (이메일 매칭) - 계정 ID: {}, Email: {}",
-                        account.getId(), maskEmail(oauthUserInfo.getEmail()));
+                log.info("기존 계정 발견 (이메일+Provider 매칭) - 계정 ID: {}, Email: {}, Provider: {}",
+                        account.getId(), maskEmail(oauthUserInfo.getEmail()), oauthUserInfo.getProvider());
                 return emailAccount;
             }
         }
@@ -267,7 +270,9 @@ public class OAuthServiceImpl implements OAuthService {
 
     /**
      * 이메일로 계정 조회 (삭제된 계정 포함)
+     * @deprecated 사용하지 마세요. provider별 계정 분리를 위해 findAccountByEmailAndProviderIncludingDeleted를 사용하세요.
      */
+    @Deprecated
     private Optional<Account> findAccountByEmailIncludingDeleted(String email) {
         if (email == null || email.trim().isEmpty()) {
             return Optional.empty();
@@ -277,32 +282,53 @@ public class OAuthServiceImpl implements OAuthService {
     }
 
     /**
+     * 이메일과 provider로 계정 조회 (삭제된 계정 포함)
+     * OAuth와 로컬 계정을 분리하여 관리하기 위해 provider도 함께 조회
+     */
+    private Optional<Account> findAccountByEmailAndProviderIncludingDeleted(String email, AuthProvider provider) {
+        if (email == null || email.trim().isEmpty()) {
+            return Optional.empty();
+        }
+        log.debug("이메일+Provider 기반 계정 검색 (삭제된 계정 포함) - Email: {}, Provider: {}", 
+                maskEmail(email), provider);
+        return accountRepository.findByEmailAndProvider(email, provider);
+    }
+
+    /**
      * OAuth 정보로 신규 계정 생성
+     * provider별로 계정을 분리하여 관리하므로 같은 이메일이라도 다른 provider면 별도 계정 생성 가능
      */
     private Account createAccountFromOAuth(OAuthUserInfo oauthUserInfo) {
         String email = oauthUserInfo.getEmail();
 
-        // 이메일이 있는 경우 중복 체크
+        // 이메일이 있는 경우 provider별 중복 체크
         if (email != null && !email.trim().isEmpty()) {
-            log.debug("OAuth 신규 계정 생성 - 이메일 중복 체크: {}", maskEmail(email));
+            log.debug("OAuth 신규 계정 생성 - 이메일+Provider 중복 체크: {} ({})", 
+                    maskEmail(email), oauthUserInfo.getProvider());
 
-            // 1. 활성 계정 중복 체크
-            if (accountRepository.existsByEmailAndDeletedAtIsNull(email)) {
-                log.warn("OAuth 신규 계정 생성 실패 - 이미 사용 중인 이메일: {}", maskEmail(email));
-                throw new DuplicateEmailException("이미 사용 중인 이메일입니다: " + email);
+            // 1. 같은 provider의 활성 계정 중복 체크
+            Optional<Account> existingSameProvider = accountRepository
+                    .findByEmailAndProviderAndDeletedAtIsNull(email, oauthUserInfo.getProvider());
+            if (existingSameProvider.isPresent()) {
+                log.warn("OAuth 신규 계정 생성 실패 - 같은 provider로 이미 가입된 이메일: {} ({})", 
+                        maskEmail(email), oauthUserInfo.getProvider());
+                throw new DuplicateEmailException("해당 소셜 계정으로 이미 가입된 이메일입니다: " + email);
             }
 
-            // 2. 소프트 삭제된 계정 체크 (전체 이메일 체크 - 활성 계정 체크)
-            if (accountRepository.existsByEmail(email)) {
-                // 전체에는 있지만 활성 계정에는 없다면 소프트 삭제된 계정
-                // 이메일로 삭제된 계정 조회
-                Optional<Account> deletedAccount = accountRepository.findByEmail(email);
-                if (deletedAccount.isPresent()) {
-                    log.warn("OAuth 신규 계정 생성 실패 - 소프트 삭제된 계정 존재: {}", maskEmail(email));
-                    throw new OAuthDeletedAccountException("삭제된 계정이 있습니다. 일정 기간 후 재가입이 가능합니다.", deletedAccount.get());
-                }
-                // 만약 여기까지 왔다면 예상치 못한 상황
-                throw new RuntimeException("계정 상태 확인 중 오류가 발생했습니다.");
+            // 2. 같은 provider의 소프트 삭제된 계정 체크
+            Optional<Account> deletedSameProvider = accountRepository
+                    .findByEmailAndProvider(email, oauthUserInfo.getProvider());
+            if (deletedSameProvider.isPresent() && deletedSameProvider.get().getDeletedAt() != null) {
+                log.warn("OAuth 신규 계정 생성 실패 - 같은 provider의 소프트 삭제된 계정 존재: {} ({})", 
+                        maskEmail(email), oauthUserInfo.getProvider());
+                throw new OAuthDeletedAccountException("삭제된 계정이 있습니다. 일정 기간 후 재가입이 가능합니다.", 
+                        deletedSameProvider.get());
+            }
+
+            // 3. 다른 provider 계정 존재 시 정보성 로그 (허용됨)
+            if (accountRepository.existsByEmailAndDeletedAtIsNull(email)) {
+                log.info("OAuth 계정 생성 - 다른 provider로 가입된 이메일이지만 허용: {} (기존: 다른 provider, 신규: {})", 
+                        maskEmail(email), oauthUserInfo.getProvider());
             }
         } else {
             // 이메일이 없는 경우 providerId 기반 고유 이메일 생성

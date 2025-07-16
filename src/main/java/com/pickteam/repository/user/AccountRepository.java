@@ -119,4 +119,11 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
         /** 특정 OAuth 제공자로 가입한 활성 사용자 목록 조회 */
         List<Account> findByProviderAndDeletedAtIsNull(com.pickteam.domain.enums.AuthProvider provider);
 
+        /** 이메일과 제공자로 계정 조회 (삭제된 계정 포함) */
+        Optional<Account> findByEmailAndProvider(String email, com.pickteam.domain.enums.AuthProvider provider);
+
+        /** 이메일과 제공자로 활성 계정 조회 */
+        Optional<Account> findByEmailAndProviderAndDeletedAtIsNull(String email, 
+                com.pickteam.domain.enums.AuthProvider provider);
+
 }

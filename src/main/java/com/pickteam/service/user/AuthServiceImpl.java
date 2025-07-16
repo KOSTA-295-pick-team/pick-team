@@ -68,8 +68,9 @@ public class AuthServiceImpl implements AuthService {
     public JwtAuthenticationResponse authenticate(UserLoginRequest request) {
         log.info("사용자 로그인 시도: {}", request.getEmail());
 
-        // 1. 사용자 조회
-        Account account = accountRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
+        // 1. 로컬 계정만 조회 (provider = LOCAL)
+        Account account = accountRepository.findByEmailAndProviderAndDeletedAtIsNull(
+                request.getEmail(), AuthProvider.LOCAL)
                 .orElseThrow(() -> new AuthenticationException(AuthErrorMessages.INVALID_CREDENTIALS));
 
         // 2. 비밀번호 검증
@@ -683,8 +684,8 @@ public class AuthServiceImpl implements AuthService {
         }
 
         try {
-            // 계정 존재 여부 확인 (보안상 존재하지 않아도 성공 반환)
-            Account account = accountRepository.findByEmail(email).orElse(null);
+            // 로컬 계정만 조회 (소셜 로그인 계정은 비밀번호 재설정 불가)
+            Account account = accountRepository.findByEmailAndProviderAndDeletedAtIsNull(email, AuthProvider.LOCAL).orElse(null);
 
             if (account != null) {
                 // 비밀번호 재설정용 인증 코드 생성
@@ -696,11 +697,11 @@ public class AuthServiceImpl implements AuthService {
                 // 비밀번호 재설정 이메일 발송
                 emailService.sendPasswordResetEmail(email, resetCode);
 
-                log.info("등록된 계정으로 비밀번호 재설정 코드 발송 완료 - 사용자 ID: {}", account.getId());
+                log.info("등록된 로컬 계정으로 비밀번호 재설정 코드 발송 완료 - 사용자 ID: {}", account.getId());
 
             } else {
-                log.warn("존재하지 않는 이메일로 비밀번호 재설정 요청 - 이메일: {}", maskEmail(email));
-                // 보안상 계정 존재 여부를 노출하지 않음
+                log.warn("존재하지 않는 로컬 계정으로 비밀번호 재설정 요청 - 이메일: {}", maskEmail(email));
+                // 보안상 계정 존재 여부를 노출하지 않음 (소셜 계정도 포함)
             }
 
             log.info("비밀번호 재설정 이메일 발송 완료 - 이메일: {}", maskEmail(email));
@@ -761,9 +762,9 @@ public class AuthServiceImpl implements AuthService {
         }
 
         try {
-            // 계정 조회
-            Account account = accountRepository.findByEmail(email)
-                    .orElseThrow(() -> new UserNotFoundException("계정을 찾을 수 없습니다"));
+            // 로컬 계정만 조회 (소셜 로그인 계정은 비밀번호 재설정 불가)
+            Account account = accountRepository.findByEmailAndProviderAndDeletedAtIsNull(email, AuthProvider.LOCAL)
+                    .orElseThrow(() -> new UserNotFoundException("로컬 계정을 찾을 수 없습니다. 소셜 로그인 계정은 해당 플랫폼에서 비밀번호를 변경해주세요."));
 
             // 재설정 코드 재검증
             if (!verifyPasswordResetCode(email, resetCode)) {

@@ -331,6 +331,7 @@ public class AuthServiceImpl implements AuthService {
         userProfile.setName(account.getName());
         userProfile.setAge(account.getAge());
         userProfile.setRole(account.getRole());
+        userProfile.setProvider(account.getProvider()); // OAuth 제공자 정보 추가
         userProfile.setMbti(account.getMbti());
         userProfile.setDisposition(account.getDisposition());
         userProfile.setIntroduction(account.getIntroduction());
@@ -341,6 +342,14 @@ public class AuthServiceImpl implements AuthService {
 
         userProfile.setPreferWorkstyle(account.getPreferWorkstyle());
         userProfile.setDislikeWorkstyle(account.getDislikeWorkstyle());
+        
+        // 생성일/수정일 정보 추가
+        userProfile.setCreatedAt(account.getCreatedAt());
+        userProfile.setUpdatedAt(account.getUpdatedAt());
+        
+        // 해시태그는 빈 리스트로 설정 (별도 API에서 관리)
+        userProfile.setHashtags(new java.util.ArrayList<>());
+        
         return userProfile;
     }
 

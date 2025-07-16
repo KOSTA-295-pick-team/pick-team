@@ -1,6 +1,7 @@
 package com.pickteam.dto.user;
 
 import com.pickteam.domain.enums.UserRole;
+import com.pickteam.domain.enums.AuthProvider;
 import lombok.Data;
 import java.util.List;
 
@@ -27,6 +28,9 @@ public class UserProfileResponse {
     /** 사용자 권한 (ADMIN, USER 등) */
     private UserRole role;
 
+    /** OAuth 인증 제공자 (LOCAL, GOOGLE, KAKAO) */
+    private AuthProvider provider;
+
     /** MBTI 성격 유형 (팀 매칭 참고용) */
     private String mbti;
 
@@ -51,6 +55,12 @@ public class UserProfileResponse {
     /** 사용자 해시태그 목록 */
     private List<String> hashtags;
 
+    /** 계정 생성일 */
+    private java.time.LocalDateTime createdAt;
+
+    /** 계정 마지막 수정일 */
+    private java.time.LocalDateTime updatedAt;
+
     /**
      * Account 엔티티에서 UserProfileResponse로 변환
      * 
@@ -66,6 +76,7 @@ public class UserProfileResponse {
         response.setName(account.getName());
         response.setAge(account.getAge());
         response.setRole(account.getRole());
+        response.setProvider(account.getProvider());
         response.setMbti(account.getMbti());
         response.setDisposition(account.getDisposition());
         response.setIntroduction(account.getIntroduction());
@@ -73,6 +84,10 @@ public class UserProfileResponse {
         response.setProfileImageUrl(account.getProfileImageUrl());
         response.setPreferWorkstyle(account.getPreferWorkstyle());
         response.setDislikeWorkstyle(account.getDislikeWorkstyle());
+
+        // 생성일/수정일 정보 추가
+        response.setCreatedAt(account.getCreatedAt());
+        response.setUpdatedAt(account.getUpdatedAt());
 
         // 해시태그 변환
         List<String> hashtagNames = account.getUserHashtagLists().stream()

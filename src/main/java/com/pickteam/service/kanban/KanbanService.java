@@ -8,6 +8,7 @@ import com.pickteam.repository.kanban.*;
 import com.pickteam.repository.team.TeamRepository;
 import com.pickteam.repository.workspace.WorkspaceRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class KanbanService {
 
     private final KanbanRepository kanbanRepository;
@@ -31,13 +33,21 @@ public class KanbanService {
 
     @Transactional
     public KanbanDto createKanban(KanbanCreateRequest request) {
-        // Soft Delete 고려한 일관성 있는 조회
         Team team = teamRepository.findByIdAndIsDeletedFalse(request.getTeamId())
                 .orElseThrow(() -> new RuntimeException("Team not found"));
         Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(request.getWorkspaceId())
                 .orElseThrow(() -> new RuntimeException("Workspace not found"));
 
+        // 다음 순서 계산
+        List<Kanban> existingKanbans = kanbanRepository.findByTeamId(request.getTeamId());
+        int nextOrder = existingKanbans.isEmpty() ? 0 : 
+                       existingKanbans.stream()
+                           .mapToInt(k -> k.getOrder() != null ? k.getOrder() : 0)
+                           .max().orElse(0) + 1;
+
         Kanban kanban = Kanban.builder()
+                .name(request.getName() != null ? request.getName() : "칸반")
+                .order(nextOrder)
                 .team(team)
                 .workspace(workspace)
                 .build();
@@ -47,25 +57,54 @@ public class KanbanService {
         return helper.convertToDto(kanban);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public KanbanDto getKanbanByTeamId(Long teamId) {
-        // 한 번에 team 검증과 kanban 조회로 중복 조회 방지
         Team team = teamRepository.findByIdAndIsDeletedFalse(teamId)
                 .orElseThrow(() -> new RuntimeException("Team not found: " + teamId));
         
+        // 첫 번째 칸반 조회
+        Optional<Kanban> firstKanban = kanbanRepository.findFirstByTeamId(teamId);
+        
+        if (firstKanban.isPresent()) {
+            return helper.convertToDto(firstKanban.get());
+        }
+        
+        // 칸반이 없으면 자동 생성
+        return createKanbanForTeam(teamId, team.getWorkspace().getId());
+    }
+
+    @Transactional
+    public KanbanDto createKanbanForTeam(Long teamId, Long workspaceId) {
+        // 동시성 문제 방지를 위해 다시 한 번 확인
+        Optional<Kanban> existingKanban = kanbanRepository.findFirstByTeamId(teamId);
+        if (existingKanban.isPresent()) {
+            log.info("Kanban already exists for team: {}, returning existing kanban", teamId);
+            return helper.convertToDto(existingKanban.get());
+        }
+        
+        try {
+            KanbanCreateRequest createRequest = new KanbanCreateRequest();
+            createRequest.setTeamId(teamId);
+            createRequest.setWorkspaceId(workspaceId);
+            createRequest.setName("기본 칸반");
+            return createKanban(createRequest);
+            
+        } catch (Exception e) {
+            // 동시성 문제로 생성 실패 시 다시 조회
+            log.warn("Failed to create kanban for team: {}, attempting to find existing", teamId);
+            return kanbanRepository.findFirstByTeamId(teamId)
+                    .map(helper::convertToDto)
+                    .orElseThrow(() -> new RuntimeException("Kanban creation failed for team: " + teamId, e));
+        }
+    }
+
+    // 미래 확장을 위한 메소드
+    @Transactional(readOnly = true)
+    public List<KanbanDto> getAllKanbansByTeamId(Long teamId) {
         return kanbanRepository.findByTeamId(teamId)
+                .stream()
                 .map(helper::convertToDto)
-                .orElseGet(() -> {
-                    // 칸반이 없으면 자동 생성
-                    try {
-                        KanbanCreateRequest createRequest = new KanbanCreateRequest();
-                        createRequest.setTeamId(teamId);
-                        createRequest.setWorkspaceId(team.getWorkspace().getId());
-                        return createKanban(createRequest);
-                    } catch (Exception e) {
-                        throw new RuntimeException("Kanban not found for team: " + teamId + " and failed to create automatically", e);
-                    }
-                });
+                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -128,24 +167,20 @@ public class KanbanService {
         return helper.createComment(request, authorId);
     }
 
-    // 댓글 수정
     @Transactional
     public KanbanTaskCommentDto updateComment(Long commentId, KanbanTaskCommentUpdateRequest request, Long userId) {
         return helper.updateComment(commentId, request, userId);
     }
 
-    // 댓글 삭제
     @Transactional
     public void deleteComment(Long commentId, Long userId) {
         helper.deleteComment(commentId, userId);
     }
 
-    // 댓글 페이징 조회
     public Page<KanbanTaskCommentDto> getCommentsByTaskId(Long taskId, Pageable pageable) {
         return helper.getCommentsByTaskId(taskId, pageable);
     }
 
-    // 칸반 리스트 관련 메서드들
     @Transactional
     public KanbanListDto updateKanbanList(Long listId, KanbanListUpdateRequest request) {
         return helper.updateKanbanList(listId, request);
@@ -156,7 +191,6 @@ public class KanbanService {
         helper.deleteKanbanList(listId);
     }
     
-    // 작업 완료 요청/승인 관련 메서드들
     @Transactional
     public KanbanTaskDto requestTaskCompletion(Long cardId, KanbanTaskCompletionRequest request) {
         return helper.requestTaskCompletion(cardId, request);

@@ -56,9 +56,8 @@ public class WorkspaceController {
         return ResponseEntity.ok(ApiResponse.success("워크스페이스 참여 성공", response));
     }
     
-    /**
-     * 워크스페이스 ID로 직접 참여
-     */
+    // 워크스페이스 ID로 직접 참여는 보안상 제거됨 - 초대 코드만 사용
+    /*
     @PostMapping("/{workspaceId}/join")
     public ResponseEntity<ApiResponse<WorkspaceResponse>> joinWorkspaceById(
             @PathVariable Long workspaceId,
@@ -68,6 +67,7 @@ public class WorkspaceController {
         WorkspaceResponse response = workspaceService.joinWorkspaceById(userId, workspaceId, password);
         return ResponseEntity.ok(ApiResponse.success("워크스페이스 참여 성공", response));
     }
+    */
 
     
     /**
@@ -126,13 +126,11 @@ public class WorkspaceController {
             @PathVariable Long workspaceId,
             @Valid @RequestBody WorkspaceUpdateRequest request) {
         Long userId = getCurrentUserId();
-        WorkspaceResponse response = workspaceService.updateWorkspace(workspaceId, userId, request);
-        return ResponseEntity.ok(ApiResponse.success("워크스페이스 업데이트 성공", response));
+        WorkspaceResponse response = workspaceService.updateWorkspace(workspaceId, userId, request);        return ResponseEntity.ok(ApiResponse.success("워크스페이스 업데이트 성공", response));
     }
-    
-    /**
-     * 새 초대 링크 생성
-     */
+
+    // 더 이상 필요하지 않음 - 초대 코드는 워크스페이스 생성 시 영구적으로 생성됨
+    /*
     @PostMapping("/{workspaceId}/invite-code")
     public ResponseEntity<ApiResponse<Map<String, String>>> generateNewInviteCode(
             @PathVariable Long workspaceId) {
@@ -144,7 +142,8 @@ public class WorkspaceController {
         
         return ResponseEntity.ok(ApiResponse.success("초대 링크 생성 성공", response));
     }
-    
+    */
+
     /**
      * 멤버 내보내기
      */

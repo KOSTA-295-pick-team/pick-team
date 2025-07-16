@@ -237,9 +237,8 @@ public class WorkspaceService {
         return convertToResponse(workspace);
     }
     
-    /**
-     * 새 초대 링크 생성
-     */
+    // 더 이상 필요하지 않음 - 초대 코드는 워크스페이스 생성 시 영구적으로 생성됨
+    /*
     @Transactional
     public String generateNewInviteCode(Long workspaceId, Long accountId) {
         Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(workspaceId)
@@ -261,6 +260,7 @@ public class WorkspaceService {
         
         return newInviteCode;
     }
+    */
     
     /**
      * 멤버 내보내기

@@ -1,6 +1,5 @@
 package com.pickteam.config.websocket;
 
-import com.pickteam.service.VideoConferenceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;

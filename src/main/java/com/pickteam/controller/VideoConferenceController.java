@@ -60,7 +60,7 @@ public class VideoConferenceController {
     @PostMapping
     public ResponseEntity<?> createChannel(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable Long workspaceId, @Valid @RequestBody VideoChannelDTO videoChannelDTO) throws VideoConferenceException {
         VideoChannelDTO videoChannel = videoConferenceService.insertVideoChannel(workspaceId, videoChannelDTO.getName());
-        return ResponseEntity.status(HttpStatus.OK).body(videoChannel);
+        return ResponseEntity.status(HttpStatus.CREATED).body(videoChannel);
     }
 
     @PreAuthorize("hasRole('ADMIN') or  @videoConferenceAuthService.canJoinChannel(#userDetails.id,#workspaceId)")

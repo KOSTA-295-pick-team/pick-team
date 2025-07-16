@@ -88,7 +88,11 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
         Long vcId = (Long)sessionAttributes.get("videoChannelId");
         System.out.println("videoMemberId: " + vmId + ", videoChannelId: " + vcId);
         if(vmId != null && vcId != null) {
-            videoConferenceService.deleteVideoChannelParticipant(vmId, vcId);
+            try {
+                videoConferenceService.deleteVideoChannelParticipant(vmId, vcId);
+            }catch (VideoConferenceException e) {
+                e.printStackTrace();
+            }
         }
 
 

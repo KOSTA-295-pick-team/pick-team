@@ -1,6 +1,7 @@
 package com.pickteam.repository.board;
 
 import com.pickteam.domain.board.Board;
+import com.pickteam.domain.team.Team;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -34,4 +35,12 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
      */
     @Query("SELECT b FROM Board b JOIN FETCH b.team WHERE b.id = :boardId AND b.isDeleted = false")
     Optional<Board> findByIdWithTeamAndIsDeletedFalse(@Param("boardId") Long boardId);
+    
+    /**
+     * 특정 팀의 활성 게시판 조회
+     *
+     * @param team 팀 엔티티
+     * @return 해당 팀의 삭제되지 않은 게시판 (Optional)
+     */
+    Optional<Board> findByTeamAndIsDeletedFalse(Team team);
 }

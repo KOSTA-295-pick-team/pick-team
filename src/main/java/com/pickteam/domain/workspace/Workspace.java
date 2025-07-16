@@ -28,7 +28,7 @@ public class Workspace extends BaseSoftDeleteSupportEntity {
     @Column(unique = true)
     private String url;
     
-    @Column(name = "icon_url")
+    @Column(name = "icon_url", length = 500)
     private String iconUrl;
 
     @ManyToOne(optional = false)

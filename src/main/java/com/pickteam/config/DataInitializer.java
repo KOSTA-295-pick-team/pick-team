@@ -9,6 +9,7 @@ import com.pickteam.domain.kanban.Kanban;
 import com.pickteam.domain.kanban.KanbanList;
 import com.pickteam.domain.kanban.KanbanTask;
 import com.pickteam.domain.kanban.KanbanTaskMember;
+import com.pickteam.domain.board.Board;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.workspace.WorkspaceRepository;
 import com.pickteam.repository.workspace.WorkspaceMemberRepository;
@@ -18,12 +19,15 @@ import com.pickteam.repository.kanban.KanbanRepository;
 import com.pickteam.repository.kanban.KanbanListRepository;
 import com.pickteam.repository.kanban.KanbanTaskRepository;
 import com.pickteam.repository.kanban.KanbanTaskMemberRepository;
+import com.pickteam.repository.board.BoardRepository;
 import com.pickteam.domain.enums.UserRole;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -38,6 +42,7 @@ public class DataInitializer implements CommandLineRunner {
     private final KanbanListRepository kanbanListRepository;
     private final KanbanTaskRepository kanbanTaskRepository;
     private final KanbanTaskMemberRepository kanbanTaskMemberRepository;
+    private final BoardRepository boardRepository;
     private final PasswordEncoder passwordEncoder;
     
     @Override
@@ -133,6 +138,12 @@ public class DataInitializer implements CommandLineRunner {
                 .build();
         frontendTeam = teamRepository.save(frontendTeam);
         
+        // 프론트엔드팀 게시판 생성
+        Board frontendBoard = Board.builder()
+                .team(frontendTeam)
+                .build();
+        boardRepository.save(frontendBoard);
+        
         // 프론트엔드팀 멤버십 생성
         createTeamMembership(frontendTeam, user1, TeamMember.TeamRole.LEADER);
         createTeamMembership(frontendTeam, user3, TeamMember.TeamRole.MEMBER);
@@ -146,6 +157,12 @@ public class DataInitializer implements CommandLineRunner {
                 .workspace(workspace)
                 .build();
         backendTeam = teamRepository.save(backendTeam);
+        
+        // 백엔드팀 게시판 생성
+        Board backendBoard = Board.builder()
+                .team(backendTeam)
+                .build();
+        boardRepository.save(backendBoard);
         
         // 백엔드팀 멤버십 생성
         createTeamMembership(backendTeam, user2, TeamMember.TeamRole.LEADER);
@@ -274,4 +291,4 @@ public class DataInitializer implements CommandLineRunner {
     private String generateRandomCode() {
         return java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
-} 
+}

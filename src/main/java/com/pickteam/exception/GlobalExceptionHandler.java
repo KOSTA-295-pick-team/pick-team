@@ -395,19 +395,23 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 잘못된 상태 예외 처리
+     * 잘못된 상태 예외 처리 (SSE 연결 문제 포함)
      */
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ProblemDetail> handleIllegalStateException(IllegalStateException ex) {
         log.warn("잘못된 상태: {}", ex.getMessage());
 
+        // SSE 관련 에러는 400 Bad Request로 처리 (클라이언트 재시도 유도)
+        HttpStatus status = ex.getMessage().contains("SSE") || ex.getMessage().contains("등록된") ? 
+            HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR;
+
         ProblemDetail problemDetail = createProblemDetail(
                 ProblemType.ILLEGAL_STATE,
-                HttpStatus.INTERNAL_SERVER_ERROR,
+                status,
                 ex.getMessage(),
                 ILLEGAL_STATE_INSTANCE);
 
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problemDetail);
+        return ResponseEntity.status(status).body(problemDetail);
     }
 
     /**

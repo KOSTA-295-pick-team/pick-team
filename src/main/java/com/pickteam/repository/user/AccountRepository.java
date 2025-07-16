@@ -126,4 +126,8 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
         Optional<Account> findByEmailAndProviderAndDeletedAtIsNull(String email, 
                 com.pickteam.domain.enums.AuthProvider provider);
 
+        /** 이메일과 제공자로 활성 계정 존재 여부 확인 */
+        boolean existsByEmailAndProviderAndDeletedAtIsNull(String email, 
+                com.pickteam.domain.enums.AuthProvider provider);
+
 }

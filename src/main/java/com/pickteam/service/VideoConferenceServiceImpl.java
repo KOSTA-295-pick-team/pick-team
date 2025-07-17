@@ -82,9 +82,15 @@ public class VideoConferenceServiceImpl implements VideoConferenceService {
     @Transactional
     @Override
     public VideoChannelDTO insertVideoChannel(Long workspaceId, String videoChannelName) throws VideoConferenceException {
-        VideoChannel vc = videoChannelRepository.findByName(videoChannelName);
-        if(vc != null && !vc.getIsDeleted()) {
-            throw new VideoConferenceException(VideoConferenceErrorCode.DUPLICATE_CHANNEL_NAME);
+        //같은 이름의 채널을 만들고 삭제 후 또 만들고 삭제 시 채널 이름으로 조회시 결과가 여러개 나올수있음
+        List<VideoChannel> vc = videoChannelRepository.findByName(videoChannelName);
+
+        if(vc != null && !vc.isEmpty()) {
+            for (VideoChannel vc1 : vc) {
+                if(vc1.isActive()){
+                    throw new VideoConferenceException(VideoConferenceErrorCode.DUPLICATE_CHANNEL_NAME);
+                }
+            }
         }
         Workspace workspace = Workspace.builder().id(workspaceId).build();
         VideoChannel videochannel = VideoChannel.builder().name(videoChannelName).workspace(workspace).build();

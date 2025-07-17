@@ -11,5 +11,5 @@ public interface VideoChannelRepository extends JpaRepository<VideoChannel, Long
     @Query("select v from VideoChannel v where v.workspace.id=?1 and v.isDeleted=false")
     List<VideoChannel> selectChannelsByWorkSpaceId(Long workspaceId);
 
-    VideoChannel findByName(String name);
+    List<VideoChannel> findByName(String name);
 }

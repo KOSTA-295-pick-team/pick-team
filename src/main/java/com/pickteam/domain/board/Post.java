@@ -5,6 +5,7 @@ import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.user.Account;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -50,8 +51,10 @@ public class Post extends BaseSoftDeleteSupportEntity {
     // 하나의 게시물에는 다수의 첨부파일, 댓글 등이 붙을 수 있다. 이를 관리하기 위해 OneToMany로 설정한다.
     // cascade 설정은 하지 않는다.
     @OneToMany(mappedBy = "post", fetch = FetchType.LAZY)
+    @Where(clause = "is_deleted = false") // 삭제되지 않은 첨부파일만 조회
     private List<PostAttach> attachments = new ArrayList<>();
 
     @OneToMany(mappedBy = "post", fetch = FetchType.LAZY)
+    @Where(clause = "is_deleted = false") // 삭제되지 않은 댓글만 조회
     private List<Comment> comments = new ArrayList<>();
 }

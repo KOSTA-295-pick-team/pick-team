@@ -1,0 +1,100 @@
+version: '3'  # Docker Compose 파일의 버전. v3은 대부분의 기능을 지원하며 프로덕션 환경에서도 자주 사용됨.
+
+services:
+  redis:
+    image: redis:7.2
+    container_name: pickteam-redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+    networks:
+      - pickteam
+
+  kosta-pick-team-backend:  # 서비스 이름 (컨테이너 역할 명시)
+    image: ${DOCKER_USERNAME}/kosta-pick-team:${IMAGE_TAG}  # docker 이미지 경로. CI에서 전달된 태그 사용
+    container_name: kosta-pick-team-backend  # 실제 생성될 컨테이너의 이름 지정
+
+    ports:
+      - ${PORT_NO}:${PORT_NO}  # 호스트의 8081 포트를 컨테이너의 8081 포트에 매핑 (환경변수 따라 세팅)
+
+    volumes:
+      - ${UPLOAD_DOCKER_VOLUME_PATH}  # Spring 내에서 /app/uploads로 접근
+
+    environment:  # 컨테이너에 전달할 환경변수 설정
+      PORT_NO: ${PORT_NO}  # Port no
+      DATABASE_TYPE: ${DATABASE_TYPE}  # Database type
+      DB_DRIVER: ${DB_DRIVER}  # Db driver
+      DB_URL: ${DB_URL}  # Db url
+      DB_USER: ${DB_USER}  # Db user
+      DB_PASSWORD: ${DB_PASSWORD}  # Db password
+      DB_NAME: ${DB_NAME}  # Db name
+      TZ: ${TZ}  # Tz
+      DB_LANG: ${DB_LANG}  # Db lang
+      DB_LC_ALL: ${DB_LC_ALL}  # Db lc all
+      DB_CHARACTER_ENCODING: ${DB_CHARACTER_ENCODING}  # Db character encoding
+      DB_MYSQL_INIT_CONNECT: ${DB_MYSQL_INIT_CONNECT}  # Db mysql init connect
+      DB_MYSQL_CHARACTER_SET_SERVER: ${DB_MYSQL_CHARACTER_SET_SERVER}  # Db mysql character set server
+      DB_MYSQL_COLLATION_SERVER: ${DB_MYSQL_COLLATION_SERVER}  # Db mysql collation server
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO}  # Jpa ddl auto
+      JPA_SHOW_SQL: ${JPA_SHOW_SQL}  # Jpa show sql
+      JPA_DIALECT: ${JPA_DIALECT}  # Jpa dialect
+      JPA_OPEN_IN_VIEW: ${JPA_OPEN_IN_VIEW}  # Jpa open in view
+      LOG_LEVEL_ROOT: ${LOG_LEVEL_ROOT}  # Log level root
+      LOG_LEVEL_SQL: ${LOG_LEVEL_SQL}  # Log level sql
+      LOG_LEVEL_TX: ${LOG_LEVEL_TX}  # Log level tx
+      LOG_LEVEL_INTERCEPTOR: ${LOG_LEVEL_INTERCEPTOR}  # Log level interceptor
+      MAIL_HOST: ${MAIL_HOST}  # Mail host
+      MAIL_PORT: ${MAIL_PORT}  # Mail port
+      MAIL_USERNAME: ${MAIL_USERNAME}  # Mail username
+      MAIL_PASSWORD: ${MAIL_PASSWORD}  # Mail password
+      MAIL_FROM: ${MAIL_FROM}  # Mail from
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME}  # Mail from name
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH}  # Mail smtp auth
+      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS}  # Mail smtp starttls
+      MAIL_SMTP_STARTTLS_REQUIRED: ${MAIL_SMTP_STARTTLS_REQUIRED}  # Mail smtp starttls required
+      JWT_SECRET: ${JWT_SECRET}  # Jwt secret
+      JWT_EXPIRATION: ${JWT_EXPIRATION}  # Jwt expiration
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION}  # Jwt refresh expiration
+      JWT_REFRESH_TOKEN_EXPIRATION_DAYS: ${JWT_REFRESH_TOKEN_EXPIRATION_DAYS}  # Jwt refresh token expiration days
+      FILE_UPLOAD_ENABLED: ${FILE_UPLOAD_ENABLED}  # File upload enabled
+      FILE_MAX_SIZE: ${FILE_MAX_SIZE}  # File max size
+      FILE_MAX_REQUEST_SIZE: ${FILE_MAX_REQUEST_SIZE}  # File max request size
+      FILE_MAX_SIZE_BYTES: ${FILE_MAX_SIZE_BYTES}  # File max size bytes
+      FILE_TEMP_DIR: ${FILE_TEMP_DIR}  # File temp dir
+      FILE_UPLOAD_DIR: ${FILE_UPLOAD_DIR}  # File upload dir
+      FILE_BASE_URL: ${FILE_BASE_URL}  # File base url
+      FILE_ALLOWED_EXTENSIONS: ${FILE_ALLOWED_EXTENSIONS}  # File allowed extensions
+      PROFILE_IMAGE_DIR: ${PROFILE_IMAGE_DIR}  # Profile image dir
+      PROFILE_IMAGE_MAX_SIZE: ${PROFILE_IMAGE_MAX_SIZE}  # Profile image max size
+      PROFILE_IMAGE_ALLOWED_EXTENSIONS: ${PROFILE_IMAGE_ALLOWED_EXTENSIONS}  # Profile image allowed extensions
+      PROFILE_IMAGE_ALLOWED_MIME_TYPES: ${PROFILE_IMAGE_ALLOWED_MIME_TYPES}  # Profile image allowed mime types
+      BLOCKED_EMAIL_DOMAINS: ${BLOCKED_EMAIL_DOMAINS}  # Blocked email domains
+      ACCOUNT_GRACE_PERIOD_DAYS: ${ACCOUNT_GRACE_PERIOD_DAYS}  # Account grace period days
+      ACCOUNT_DEFAULT_GRACE_PERIOD_DAYS: ${ACCOUNT_DEFAULT_GRACE_PERIOD_DAYS}  # Account default grace period days
+      ACCOUNT_CLEANUP_SCHEDULE: ${ACCOUNT_CLEANUP_SCHEDULE}  # Account cleanup schedule
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}  # Google client id
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}  # Google client secret
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}  # Google redirect uri
+      KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID}  # Kakao client id
+      KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET}  # Kakao client secret
+      KAKAO_REDIRECT_URI: ${KAKAO_REDIRECT_URI}  # Kakao redirect uri
+      FRONTEND_URL: ${FRONTEND_URL}  # Frontend url
+      REDIS_HOST: ${REDIS_HOST}  # Redis host
+      REDIS_PORT: ${REDIS_PORT}  # Redis port
+      REDIS_PASSWORD: ${REDIS_PASSWORD}  # Redis password
+      REDIS_DATABASE: ${REDIS_DATABASE}  # Redis database
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}  # Livekit api key
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}  # Livekit api secret
+      LIVEKIT_SERVER_IP: ${LIVEKIT_SERVER_IP}  # Livekit server ip
+      DOCKER_USERNAME : ${DOCKER_USERNAME}
+      DOCKER_ACCESS_TOKEN : ${DOCKER_ACCESS_TOKEN}
+
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Seoul -Dfile.encoding=UTF-8"  # JVM 시간대/인코딩 설정
+
+    networks:
+      - pickteam  # 동일한 네트워크에 연결된 다른 컨테이너들과 통신 가능
+
+networks:
+  pickteam:
+    external: true  # 이미 생성된 외부 네트워크(mynet 등)를 사용. docker network create pickteam 필요

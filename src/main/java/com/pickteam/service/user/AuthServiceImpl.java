@@ -1,5 +1,6 @@
 package com.pickteam.service.user;
 
+import com.pickteam.domain.enums.AuthProvider;
 import com.pickteam.dto.user.UserLoginRequest;
 import com.pickteam.dto.user.UserProfileResponse;
 import com.pickteam.dto.user.LogoutResponse;
@@ -48,6 +49,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final com.pickteam.security.JwtTokenProvider jwtTokenProvider;
     private final SecurityAuditLogger securityAuditLogger;
+    private final EmailService emailService; // 이메일 서비스 주입
 
     /** 리프레시 토큰 만료 기간 */
     @Value("${app.jwt.refresh-token.expiration-days}")
@@ -67,8 +69,9 @@ public class AuthServiceImpl implements AuthService {
     public JwtAuthenticationResponse authenticate(UserLoginRequest request) {
         log.info("사용자 로그인 시도: {}", request.getEmail());
 
-        // 1. 사용자 조회
-        Account account = accountRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
+        // 1. 로컬 계정만 조회 (provider = LOCAL)
+        Account account = accountRepository.findByEmailAndProviderAndDeletedAtIsNull(
+                request.getEmail(), AuthProvider.LOCAL)
                 .orElseThrow(() -> new AuthenticationException(AuthErrorMessages.INVALID_CREDENTIALS));
 
         // 2. 비밀번호 검증
@@ -190,6 +193,7 @@ public class AuthServiceImpl implements AuthService {
      * @throws UserNotFoundException 사용자가 존재하지 않을 시
      */
     @Override
+    @Transactional
     public JwtAuthenticationResponse refreshToken(RefreshTokenRequest request) {
         log.info("토큰 갱신 시도");
 
@@ -246,7 +250,7 @@ public class AuthServiceImpl implements AuthService {
      * 현재 로그인된 사용자 ID 조회
      * - Spring Security Context에서 인증된 사용자 정보 추출
      * - JWT 토큰을 통해 인증된 사용자의 ID 반환
-     * - UserController의 TODO 해결을 위한 핵심 메서드
+     * - 인증이 필요한 모든 API에서 사용하는 핵심 메서드
      * 
      * @return 현재 로그인된 사용자 ID
      * @throws AuthenticationException 인증되지 않은 사용자인 경우
@@ -296,6 +300,7 @@ public class AuthServiceImpl implements AuthService {
      * @param token   저장할 토큰 문자열
      * @return 저장된 RefreshToken 엔티티
      */
+    @Transactional
     private RefreshToken createAndSaveRefreshToken(Account account, String token) {
         refreshTokenRepository.deleteByAccount(account);
         LocalDateTime now = LocalDateTime.now();
@@ -328,12 +333,25 @@ public class AuthServiceImpl implements AuthService {
         userProfile.setName(account.getName());
         userProfile.setAge(account.getAge());
         userProfile.setRole(account.getRole());
+        userProfile.setProvider(account.getProvider()); // OAuth 제공자 정보 추가
         userProfile.setMbti(account.getMbti());
         userProfile.setDisposition(account.getDisposition());
         userProfile.setIntroduction(account.getIntroduction());
         userProfile.setPortfolio(account.getPortfolio());
+
+        // 프로필 이미지 URL 설정 (null 그대로 반환 - 프론트엔드에서 처리)
+        userProfile.setProfileImageUrl(account.getProfileImageUrl());
+
         userProfile.setPreferWorkstyle(account.getPreferWorkstyle());
         userProfile.setDislikeWorkstyle(account.getDislikeWorkstyle());
+        
+        // 생성일/수정일 정보 추가
+        userProfile.setCreatedAt(account.getCreatedAt());
+        userProfile.setUpdatedAt(account.getUpdatedAt());
+        
+        // 해시태그는 빈 리스트로 설정 (별도 API에서 관리)
+        userProfile.setHashtags(new java.util.ArrayList<>());
+        
         return userProfile;
     }
 
@@ -457,7 +475,7 @@ public class AuthServiceImpl implements AuthService {
                 accessToken,
                 refreshToken,
                 jwtTokenProvider.getJwtExpirationMs(),
-                UserProfileResponse.from(account));
+                mapToUserProfile(account));
     }
 
     /**
@@ -562,5 +580,249 @@ public class AuthServiceImpl implements AuthService {
                 .invalidatedSessions(tokenCount)
                 .message("로그아웃이 성공적으로 완료되었습니다.")
                 .build();
+    }
+
+    // === OAuth 전용 토큰 생성 메서드 ===
+
+    @Override
+    @Transactional
+    public JwtAuthenticationResponse generateTokensForAccount(Account account) {
+        log.debug("Account 객체로부터 JWT 토큰 생성 시작 - 사용자 ID: {}", account.getId());
+
+        if (account == null) {
+            throw new IllegalArgumentException("Account는 null일 수 없습니다");
+        }
+
+        if (account.getId() == null || account.getEmail() == null) {
+            throw new IllegalArgumentException("Account의 ID와 이메일은 필수입니다");
+        }
+
+        try {
+            // Access Token 생성
+            String accessToken = generateAccessToken(account.getId(), account.getEmail(), account.getName());
+
+            // Refresh Token 생성
+            String refreshToken = generateRefreshToken(account.getId());
+
+            // 사용자 프로필 정보 생성
+            UserProfileResponse userProfile = mapToUserProfile(account);
+
+            log.info("Account 객체로부터 JWT 토큰 생성 완료 - 사용자 ID: {}", account.getId());
+
+            return JwtAuthenticationResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .tokenType("Bearer")
+                    .expiresIn(jwtTokenProvider.getJwtExpirationMs())
+                    .user(userProfile)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Account 객체로부터 JWT 토큰 생성 실패 - 사용자 ID: {}", account.getId(), e);
+            throw new RuntimeException("JWT 토큰 생성에 실패했습니다", e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public JwtAuthenticationResponse generateTokensForAccount(Account account, HttpServletRequest httpRequest) {
+        log.debug("클라이언트 정보를 포함하여 Account 객체로부터 JWT 토큰 생성 시작 - 사용자 ID: {}", account.getId());
+
+        if (account == null) {
+            throw new IllegalArgumentException("Account는 null일 수 없습니다");
+        }
+
+        if (account.getId() == null || account.getEmail() == null) {
+            throw new IllegalArgumentException("Account의 ID와 이메일은 필수입니다");
+        }
+
+        try {
+            // Access Token 생성
+            String accessToken = generateAccessToken(account.getId(), account.getEmail(), account.getName());
+
+            // 클라이언트 정보 추출
+            ClientInfoExtractor.ClientInfo clientInfo = null;
+            if (httpRequest != null) {
+                clientInfo = ClientInfoExtractor.extractClientInfo(httpRequest);
+            }
+
+            // Refresh Token 생성 (클라이언트 정보 포함)
+            String refreshToken;
+            if (clientInfo != null) {
+                refreshToken = generateRefreshTokenWithClientInfo(account.getId(), clientInfo);
+            } else {
+                refreshToken = generateRefreshToken(account.getId());
+            }
+
+            log.info("클라이언트 정보를 포함하여 Account 객체로부터 JWT 토큰 생성 완료 - 사용자 ID: {}", account.getId());
+
+            // 사용자 프로필 정보 생성
+            UserProfileResponse userProfile = mapToUserProfile(account);
+
+            return JwtAuthenticationResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .tokenType("Bearer")
+                    .expiresIn(jwtTokenProvider.getJwtExpirationMs())
+                    .user(userProfile)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("클라이언트 정보를 포함한 Account 객체로부터 JWT 토큰 생성 실패 - 사용자 ID: {}", account.getId(), e);
+            throw new RuntimeException("JWT 토큰 생성에 실패했습니다", e);
+        }
+    }
+
+    // ==================== 비밀번호 찾기 관련 메서드 구현 ====================
+
+    @Override
+    @Transactional
+    public void sendPasswordResetEmail(String email) {
+        log.info("비밀번호 재설정 이메일 발송 시작 - 이메일: {}", maskEmail(email));
+
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("이메일은 필수입니다");
+        }
+
+        try {
+            // 로컬 계정만 조회 (소셜 로그인 계정은 비밀번호 재설정 불가)
+            Account account = accountRepository.findByEmailAndProviderAndDeletedAtIsNull(email, AuthProvider.LOCAL).orElse(null);
+
+            if (account != null) {
+                // 비밀번호 재설정용 인증 코드 생성
+                String resetCode = emailService.generateVerificationCode();
+
+                // 인증 코드 저장 (기존 이메일 인증 시스템 재활용)
+                emailService.storeVerificationCode(email, resetCode);
+
+                // 비밀번호 재설정 이메일 발송
+                emailService.sendPasswordResetEmail(email, resetCode);
+
+                log.info("등록된 로컬 계정으로 비밀번호 재설정 코드 발송 완료 - 사용자 ID: {}", account.getId());
+
+            } else {
+                log.warn("존재하지 않는 로컬 계정으로 비밀번호 재설정 요청 - 이메일: {}", maskEmail(email));
+                // 보안상 계정 존재 여부를 노출하지 않음 (소셜 계정도 포함)
+            }
+
+            log.info("비밀번호 재설정 이메일 발송 완료 - 이메일: {}", maskEmail(email));
+
+        } catch (Exception e) {
+            log.error("비밀번호 재설정 이메일 발송 실패 - 이메일: {}", maskEmail(email), e);
+            // 보안상 구체적인 오류 정보는 숨김
+            throw new RuntimeException("이메일 발송 중 오류가 발생했습니다");
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean verifyPasswordResetCode(String email, String resetCode) {
+        log.info("비밀번호 재설정 코드 검증 시작 - 이메일: {}", maskEmail(email));
+
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("이메일은 필수입니다");
+        }
+        if (resetCode == null || resetCode.trim().isEmpty()) {
+            throw new IllegalArgumentException("재설정 코드는 필수입니다");
+        }
+
+        try {
+            // 계정 존재 여부 확인
+            Account account = accountRepository.findByEmail(email).orElse(null);
+
+            if (account == null) {
+                log.warn("존재하지 않는 이메일로 재설정 코드 검증 시도 - 이메일: {}", maskEmail(email));
+                return false;
+            }
+
+            // 기존 이메일 인증 시스템의 코드 검증 로직 재활용
+            boolean isValid = emailService.verifyCode(email, resetCode);
+
+            log.info("비밀번호 재설정 코드 검증 결과 - 이메일: {}, 유효성: {}", maskEmail(email), isValid);
+            return isValid;
+
+        } catch (Exception e) {
+            log.error("비밀번호 재설정 코드 검증 실패 - 이메일: {}", maskEmail(email), e);
+            return false;
+        }
+    }
+
+    @Override
+    @Transactional
+    public void resetPasswordWithCode(String email, String resetCode, String newPassword) {
+        log.info("비밀번호 재설정 시작 - 이메일: {}", maskEmail(email));
+
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("이메일은 필수입니다");
+        }
+        if (resetCode == null || resetCode.trim().isEmpty()) {
+            throw new IllegalArgumentException("재설정 코드는 필수입니다");
+        }
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            throw new IllegalArgumentException("새 비밀번호는 필수입니다");
+        }
+
+        try {
+            // 로컬 계정만 조회 (소셜 로그인 계정은 비밀번호 재설정 불가)
+            Account account = accountRepository.findByEmailAndProviderAndDeletedAtIsNull(email, AuthProvider.LOCAL)
+                    .orElseThrow(() -> new UserNotFoundException("로컬 계정을 찾을 수 없습니다. 소셜 로그인 계정은 해당 플랫폼에서 비밀번호를 변경해주세요."));
+
+            // 재설정 코드 재검증
+            if (!verifyPasswordResetCode(email, resetCode)) {
+                log.warn("유효하지 않은 재설정 코드로 비밀번호 변경 시도 - 이메일: {}", maskEmail(email));
+                throw new InvalidTokenException("재설정 코드가 유효하지 않거나 만료되었습니다");
+            }
+
+            // 새 비밀번호 암호화
+            String encodedNewPassword = encryptPassword(newPassword);
+
+            // 비밀번호 업데이트
+            account.setPassword(encodedNewPassword);
+            accountRepository.save(account);
+
+            // 보안을 위해 해당 사용자의 모든 리프레시 토큰 무효화
+            List<RefreshToken> userTokens = refreshTokenRepository.findByAccount(account);
+            refreshTokenRepository.deleteAll(userTokens);
+            log.info("비밀번호 변경으로 인한 기존 세션 무효화 - 사용자 ID: {}, 무효화된 토큰 수: {}",
+                    account.getId(), userTokens.size());
+
+            // TODO: 사용된 재설정 코드 무효화
+            // - Redis 또는 DB에서 해당 재설정 코드 삭제/무효화
+
+            // 보안 감사 로그 (메서드가 없는 경우 주석 처리)
+            // securityAuditLogger.logPasswordReset(account.getId(), account.getEmail());
+
+            log.info("비밀번호 재설정 완료 - 사용자 ID: {}", account.getId());
+
+        } catch (UserNotFoundException | InvalidTokenException e) {
+            log.warn("비밀번호 재설정 실패 - 이메일: {}, 오류: {}", maskEmail(email), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("비밀번호 재설정 중 예상치 못한 오류 - 이메일: {}", maskEmail(email), e);
+            throw new RuntimeException("비밀번호 재설정 중 오류가 발생했습니다", e);
+        }
+    }
+
+    /**
+     * 이메일 마스킹 처리 (보안)
+     */
+    private String maskEmail(String email) {
+        if (email == null || email.isEmpty()) {
+            return "[EMPTY]";
+        }
+
+        int atIndex = email.indexOf('@');
+        if (atIndex <= 0) {
+            return "[INVALID_EMAIL]";
+        }
+
+        String localPart = email.substring(0, atIndex);
+        String domain = email.substring(atIndex);
+
+        if (localPart.length() <= 2) {
+            return "**" + domain;
+        } else {
+            return localPart.substring(0, 2) + "***" + domain;
+        }
     }
 }

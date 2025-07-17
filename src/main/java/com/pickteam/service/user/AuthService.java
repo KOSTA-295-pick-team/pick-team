@@ -183,4 +183,64 @@ public interface AuthService {
          * @return 로그아웃 상세 정보
          */
         LogoutResponse logoutWithDetails(Long userId, HttpServletRequest httpRequest);
+
+        /**
+         * Account 객체로부터 JWT 토큰을 생성합니다.
+         * OAuth 로그인 등에서 사용합니다.
+         *
+         * @param account 사용자 계정 정보
+         * @return JWT 인증 응답 (Access Token + Refresh Token)
+         * @throws IllegalArgumentException account가 null이거나 유효하지 않은 경우
+         */
+        JwtAuthenticationResponse generateTokensForAccount(com.pickteam.domain.user.Account account);
+
+        /**
+         * 클라이언트 정보를 포함하여 Account 객체로부터 JWT 토큰을 생성합니다.
+         *
+         * @param account     사용자 계정 정보
+         * @param httpRequest HTTP 요청 (클라이언트 정보 추출용)
+         * @return JWT 인증 응답 (Access Token + Refresh Token)
+         */
+        JwtAuthenticationResponse generateTokensForAccount(com.pickteam.domain.user.Account account,
+                        jakarta.servlet.http.HttpServletRequest httpRequest);
+
+        // ==================== 비밀번호 찾기 관련 메서드 ====================
+
+        /**
+         * 비밀번호 재설정을 위한 이메일을 발송합니다.
+         * 등록된 이메일 주소로 6자리 재설정 코드를 발송합니다.
+         * 보안상 존재하지 않는 이메일이어도 예외를 발생시키지 않습니다.
+         *
+         * @param email 비밀번호 재설정 이메일을 받을 주소
+         * @throws IllegalArgumentException 이메일이 null이거나 형식이 잘못된 경우
+         */
+        void sendPasswordResetEmail(String email);
+
+        /**
+         * 비밀번호 재설정 코드의 유효성을 검증합니다.
+         * 이메일과 재설정 코드의 일치 여부, 만료 시간 등을 확인합니다.
+         *
+         * @param email     재설정 요청한 이메일 주소
+         * @param resetCode 6자리 재설정 코드
+         * @return 코드가 유효하면 true, 그렇지 않으면 false
+         * @throws IllegalArgumentException 매개변수가 null이거나 형식이 잘못된 경우
+         */
+        boolean verifyPasswordResetCode(String email, String resetCode);
+
+        /**
+         * 재설정 코드를 사용하여 비밀번호를 변경합니다.
+         * 코드 검증 후 새 비밀번호로 변경하고, 사용된 코드를 무효화합니다.
+         * 기존 로그인 세션들도 무효화하여 보안을 강화합니다.
+         *
+         * @param email       재설정 요청한 이메일 주소
+         * @param resetCode   6자리 재설정 코드
+         * @param newPassword 새로운 비밀번호
+         * @throws UserNotFoundException                             사용자를 찾을 수 없는 경우
+         * @throws IllegalArgumentException                          매개변수가 null이거나 형식이
+         *                                                           잘못된 경우
+         * @throws com.pickteam.exception.auth.InvalidTokenException 재설정 코드가 유효하지 않거나
+         *                                                           만료된 경우
+         */
+        void resetPasswordWithCode(String email, String resetCode, String newPassword);
+
 }

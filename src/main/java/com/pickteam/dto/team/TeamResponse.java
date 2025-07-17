@@ -25,6 +25,7 @@ public class TeamResponse {
     private UserSummaryResponse leader;
     private int memberCount;
     private List<TeamMemberResponse> members;
+    private Long boardId; // 게시판 ID 추가
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 } 

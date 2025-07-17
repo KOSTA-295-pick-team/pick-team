@@ -6,6 +6,7 @@ import com.pickteam.exception.email.EmailSendException;
 import com.pickteam.exception.user.UserNotFoundException;
 import com.pickteam.exception.user.DuplicateEmailException;
 import com.pickteam.exception.user.AccountWithdrawalException;
+import com.pickteam.exception.user.OAuthDeletedAccountException;
 import com.pickteam.exception.auth.AuthenticationException;
 import com.pickteam.exception.auth.UnauthorizedException;
 import com.pickteam.exception.auth.InvalidTokenException;
@@ -49,6 +50,7 @@ public class GlobalExceptionHandler {
     private static final String INVALID_TOKEN_INSTANCE = "/invalid-token";
     private static final String SESSION_EXPIRED_INSTANCE = "/session-expired";
     private static final String ACCOUNT_WITHDRAWAL_ERROR_INSTANCE = "/account-withdrawal-error";
+    private static final String OAUTH_DELETED_ACCOUNT_INSTANCE = "/oauth-deleted-account";
     private static final String ILLEGAL_STATE_INSTANCE = "/illegal-state";
     private static final String DATA_INTEGRITY_VIOLATION_INSTANCE = "/data-integrity-violation";
     private static final String RUNTIME_ERROR_INSTANCE = "/runtime-error";
@@ -271,6 +273,60 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * OAuth 삭제된 계정 예외 처리
+     */
+    @ExceptionHandler(OAuthDeletedAccountException.class)
+    public ResponseEntity<ProblemDetail> handleOAuthDeletedAccountException(OAuthDeletedAccountException ex) {
+        log.warn("OAuth 삭제된 계정 로그인 시도 - 계정 ID: {}, 제공자: {}", ex.getAccountId(), ex.getProvider());
+
+        // 삭제된 계정 정보를 포함한 상세 응답 생성
+        Map<String, Object> extensions = new HashMap<>();
+        extensions.put("accountStatus", "DELETED");
+        extensions.put("accountId", ex.getAccountId());
+        extensions.put("deletedAt", ex.getDeletedAt());
+        extensions.put("permanentDeletionDate", ex.getPermanentDeletionDate());
+        extensions.put("provider", ex.getProvider());
+
+        // 남은 일수 계산
+        long remainingDays = 0;
+        if (ex.getPermanentDeletionDate() != null) {
+            remainingDays = java.time.temporal.ChronoUnit.DAYS.between(
+                    LocalDateTime.now(), ex.getPermanentDeletionDate());
+            remainingDays = Math.max(0, remainingDays);
+            extensions.put("remainingDays", remainingDays);
+        }
+
+        extensions.put("canReactivate", false);
+        extensions.put("supportContact", "support@pickteam.com");
+
+        // 사용자 친화적인 상세 메시지 생성
+        StringBuilder detailMessage = new StringBuilder();
+        detailMessage.append("삭제된 계정입니다.\n\n");
+
+        if (ex.getProvider() != null) {
+            detailMessage.append(ex.getProvider()).append(" 계정이 삭제되어 있습니다.\n");
+        }
+
+        if (remainingDays > 0) {
+            detailMessage.append("계정 영구 삭제까지 ").append(remainingDays).append("일 남았습니다.\n\n");
+        } else {
+            detailMessage.append("계정이 영구 삭제되었습니다.\n\n");
+        }
+
+        detailMessage.append("계정 복구나 문의사항이 있으시면\n");
+        detailMessage.append("support@pickteam.com로 연락주세요.");
+
+        ProblemDetail problemDetail = createProblemDetail(
+                ProblemType.OAUTH_DELETED_ACCOUNT,
+                HttpStatus.FORBIDDEN,
+                detailMessage.toString(),
+                OAUTH_DELETED_ACCOUNT_INSTANCE,
+                extensions);
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problemDetail);
+    }
+
+    /**
      * 이메일 발송 예외 처리
      */
     @ExceptionHandler(EmailSendException.class)
@@ -339,19 +395,23 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 잘못된 상태 예외 처리
+     * 잘못된 상태 예외 처리 (SSE 연결 문제 포함)
      */
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ProblemDetail> handleIllegalStateException(IllegalStateException ex) {
         log.warn("잘못된 상태: {}", ex.getMessage());
 
+        // SSE 관련 에러는 400 Bad Request로 처리 (클라이언트 재시도 유도)
+        HttpStatus status = ex.getMessage().contains("SSE") || ex.getMessage().contains("등록된") ? 
+            HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR;
+
         ProblemDetail problemDetail = createProblemDetail(
                 ProblemType.ILLEGAL_STATE,
-                HttpStatus.INTERNAL_SERVER_ERROR,
+                status,
                 ex.getMessage(),
                 ILLEGAL_STATE_INSTANCE);
 
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problemDetail);
+        return ResponseEntity.status(status).body(problemDetail);
     }
 
     /**
@@ -397,11 +457,22 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 예상치 못한 모든 예외 처리
+     * 예상치 못한 모든 예외 처리 (더 상세한 로깅)
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleGenericException(Exception ex) {
-        log.error("예상치 못한 오류 발생", ex);
+        // 상세한 로깅으로 원인 파악 개선
+        log.error("예상치 못한 오류 발생 - 예외 클래스: {}, 메시지: {}",
+                ex.getClass().getSimpleName(), ex.getMessage(), ex);
+
+        // 스택트레이스의 첫 번째 요소도 로깅
+        if (ex.getStackTrace().length > 0) {
+            StackTraceElement firstElement = ex.getStackTrace()[0];
+            log.error("오류 발생 위치: {}:{}:{}",
+                    firstElement.getClassName(),
+                    firstElement.getMethodName(),
+                    firstElement.getLineNumber());
+        }
 
         ProblemDetail problemDetail = createProblemDetail(
                 ProblemType.UNEXPECTED_ERROR,
@@ -495,5 +566,33 @@ public class GlobalExceptionHandler {
                 DATABASE_LOCK_TIMEOUT_INSTANCE);
 
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problemDetail);
+    }
+
+    /**
+     * NoResourceFoundException 처리 (Spring 6.0+)
+     * - 정적 리소스가 존재하지 않을 때 발생
+     * - favicon.ico, robots.txt 등의 404 에러 처리
+     */
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ProblemDetail> handleNoResourceFoundException(
+            org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+
+        // 정적 리소스(favicon, robots.txt 등)의 경우 로그 레벨을 낮춤
+        String resourcePath = ex.getResourcePath();
+        if (resourcePath != null && (resourcePath.contains("favicon") ||
+                resourcePath.contains("robots.txt") ||
+                resourcePath.contains(".well-known"))) {
+            log.debug("정적 리소스 미존재: {}", resourcePath);
+        } else {
+            log.warn("리소스를 찾을 수 없음: {}", resourcePath);
+        }
+
+        ProblemDetail problemDetail = createProblemDetail(
+                ProblemType.NOT_FOUND,
+                HttpStatus.NOT_FOUND,
+                "요청하신 리소스를 찾을 수 없습니다.",
+                "/resource-not-found");
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
     }
 }

@@ -102,4 +102,32 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
         // 이메일 중복 체크 (활성 계정만)
         boolean existsByEmailAndIsDeletedFalse(String email);
+
+        // 사용자명 중복 체크 (활성 계정만)
+        boolean existsByNameAndDeletedAtIsNull(String name);
+
+        // OAuth 관련 조회 메서드
+
+        /** OAuth 제공자와 제공자 ID로 계정 조회 */
+        Optional<Account> findByProviderAndProviderId(com.pickteam.domain.enums.AuthProvider provider,
+                        String providerId);
+
+        /** OAuth 제공자와 제공자 ID로 활성 계정 조회 */
+        Optional<Account> findByProviderAndProviderIdAndDeletedAtIsNull(com.pickteam.domain.enums.AuthProvider provider,
+                        String providerId);
+
+        /** 특정 OAuth 제공자로 가입한 활성 사용자 목록 조회 */
+        List<Account> findByProviderAndDeletedAtIsNull(com.pickteam.domain.enums.AuthProvider provider);
+
+        /** 이메일과 제공자로 계정 조회 (삭제된 계정 포함) */
+        Optional<Account> findByEmailAndProvider(String email, com.pickteam.domain.enums.AuthProvider provider);
+
+        /** 이메일과 제공자로 활성 계정 조회 */
+        Optional<Account> findByEmailAndProviderAndDeletedAtIsNull(String email, 
+                com.pickteam.domain.enums.AuthProvider provider);
+
+        /** 이메일과 제공자로 활성 계정 존재 여부 확인 */
+        boolean existsByEmailAndProviderAndDeletedAtIsNull(String email, 
+                com.pickteam.domain.enums.AuthProvider provider);
+
 }

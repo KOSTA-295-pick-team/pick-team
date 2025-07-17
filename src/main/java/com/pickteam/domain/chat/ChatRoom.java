@@ -1,10 +1,8 @@
 package com.pickteam.domain.chat;
 
-import com.pickteam.domain.common.BaseSoftDeleteByAnnotation;
 import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.enums.ChatRoomType;
 import com.pickteam.domain.workspace.Workspace;
-import com.pickteam.domain.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 

@@ -122,6 +122,21 @@
             <artifactId>livekit-server</artifactId>
             <version>0.8.2</version>
         </dependency>
+        <!-- Redis 의존성 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <!-- Jackson JSR310 (Java 8 날짜/시간) 모듈 -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -149,7 +164,7 @@
                             <groupId>jakarta.persistence</groupId>
                             <artifactId>jakarta.persistence-api</artifactId>
                             <version>3.1.0</version>
-                        </path>                        
+                        </path>
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>

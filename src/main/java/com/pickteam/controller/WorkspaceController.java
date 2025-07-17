@@ -8,9 +8,11 @@ import com.pickteam.service.WorkspaceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.validation.Valid;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.List;
@@ -54,9 +56,8 @@ public class WorkspaceController {
         return ResponseEntity.ok(ApiResponse.success("워크스페이스 참여 성공", response));
     }
     
-    /**
-     * 워크스페이스 ID로 직접 참여
-     */
+    // 워크스페이스 ID로 직접 참여는 보안상 제거됨 - 초대 코드만 사용
+    /*
     @PostMapping("/{workspaceId}/join")
     public ResponseEntity<ApiResponse<WorkspaceResponse>> joinWorkspaceById(
             @PathVariable Long workspaceId,
@@ -66,6 +67,7 @@ public class WorkspaceController {
         WorkspaceResponse response = workspaceService.joinWorkspaceById(userId, workspaceId, password);
         return ResponseEntity.ok(ApiResponse.success("워크스페이스 참여 성공", response));
     }
+    */
 
     
     /**
@@ -101,20 +103,34 @@ public class WorkspaceController {
     }
     
     /**
-     * 워크스페이스 설정 업데이트
+     * 워크스페이스 아이콘 업로드
+     */
+    @PostMapping(value = "/{workspaceId}/icon", consumes = {"multipart/form-data"})
+    public ResponseEntity<ApiResponse<Map<String, String>>> uploadWorkspaceIcon(
+            @PathVariable Long workspaceId,
+            @RequestParam("file") MultipartFile file) {
+        Long userId = getCurrentUserId();
+        String iconUrl = workspaceService.uploadWorkspaceIcon(workspaceId, userId, file);
+        
+        Map<String, String> response = new HashMap<>();
+        response.put("iconUrl", iconUrl);
+        
+        return ResponseEntity.ok(ApiResponse.success("워크스페이스 아이콘 업로드 성공", response));
+    }
+
+    /**
+     * 워크스페이스 정보 업데이트
      */
     @PutMapping("/{workspaceId}")
     public ResponseEntity<ApiResponse<WorkspaceResponse>> updateWorkspace(
             @PathVariable Long workspaceId,
             @Valid @RequestBody WorkspaceUpdateRequest request) {
         Long userId = getCurrentUserId();
-        WorkspaceResponse response = workspaceService.updateWorkspace(workspaceId, userId, request);
-        return ResponseEntity.ok(ApiResponse.success("워크스페이스 업데이트 성공", response));
+        WorkspaceResponse response = workspaceService.updateWorkspace(workspaceId, userId, request);        return ResponseEntity.ok(ApiResponse.success("워크스페이스 업데이트 성공", response));
     }
-    
-    /**
-     * 새 초대 링크 생성
-     */
+
+    // 더 이상 필요하지 않음 - 초대 코드는 워크스페이스 생성 시 영구적으로 생성됨
+    /*
     @PostMapping("/{workspaceId}/invite-code")
     public ResponseEntity<ApiResponse<Map<String, String>>> generateNewInviteCode(
             @PathVariable Long workspaceId) {
@@ -126,7 +142,8 @@ public class WorkspaceController {
         
         return ResponseEntity.ok(ApiResponse.success("초대 링크 생성 성공", response));
     }
-    
+    */
+
     /**
      * 멤버 내보내기
      */
@@ -184,4 +201,4 @@ public class WorkspaceController {
         workspaceService.deleteWorkspace(workspaceId, userId);
         return ResponseEntity.ok(ApiResponse.success("워크스페이스 삭제 성공", null));
     }
-} 
+}

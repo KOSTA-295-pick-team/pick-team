@@ -7,6 +7,7 @@ import com.pickteam.domain.user.RefreshToken;
 import com.pickteam.domain.user.UserHashtag;
 import com.pickteam.domain.user.UserHashtagList;
 import com.pickteam.domain.enums.UserRole;
+import com.pickteam.domain.enums.AuthProvider;
 import com.pickteam.exception.email.EmailNotVerifiedException;
 import com.pickteam.exception.user.UserNotFoundException;
 import com.pickteam.exception.validation.ValidationException;
@@ -133,16 +134,20 @@ public class UserServiceImpl implements UserService {
             throw new EmailNotVerifiedException(UserErrorMessages.EMAIL_NOT_VERIFIED);
         }
 
-        // 4. 중복 검사 (활성 계정만 확인)
-        if (accountRepository.existsByEmailAndDeletedAtIsNull(request.getEmail())) {
+        // 4. 로컬 계정 중복 검사 (OAuth 계정과 분리)
+        if (accountRepository.existsByEmailAndProviderAndDeletedAtIsNull(request.getEmail(), AuthProvider.LOCAL)) {
             throw new DuplicateEmailException(UserErrorMessages.DUPLICATE_EMAIL);
         }
 
-        // 5. 간소화된 계정 생성 (이메일, 패스워드, 기본 role만)
+        // 5. 간소화된 로컬 계정 생성 (이메일, 패스워드, 고유한 랜덤 사용자명, 기본 role)
+        String uniqueUsername = generateUniqueRandomUsername();
+
         Account account = Account.builder()
                 .email(request.getEmail())
                 .password(authService.encryptPassword(request.getPassword()))
+                .name(uniqueUsername) // 중복되지 않는 랜덤 사용자명
                 .role(UserRole.USER) // 기본값 설정
+                .provider(AuthProvider.LOCAL) // 로컬 계정 명시
                 .build();
 
         accountRepository.save(account);
@@ -158,8 +163,9 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public boolean checkDuplicateId(String email) {
-        // 이메일 중복 확인 (활성 계정만, true: 중복됨, false: 사용가능)
-        return accountRepository.existsByEmailAndDeletedAtIsNull(email);
+        // 로컬 계정 이메일 중복 확인 (활성 계정만, true: 중복됨, false: 사용가능)
+        // OAuth 계정과 분리하여 같은 이메일이라도 provider가 다르면 허용
+        return accountRepository.existsByEmailAndProviderAndDeletedAtIsNull(email, AuthProvider.LOCAL);
     }
 
     /**
@@ -481,6 +487,12 @@ public class UserServiceImpl implements UserService {
         Account account = accountRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new UserNotFoundException(UserErrorMessages.USER_NOT_FOUND));
 
+        // 소셜 로그인 사용자는 비밀번호 변경 불가
+        if (account.getProvider() != AuthProvider.LOCAL) {
+            log.warn("소셜 로그인 사용자 비밀번호 변경 시도: userId={}, provider={}", userId, account.getProvider());
+            throw new ValidationException("소셜 로그인으로 가입한 사용자는 비밀번호를 변경할 수 없습니다. 해당 소셜 플랫폼에서 비밀번호를 변경해주세요.");
+        }
+
         // 현재 비밀번호 확인
         if (!authService.matchesPassword(request.getCurrentPassword(), account.getPassword())) {
             log.warn("비밀번호 변경 실패 - 현재 비밀번호 불일치: userId={}", userId);
@@ -575,16 +587,21 @@ public class UserServiceImpl implements UserService {
         response.setName(account.getName()); // 엔티티 기본값: "신규 사용자"
         response.setAge(account.getAge()); // 나이는 숫자이므로 null 유지
         response.setRole(account.getRole());
+        response.setProvider(account.getProvider()); // OAuth 제공자 정보 추가
         response.setMbti(account.getMbti()); // 엔티티 기본값: "정보없음"
         response.setDisposition(account.getDisposition()); // 엔티티 기본값: "정보없음"
         response.setIntroduction(account.getIntroduction()); // 엔티티 기본값: "정보없음"
         response.setPortfolio(account.getPortfolio()); // 엔티티 기본값: "https://github.com/myportfolio"
-        // TODO: 통합 파일 시스템 구축 후 활성화
-        // response.setProfileImageUrl(account.getProfileImageUrl()); // 프로필 이미지는 null
-        // 유지
-        // response.setProfileImageUrl(null); // 임시로 null 설정
+
+        // 프로필 이미지 URL 설정 (null 그대로 반환 - 프론트엔드에서 처리)
+        response.setProfileImageUrl(account.getProfileImageUrl());
+
         response.setPreferWorkstyle(account.getPreferWorkstyle()); // 엔티티 기본값: "정보없음"
         response.setDislikeWorkstyle(account.getDislikeWorkstyle()); // 엔티티 기본값: "정보없음"
+
+        // 생성일/수정일 정보 추가
+        response.setCreatedAt(account.getCreatedAt());
+        response.setUpdatedAt(account.getUpdatedAt());
 
         // 해시태그 목록 조회 및 설정
         List<UserHashtagList> userHashtagLists = userHashtagListRepository.findByAccountAndIsDeletedFalse(account);
@@ -626,5 +643,36 @@ public class UserServiceImpl implements UserService {
 
         log.debug("해시태그 검색 완료: [KEYWORD_LENGTH={}], 결과 수={} (최대 10개)", cleanedKeyword.length(), results.size());
         return results;
+    }
+
+    /**
+     * 중복되지 않는 고유한 랜덤 사용자명 생성
+     * - SecureRandom을 사용하여 보안 강화
+     * - 데이터베이스에서 중복 체크
+     * - 최대 10회 재시도로 무한루프 방지
+     * 
+     * @return 중복되지 않는 랜덤 사용자명
+     * @throws RuntimeException 10회 시도 후에도 고유한 이름을 생성하지 못한 경우
+     */
+    private String generateUniqueRandomUsername() {
+        int maxAttempts = 10;
+        int attempts = 0;
+
+        while (attempts < maxAttempts) {
+            String randomUsername = Account.generateRandomUsername();
+
+            // 데이터베이스에서 중복 체크
+            if (!accountRepository.existsByNameAndDeletedAtIsNull(randomUsername)) {
+                log.debug("고유한 랜덤 사용자명 생성 성공: {} (시도 횟수: {})", randomUsername, attempts + 1);
+                return randomUsername;
+            }
+
+            attempts++;
+            log.debug("사용자명 중복 발견, 재시도: {} (시도 횟수: {})", randomUsername, attempts);
+        }
+
+        // 최대 시도 횟수 초과 시 예외 발생
+        log.error("고유한 랜덤 사용자명 생성 실패: 최대 시도 횟수 ({}) 초과", maxAttempts);
+        throw new RuntimeException("고유한 사용자명 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
     }
 }

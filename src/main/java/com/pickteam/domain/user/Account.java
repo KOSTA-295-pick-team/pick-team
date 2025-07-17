@@ -6,6 +6,7 @@ import com.pickteam.domain.chat.ChatMember;
 import com.pickteam.domain.chat.ChatMessage;
 import com.pickteam.domain.common.BaseSoftDeleteSupportEntity;
 import com.pickteam.domain.enums.UserRole;
+import com.pickteam.domain.enums.AuthProvider;
 import com.pickteam.domain.kanban.KanbanTaskComment;
 import com.pickteam.domain.kanban.KanbanTaskMember;
 import com.pickteam.domain.notification.NotificationLog;
@@ -15,9 +16,11 @@ import com.pickteam.domain.workspace.WorkspaceMember;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.time.LocalDateTime;
+import java.security.SecureRandom;
 
 /**
  * 사용자 계정 엔티티
@@ -48,14 +51,13 @@ public class Account extends BaseSoftDeleteSupportEntity {
     // 실제 저장 시에는 암호화된 값이 저장되어야 함
     private String password;
 
-    /** 사용자 이름 (프로필 완성 시 입력) */
+    /** 사용자 이름 (프로필 완성 시 입력, 초기값: user + 8자리 랜덤 숫자) */
     @Column(nullable = true)
-    @Builder.Default
-    private String name = "신규 사용자";
+    private String name;
 
     /** 사용자 나이 (탈퇴 시 개인정보보호를 위해 삭제) */
     @Column(nullable = true)
-    private Integer age = 225;
+    private Integer age;
 
     /** 사용자 권한 (ADMIN, USER 등) */
     @Enumerated(EnumType.STRING)
@@ -79,7 +81,7 @@ public class Account extends BaseSoftDeleteSupportEntity {
     @Builder.Default
     private String portfolio = null; // 포트폴리오 미등록 상태
 
-    /** 프로필 이미지 URL (파일 저장소에 업로드된 이미지 경로) - TODO: 통합 파일 시스템 구축 후 연동 예정 */
+    /** 프로필 이미지 URL (PostAttachService를 통한 통합 파일 시스템으로 관리) */
     private String profileImageUrl;
 
     /** 선호하는 작업 스타일 (팀 매칭 알고리즘에 활용) */
@@ -89,6 +91,30 @@ public class Account extends BaseSoftDeleteSupportEntity {
     /** 기피하는 작업 스타일 (팀 매칭 알고리즘에서 제외) */
     @Builder.Default
     private String dislikeWorkstyle = "정보없음";
+
+    // === OAuth 소셜 로그인 관련 필드 ===
+
+    /** OAuth 인증 제공자 (LOCAL, GOOGLE, KAKAO) */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private AuthProvider provider = AuthProvider.LOCAL;
+
+    /** 소셜 로그인 제공자의 고유 사용자 ID */
+    @Column(name = "provider_id")
+    private String providerId;
+
+    /** 소셜 로그인에서 제공받은 이메일 (백업/검증용) */
+    @Column(name = "social_email")
+    private String socialEmail;
+
+    /** 소셜 로그인에서 제공받은 이름 (백업/검증용) */
+    @Column(name = "social_name")
+    private String socialName;
+
+    /** 소셜 로그인에서 제공받은 프로필 이미지 URL */
+    @Column(name = "social_profile_url")
+    private String socialProfileUrl;
 
     /**
      * 계정 영구 삭제 예정일
@@ -239,4 +265,90 @@ public class Account extends BaseSoftDeleteSupportEntity {
         return this.email == null;
     }
 
+    // === 랜덤 사용자명 생성 메서드 ===
+
+    /**
+     * 보안이 강화된 랜덤한 8자리 숫자를 포함한 초기 사용자명 생성
+     * SecureRandom을 사용하여 예측 불가능한 랜덤 값 생성
+     * 예: user12345678, user87654321
+     * 
+     * @return user + 8자리 랜덤 숫자 형태의 사용자명
+     */
+    public static String generateRandomUsername() {
+        SecureRandom secureRandom = new SecureRandom();
+        int randomNumber = 10000000 + secureRandom.nextInt(90000000); // 10000000~99999999
+        return "user" + randomNumber;
+    }
+
+    /**
+     * 이름이 비어있거나 null인 경우 랜덤 사용자명으로 초기화
+     * - 사용자가 프로필 업데이트 시 이름을 삭제한 경우 자동으로 랜덤 사용자명 할당
+     * - 회원가입 시 이름이 설정되지 않은 경우에도 사용 가능
+     * 
+     * @return 초기화 여부 (true: 초기화됨, false: 이미 유효한 이름 존재)
+     */
+    public boolean initializeNameIfEmpty() {
+        if (this.name == null || this.name.trim().isEmpty()) {
+            this.name = generateRandomUsername();
+            return true;
+        }
+        return false;
+    }
+
+    // === OAuth 관련 유틸리티 메서드 ===
+
+    /**
+     * 소셜 로그인 사용자인지 확인
+     * 
+     * @return 소셜 로그인 사용자면 true, 로컬 회원가입이면 false
+     */
+    public boolean isSocialUser() {
+        return this.provider != null && this.provider.isSocial();
+    }
+
+    /**
+     * OAuth 계정 정보 업데이트
+     * 소셜 로그인 시 최신 정보로 동기화
+     * 
+     * @param provider         OAuth 제공자
+     * @param providerId       제공자별 고유 ID
+     * @param socialEmail      소셜에서 제공한 이메일
+     * @param socialName       소셜에서 제공한 이름
+     * @param socialProfileUrl 소셜 프로필 이미지 URL
+     */
+    public void updateOAuthInfo(AuthProvider provider, String providerId,
+            String socialEmail, String socialName, String socialProfileUrl) {
+        this.provider = provider;
+        this.providerId = providerId;
+        this.socialEmail = socialEmail;
+        this.socialName = socialName;
+        this.socialProfileUrl = socialProfileUrl;
+
+        // 이메일이 없으면 소셜에서 제공한 이메일 사용
+        if (this.email == null && socialEmail != null) {
+            this.email = socialEmail;
+        }
+
+        // 이름이 없으면 소셜에서 제공한 이름 사용
+        if (this.name == null && socialName != null) {
+            this.name = socialName;
+        }
+
+        // 프로필 이미지가 없으면 소셜 프로필 이미지 사용
+        if (this.profileImageUrl == null && socialProfileUrl != null) {
+            this.profileImageUrl = socialProfileUrl;
+        }
+    }
+
+    /**
+     * OAuth 계정 연동 해제
+     * 소셜 로그인 정보를 초기화하고 로컬 계정으로 전환
+     */
+    public void unlinkOAuth() {
+        this.provider = AuthProvider.LOCAL;
+        this.providerId = null;
+        this.socialEmail = null;
+        this.socialName = null;
+        this.socialProfileUrl = null;
+    }
 }

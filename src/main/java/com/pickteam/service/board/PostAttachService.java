@@ -7,6 +7,9 @@ import com.pickteam.dto.board.PostAttachResponseDto;
 import com.pickteam.repository.board.PostAttachRepository;
 import com.pickteam.repository.board.PostRepository;
 import com.pickteam.repository.common.FileInfoRepository;
+import com.pickteam.util.FileSignatureValidator;
+import com.pickteam.util.FileOperationLogger;
+import com.pickteam.util.FileOperationLogger.FileOperationType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -56,6 +59,11 @@ public class PostAttachService {
     @Value("${app.profile.image.allowed-extensions}")
     private String profileAllowedExtensions;
 
+    @Value("${app.profile.image.allowed-mime-types}")
+    private String profileAllowedMimeTypes;
+
+    // ==================== 게시글 첨부파일 관리 ====================
+
     public List<PostAttachResponseDto> getPostAttachments(Long postId) {
         List<PostAttach> attachments = postAttachRepository.findByPostIdWithFileInfoAndIsDeletedFalse(postId);
         return attachments.stream()
@@ -65,8 +73,8 @@ public class PostAttachService {
 
     @Transactional
     public PostAttachResponseDto uploadPostAttachment(Long postId, MultipartFile file, Long accountId) {
-        log.info("파일 업로드 요청 - postId: {}, fileName: {}, accountId: {}",
-                postId, file.getOriginalFilename(), accountId);
+        FileOperationLogger.logOperationStart(FileOperationType.POST_ATTACHMENT_UPLOAD,
+                FileOperationLogger.formatUploadParams(postId, accountId, file.getOriginalFilename(), file.getSize()));
 
         // 파일 유효성 검사
         validateFile(file);
@@ -109,19 +117,22 @@ public class PostAttachService {
 
             postAttach = postAttachRepository.save(postAttach);
 
-            log.info("파일 업로드 완료 - attachId: {}, filePath: {}", postAttach.getId(), filePath);
+            FileOperationLogger.logOperationSuccess(FileOperationType.POST_ATTACHMENT_UPLOAD,
+                    "attachId: " + postAttach.getId() + ", " + FileOperationLogger.formatFilePath(filePath.toString()));
 
             return PostAttachResponseDto.from(postAttach);
 
         } catch (IOException e) {
-            log.error("파일 업로드 실패 - postId: {}, fileName: {}", postId, file.getOriginalFilename(), e);
+            FileOperationLogger.logOperationFailure(FileOperationType.POST_ATTACHMENT_UPLOAD,
+                    FileOperationLogger.formatUploadParams(postId, accountId, file.getOriginalFilename(), null), e);
             throw new RuntimeException("파일 업로드에 실패했습니다.", e);
         }
     }
 
     @Transactional
     public void deletePostAttachment(Long attachId, Long accountId) {
-        log.info("파일 삭제 요청 - attachId: {}, accountId: {}", attachId, accountId);
+        FileOperationLogger.logOperationStart(FileOperationType.POST_ATTACHMENT_DELETE,
+                FileOperationLogger.formatDeleteParams(null, attachId, accountId, null));
 
         PostAttach postAttach = postAttachRepository.findByIdWithFileInfoAndIsDeletedFalse(attachId)
                 .orElseThrow(() -> new IllegalArgumentException("첨부파일을 찾을 수 없습니다."));
@@ -133,7 +144,8 @@ public class PostAttachService {
 
     @Transactional
     public void deleteUserPostAttachment(Long attachId) {
-        log.info("관리자 파일 삭제 요청 - attachId: {}", attachId);
+        FileOperationLogger.logOperationStart(FileOperationType.POST_ATTACHMENT_ADMIN_DELETE,
+                "attachId: " + attachId);
 
         PostAttach postAttach = postAttachRepository.findByIdWithFileInfoAndIsDeletedFalse(attachId)
                 .orElseThrow(() -> new IllegalArgumentException("첨부파일을 찾을 수 없습니다."));
@@ -148,16 +160,19 @@ public class PostAttachService {
             Path filePath = Paths.get(uploadDir).resolve(hashedName);
             if (Files.exists(filePath)) {
                 Files.delete(filePath);
-                log.info("실제 파일 삭제 완료 - filePath: {}", filePath);
+                FileOperationLogger.logOperationSuccess(FileOperationType.FILE_PHYSICAL_DELETE,
+                        FileOperationLogger.formatFilePath(filePath.toString()));
             }
 
             // 수동 Soft Delete
             postAttach.markDeleted();
 
-            log.info("첨부파일 삭제 완료 - attachId: {}", attachId);
+            FileOperationLogger.logOperationSuccess(FileOperationType.POST_ATTACHMENT_DELETE,
+                    "attachId: " + attachId);
 
         } catch (IOException e) {
-            log.error("파일 삭제 실패 - attachId: {}", attachId, e);
+            FileOperationLogger.logOperationFailure(FileOperationType.POST_ATTACHMENT_DELETE,
+                    "attachId: " + attachId, e);
             throw new RuntimeException("파일 삭제에 실패했습니다.", e);
         }
     }
@@ -228,143 +243,11 @@ public class PostAttachService {
         }
     }
 
-    // ==================== 프로필 이미지 관리 메서드들 ====================
-
-    /**
-     * 프로필 이미지 업로드
-     * 
-     * @param file   업로드할 이미지 파일
-     * @param userId 사용자 ID
-     * @return 저장된 FileInfo 엔티티
-     */
-    @Transactional
-    public FileInfo uploadProfileImage(MultipartFile file, Long userId) {
-        log.info("프로필 이미지 업로드 요청 - userId: {}, fileName: {}", userId, file.getOriginalFilename());
-
-        // 프로필 이미지 전용 유효성 검사
-        validateProfileImage(file);
-
-        try {
-            // 프로필 이미지 디렉토리 생성
-            Path uploadPath = Paths.get(profileImageDir);
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
-
-            // 파일 정보 생성
-            String originalName = file.getOriginalFilename();
-            String hashedName = generateHashedFileName(originalName);
-            Long fileSize = file.getSize();
-
-            // 파일 저장
-            Path filePath = uploadPath.resolve(hashedName);
-            Files.copy(file.getInputStream(), filePath);
-
-            // FileInfo 엔티티 생성 및 저장
-            FileInfo fileInfo = FileInfo.builder()
-                    .nameOrigin(originalName)
-                    .nameHashed(hashedName)
-                    .size(fileSize)
-                    .build();
-
-            fileInfo = fileInfoRepository.save(fileInfo);
-
-            log.info("프로필 이미지 업로드 완료 - userId: {}, fileId: {}, filePath: {}",
-                    userId, fileInfo.getId(), filePath);
-
-            return fileInfo;
-
-        } catch (IOException e) {
-            log.error("프로필 이미지 업로드 실패 - userId: {}, fileName: {}", userId, file.getOriginalFilename(), e);
-            throw new RuntimeException("프로필 이미지 업로드에 실패했습니다.", e);
-        }
-    }
-
-    /**
-     * 프로필 이미지 삭제 (FileInfo ID 기준)
-     * 
-     * @param fileInfoId 삭제할 FileInfo ID
-     * @param userId     사용자 ID (로깅용)
-     */
-    @Transactional
-    public void deleteProfileImage(Long fileInfoId, Long userId) {
-        log.info("프로필 이미지 삭제 요청 - fileInfoId: {}, userId: {}", fileInfoId, userId);
-
-        FileInfo fileInfo = fileInfoRepository.findById(fileInfoId)
-                .orElseThrow(() -> new IllegalArgumentException("프로필 이미지 파일을 찾을 수 없습니다."));
-
-        try {
-            // 실제 파일 삭제
-            String hashedName = fileInfo.getNameHashed();
-            Path filePath = Paths.get(profileImageDir).resolve(hashedName);
-            if (Files.exists(filePath)) {
-                Files.delete(filePath);
-                log.info("프로필 이미지 파일 삭제 완료 - filePath: {}", filePath);
-            }
-
-            // Soft Delete 처리
-            fileInfo.markDeleted();
-
-            log.info("프로필 이미지 삭제 완료 - fileInfoId: {}, userId: {}", fileInfoId, userId);
-
-        } catch (IOException e) {
-            log.error("프로필 이미지 파일 삭제 실패 - fileInfoId: {}, userId: {}", fileInfoId, userId, e);
-            throw new RuntimeException("프로필 이미지 삭제에 실패했습니다.", e);
-        }
-    }
-
-    /**
-     * 해시된 파일명으로 프로필 이미지 삭제
-     * 
-     * @param hashedFileName 해시된 파일명
-     * @param userId         사용자 ID (로깅용)
-     */
-    @Transactional
-    public void deleteProfileImageByFileName(String hashedFileName, Long userId) {
-        log.info("프로필 이미지 파일 삭제 시작 - hashedFileName: {}, userId: {}", hashedFileName, userId);
-
-        // 1. FileInfo 조회
-        Optional<FileInfo> fileInfoOpt = fileInfoRepository.findByNameHashedAndIsDeletedFalse(hashedFileName);
-
-        if (fileInfoOpt.isPresent()) {
-            FileInfo fileInfo = fileInfoOpt.get();
-
-            // 2. 물리적 파일 삭제
-            deletePhysicalProfileImageFile(fileInfo.getNameHashed());
-
-            // 3. FileInfo soft delete
-            fileInfo.markDeleted();
-
-            log.info("프로필 이미지 삭제 완료 - hashedFileName: {}, userId: {}", hashedFileName, userId);
-        } else {
-            log.warn("삭제할 프로필 이미지 파일을 찾을 수 없음 - hashedFileName: {}, userId: {}", hashedFileName, userId);
-            // 파일이 없어도 예외를 던지지 않음 (이미 삭제된 상태로 간주)
-        }
-    }
-
-    /**
-     * 물리적 프로필 이미지 파일 삭제
-     * 
-     * @param hashedFileName 해시된 파일명
-     */
-    private void deletePhysicalProfileImageFile(String hashedFileName) {
-        try {
-            Path filePath = Paths.get(profileImageDir).resolve(hashedFileName);
-            if (Files.exists(filePath)) {
-                Files.delete(filePath);
-                log.info("프로필 이미지 물리적 파일 삭제 완료: {}", filePath);
-            } else {
-                log.warn("삭제할 물리적 파일이 존재하지 않음: {}", filePath);
-            }
-        } catch (IOException e) {
-            log.error("프로필 이미지 파일 삭제 실패 - hashedFileName: {}", hashedFileName, e);
-            throw new RuntimeException("프로필 이미지 파일 삭제에 실패했습니다.", e);
-        }
-    }
+    // ==================== 프로필 이미지 관리 (보안 강화) ====================
 
     /**
      * 프로필 이미지 업로드 및 기존 이미지 교체 (트랜잭션 안전성 보장)
-     * 
+     *
      * @param file        업로드할 이미지 파일
      * @param userId      사용자 ID
      * @param oldImageUrl 기존 이미지 URL (있다면)
@@ -372,74 +255,93 @@ public class PostAttachService {
      */
     @Transactional
     public FileInfo uploadProfileImageWithReplace(MultipartFile file, Long userId, String oldImageUrl) {
-        log.info("프로필 이미지 업로드 및 교체 시작 - userId: {}, oldImageUrl: {}", userId, oldImageUrl);
+        FileOperationLogger.logOperationStart(FileOperationType.PROFILE_IMAGE_UPLOAD,
+                FileOperationLogger.formatUploadParams(null, userId, file.getOriginalFilename(), file.getSize())
+                        + ", oldImageUrl: " + oldImageUrl);
 
-        // 1. 새 파일 업로드 먼저 (안전)
-        FileInfo newFileInfo = uploadProfileImage(file, userId);
-        String newHashedFileName = newFileInfo.getNameHashed();
+        // 1. 프로필 이미지 보안 검증
+        validateProfileImageFile(file, userId);
 
-        // 2. 기존 파일 정보 추출 및 Soft Delete
-        String oldHashedFileName = null;
-        if (oldImageUrl != null && !oldImageUrl.trim().isEmpty()) {
-            oldHashedFileName = extractFileNameFromUrl(oldImageUrl);
-            // DB에서만 Soft Delete 수행 (물리적 파일은 나중에 삭제)
-            softDeleteProfileImageByFileName(oldHashedFileName, userId);
+        try {
+            // 2. 새 파일 업로드 먼저 (안전)
+            FileInfo newFileInfo = uploadProfileImageFile(file, userId);
+            String newHashedFileName = newFileInfo.getNameHashed();
+
+            // 3. 기존 파일 정보 추출 및 Soft Delete
+            String oldHashedFileName = null;
+            if (oldImageUrl != null && !oldImageUrl.trim().isEmpty()) {
+                oldHashedFileName = extractFileNameFromUrl(oldImageUrl);
+                // DB에서만 Soft Delete 수행 (물리적 파일은 나중에 삭제)
+                softDeleteProfileImageByFileName(oldHashedFileName, userId);
+            }
+
+            // 4. 트랜잭션 동기화 등록 (커밋/롤백 시 물리적 파일 정리)
+            if (oldHashedFileName != null) {
+                final String finalOldFileName = oldHashedFileName;
+                TransactionSynchronizationManager.registerSynchronization(
+                        createProfileImageTransactionSynchronization(finalOldFileName, newHashedFileName));
+            } else {
+                // 기존 파일이 없는 경우, 롤백 시에만 새 파일 정리
+                TransactionSynchronizationManager.registerSynchronization(
+                        createNewProfileImageTransactionSynchronization(newHashedFileName));
+            }
+
+            FileOperationLogger.logOperationSuccess(FileOperationType.PROFILE_IMAGE_UPLOAD,
+                    "userId: " + userId + ", newFileId: " + newFileInfo.getId());
+            return newFileInfo;
+
+        } catch (Exception e) {
+            FileOperationLogger.logOperationFailure(FileOperationType.PROFILE_IMAGE_UPLOAD,
+                    "userId: " + userId, e);
+            throw new RuntimeException("프로필 이미지 업로드 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
+    }
 
-        // 3. 트랜잭션 동기화 등록 (커밋/롤백 시 물리적 파일 정리)
-        if (oldHashedFileName != null) {
-            final String finalOldFileName = oldHashedFileName;
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            // 커밋 성공 시: 기존 파일 물리적 삭제
-                            try {
-                                deletePhysicalProfileImageFile(finalOldFileName);
-                                log.info("트랜잭션 커밋 후 기존 파일 삭제 완료: {}", finalOldFileName);
-                            } catch (Exception e) {
-                                log.error("기존 파일 삭제 실패 (트랜잭션 커밋 후): {}", finalOldFileName, e);
-                            }
-                        }
+    /**
+     * 해시된 파일명으로 프로필 이미지 삭제
+     *
+     * @param hashedFileName 해시된 파일명
+     * @param userId         사용자 ID (로깅용)
+     */
+    @Transactional
+    public void deleteProfileImageByFileName(String hashedFileName, Long userId) {
+        FileOperationLogger.logOperationStart(FileOperationType.PROFILE_IMAGE_DELETE,
+                FileOperationLogger.formatDeleteParams(null, null, userId, hashedFileName));
 
-                        @Override
-                        public void afterCompletion(int status) {
-                            if (status == STATUS_ROLLED_BACK) {
-                                // 롤백 시: 새로 업로드된 파일 물리적 삭제
-                                try {
-                                    deletePhysicalProfileImageFile(newHashedFileName);
-                                    log.warn("트랜잭션 롤백으로 새 파일 삭제: {}", newHashedFileName);
-                                } catch (Exception e) {
-                                    log.error("새 파일 정리 실패 (트랜잭션 롤백 후): {}", newHashedFileName, e);
-                                }
-                            }
-                        }
-                    });
-        } else {
-            // 기존 파일이 없는 경우, 롤백 시에만 새 파일 정리
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCompletion(int status) {
-                            if (status == STATUS_ROLLED_BACK) {
-                                try {
-                                    deletePhysicalProfileImageFile(newHashedFileName);
-                                    log.warn("트랜잭션 롤백으로 새 파일 삭제: {}", newHashedFileName);
-                                } catch (Exception e) {
-                                    log.error("새 파일 정리 실패 (트랜잭션 롤백 후): {}", newHashedFileName, e);
-                                }
-                            }
-                        }
-                    });
+        try {
+            // 1. FileInfo 조회
+            Optional<FileInfo> fileInfoOpt = fileInfoRepository.findByNameHashedAndIsDeletedFalse(hashedFileName);
+
+            if (fileInfoOpt.isPresent()) {
+                FileInfo fileInfo = fileInfoOpt.get();
+
+                // 2. 물리적 파일 삭제
+                deletePhysicalProfileImageFile(fileInfo.getNameHashed());
+
+                // 3. FileInfo soft delete
+                fileInfo.markDeleted();
+
+                FileOperationLogger.logOperationSuccess(FileOperationType.PROFILE_IMAGE_DELETE,
+                        FileOperationLogger.formatDeleteParams(null, null, userId, hashedFileName));
+            } else {
+                FileOperationLogger.logOperationWarning(FileOperationType.PROFILE_IMAGE_DELETE,
+                        "삭제할 파일을 찾을 수 없음 - "
+                                + FileOperationLogger.formatDeleteParams(null, null, userId, hashedFileName));
+                // 파일이 없어도 예외를 던지지 않음 (이미 삭제된 상태로 간주)
+            }
+        } catch (Exception e) {
+            FileOperationLogger.logOperationFailure(FileOperationType.PROFILE_IMAGE_DELETE,
+                    FileOperationLogger.formatDeleteParams(null, null, userId, hashedFileName), e);
+            if (e instanceof SecurityException) {
+                throw e; // 보안 예외는 그대로 전파
+            }
+            throw new RuntimeException("프로필 이미지 삭제 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
-
-        log.info("프로필 이미지 업로드 및 교체 완료 - userId: {}, newFileId: {}", userId, newFileInfo.getId());
-        return newFileInfo;
     }
 
     /**
      * URL에서 파일명 추출하는 헬퍼 메서드
-     * 
+     *
      * @param imageUrl 이미지 URL (예: "/profile-images/uuid-filename.jpg")
      * @return 파일명 (예: "uuid-filename.jpg")
      */
@@ -452,7 +354,7 @@ public class PostAttachService {
 
     /**
      * 프로필 이미지 URL 생성
-     * 
+     *
      * @param hashedFileName 해시된 파일명
      * @return 웹에서 접근 가능한 이미지 URL
      */
@@ -460,36 +362,105 @@ public class PostAttachService {
         return "/profile-images/" + hashedFileName;
     }
 
+    // ==================== 프로필 이미지 내부 유틸리티 메서드 ====================
+
     /**
-     * 프로필 이미지 전용 유효성 검증
-     * 
-     * @param file 검증할 파일
+     * 실제 프로필 이미지 파일 업로드
      */
-    private void validateProfileImage(MultipartFile file) {
+    private FileInfo uploadProfileImageFile(MultipartFile file, Long userId) throws IOException {
+        // 프로필 이미지 디렉토리 생성
+        Path uploadPath = Paths.get(profileImageDir);
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
+
+        // 파일 정보 생성
+        String originalName = file.getOriginalFilename();
+        String hashedName = generateHashedFileName(originalName);
+        Long fileSize = file.getSize();
+
+        // 파일 저장
+        Path filePath = uploadPath.resolve(hashedName);
+        Files.copy(file.getInputStream(), filePath);
+
+        // FileInfo 엔티티 생성 및 저장
+        FileInfo fileInfo = FileInfo.builder()
+                .nameOrigin(originalName)
+                .nameHashed(hashedName)
+                .size(fileSize)
+                .build();
+
+        fileInfo = fileInfoRepository.save(fileInfo);
+
+        FileOperationLogger.logOperationSuccess(FileOperationType.PROFILE_IMAGE_UPLOAD,
+                "파일 업로드 완료 - userId: " + userId + ", fileId: " + fileInfo.getId() + ", " +
+                        FileOperationLogger.formatFilePath(filePath.toString()));
+
+        return fileInfo;
+    }
+
+    /**
+     * 프로필 이미지 파일 보안 검증
+     */
+    private void validateProfileImageFile(MultipartFile file, Long userId) {
         if (file.isEmpty()) {
+            FileOperationLogger.logOperationWarning(FileOperationType.FILE_VALIDATION,
+                    "빈 파일 업로드 시도 - userId: " + userId);
             throw new IllegalArgumentException("프로필 이미지 파일이 비어있습니다.");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || originalFilename.trim().isEmpty()) {
+            FileOperationLogger.logOperationWarning(FileOperationType.FILE_VALIDATION,
+                    "유효하지 않은 파일명 - userId: " + userId);
+            throw new IllegalArgumentException("파일명이 유효하지 않습니다.");
         }
 
         // 파일 크기 검증 (프로필 이미지 전용 크기 제한)
         long maxSizeBytes = parseFileSize(profileMaxFileSize);
         if (file.getSize() > maxSizeBytes) {
+            FileOperationLogger.logOperationWarning(FileOperationType.FILE_VALIDATION,
+                    "파일 크기 초과 - userId: " + userId + ", size: " + file.getSize() + ", limit: " + maxSizeBytes);
             throw new IllegalArgumentException(
                     String.format("프로필 이미지 크기가 너무 큽니다. 최대 %s까지 허용됩니다.", profileMaxFileSize));
         }
 
-        // 파일 확장자 검증 (프로필 이미지 전용 확장자)
-        String fileName = file.getOriginalFilename();
-        if (fileName == null || !isAllowedProfileImageExtension(fileName)) {
+        // 확장자 검증 (프로필 이미지 전용 확장자)
+        if (!isAllowedProfileImageExtension(originalFilename)) {
+            FileOperationLogger.logOperationWarning(FileOperationType.FILE_VALIDATION,
+                    FileOperationLogger.formatValidationFailure(userId, originalFilename, null,
+                            getFileExtension(originalFilename)));
             throw new IllegalArgumentException(
                     String.format("허용되지 않는 이미지 형식입니다. 허용 형식: %s", profileAllowedExtensions));
         }
+
+        // MIME 타입 검증 (브라우저에서 제공하는 Content-Type)
+        String contentType = file.getContentType();
+        if (!isAllowedProfileImageMimeType(contentType)) {
+            FileOperationLogger.logOperationWarning(FileOperationType.FILE_VALIDATION,
+                    FileOperationLogger.formatValidationFailure(userId, originalFilename, contentType, null));
+            throw new IllegalArgumentException(
+                    String.format("허용되지 않는 이미지 형식입니다. 허용 MIME 타입: %s", profileAllowedMimeTypes));
+        }
+
+        // 파일 시그니처 검증 (실제 파일 헤더 검사)
+        String extension = getFileExtension(originalFilename);
+        if (!FileSignatureValidator.validateFileSignature(file, extension)) {
+            FileOperationLogger.logOperationWarning(FileOperationType.FILE_VALIDATION,
+                    FileOperationLogger.formatValidationFailure(userId, originalFilename, null, extension)
+                            + " (시그니처 검증 실패)");
+            throw new SecurityException("파일의 실제 형식이 확장자와 일치하지 않습니다. 보안상 업로드가 거부됩니다.");
+        }
+
+        // 파일명 보안 검증 (경로 탐색 공격 방지)
+        validateSecureFileName(originalFilename, userId);
+
+        FileOperationLogger.logOperationDebug(FileOperationType.FILE_VALIDATION,
+                "프로필 이미지 파일 보안 검증 통과 - userId: " + userId + ", filename: " + originalFilename);
     }
 
     /**
      * 프로필 이미지 허용 확장자 검증
-     * 
-     * @param fileName 검증할 파일명
-     * @return 허용된 확장자인지 여부
      */
     private boolean isAllowedProfileImageExtension(String fileName) {
         if (fileName == null || !fileName.contains(".")) {
@@ -506,22 +477,176 @@ public class PostAttachService {
     }
 
     /**
+     * 프로필 이미지 허용 MIME 타입 검증
+     */
+    private boolean isAllowedProfileImageMimeType(String mimeType) {
+        if (mimeType == null || mimeType.trim().isEmpty()) {
+            return false;
+        }
+
+        Set<String> allowedMimeSet = Arrays.stream(profileAllowedMimeTypes.split(","))
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+
+        return allowedMimeSet.contains(mimeType.toLowerCase());
+    }
+
+    /**
+     * 파일명에서 확장자 추출
+     */
+    private String getFileExtension(String fileName) {
+        if (fileName == null || !fileName.contains(".")) {
+            return "";
+        }
+        return fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
+    }
+
+    /**
+     * 파일명 보안 검증 (경로 탐색 공격 방지)
+     */
+    private void validateSecureFileName(String fileName, Long userId) {
+        // 경로 탐색 공격 패턴 검사
+        if (fileName.contains("../") || fileName.contains("..\\") ||
+                fileName.contains("/") || fileName.contains("\\")) {
+            FileOperationLogger.logOperationWarning(FileOperationType.FILE_VALIDATION,
+                    FileOperationLogger.formatSecurityRisk(userId, fileName, "경로 탐색 공격 시도"));
+            throw new SecurityException("허용되지 않는 파일명입니다.");
+        }
+
+        // 파일명 길이 검사
+        if (fileName.length() > 255) {
+            FileOperationLogger.logOperationWarning(FileOperationType.FILE_VALIDATION,
+                    FileOperationLogger.formatSecurityRisk(userId, fileName, "파일명 길이 초과: " + fileName.length()));
+            throw new IllegalArgumentException("파일명이 너무 깁니다.");
+        }
+
+        // 위험한 문자 검사
+        if (fileName.matches(".*[<>:\"|?*].*")) {
+            FileOperationLogger.logOperationWarning(FileOperationType.FILE_VALIDATION,
+                    FileOperationLogger.formatSecurityRisk(userId, fileName, "위험한 문자 포함"));
+            throw new IllegalArgumentException("파일명에 허용되지 않는 문자가 포함되어 있습니다.");
+        }
+    }
+
+    /**
+     * 물리적 프로필 이미지 파일 삭제
+     */
+    private void deletePhysicalProfileImageFile(String hashedFileName) {
+        try {
+            Path filePath = Paths.get(profileImageDir).resolve(hashedFileName);
+            if (Files.exists(filePath)) {
+                Files.delete(filePath);
+                FileOperationLogger.logOperationSuccess(FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
+                        "물리적 파일 삭제 완료: " + filePath);
+            } else {
+                FileOperationLogger.logOperationWarning(FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
+                        "삭제할 물리적 파일이 존재하지 않음: " + filePath);
+            }
+        } catch (IOException e) {
+            FileOperationLogger.logOperationFailure(FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
+                    "hashedFileName: " + hashedFileName, e);
+            throw new RuntimeException("프로필 이미지 파일 삭제에 실패했습니다.", e);
+        }
+    }
+
+    /**
      * 프로필 이미지 Soft Delete만 수행 (물리적 파일은 삭제하지 않음)
-     * 
-     * @param hashedFileName 해시된 파일명
-     * @param userId         사용자 ID (로깅용)
      */
     @Transactional
     public void softDeleteProfileImageByFileName(String hashedFileName, Long userId) {
-        log.info("프로필 이미지 Soft Delete 시작 - hashedFileName: {}, userId: {}", hashedFileName, userId);
+        FileOperationLogger.logOperationStart(FileOperationType.PROFILE_IMAGE_SOFT_DELETE,
+                FileOperationLogger.formatDeleteParams(null, null, userId, hashedFileName));
 
         Optional<FileInfo> fileInfoOpt = fileInfoRepository.findByNameHashedAndIsDeletedFalse(hashedFileName);
         if (fileInfoOpt.isPresent()) {
             FileInfo fileInfo = fileInfoOpt.get();
             fileInfo.markDeleted();
-            log.info("프로필 이미지 Soft Delete 완료 - hashedFileName: {}, userId: {}", hashedFileName, userId);
+            FileOperationLogger.logOperationSuccess(FileOperationType.PROFILE_IMAGE_SOFT_DELETE,
+                    FileOperationLogger.formatDeleteParams(null, null, userId, hashedFileName));
         } else {
-            log.warn("Soft Delete할 프로필 이미지 파일을 찾을 수 없음 - hashedFileName: {}, userId: {}", hashedFileName, userId);
+            FileOperationLogger.logOperationWarning(FileOperationType.PROFILE_IMAGE_SOFT_DELETE,
+                    "Soft Delete할 파일을 찾을 수 없음 - "
+                            + FileOperationLogger.formatDeleteParams(null, null, userId, hashedFileName));
+        }
+    }
+
+    // ==================== 트랜잭션 동기화 헬퍼 메서드들 ====================
+
+    /**
+     * 프로필 이미지 교체 시 트랜잭션 동기화 생성 (기존 파일이 있는 경우)
+     *
+     * @param oldFileName 기존 파일명
+     * @param newFileName 새 파일명
+     * @return 트랜잭션 동기화 객체
+     */
+    private TransactionSynchronization createProfileImageTransactionSynchronization(
+            String oldFileName, String newFileName) {
+        return new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                handleOldFileCleanupOnCommit(oldFileName);
+            }
+
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_ROLLED_BACK) {
+                    handleNewFileCleanupOnRollback(newFileName);
+                }
+            }
+        };
+    }
+
+    /**
+     * 프로필 이미지 신규 업로드 시 트랜잭션 동기화 생성 (기존 파일이 없는 경우)
+     *
+     * @param newFileName 새 파일명
+     * @return 트랜잭션 동기화 객체
+     */
+    private TransactionSynchronization createNewProfileImageTransactionSynchronization(String newFileName) {
+        return new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_ROLLED_BACK) {
+                    handleNewFileCleanupOnRollback(newFileName);
+                }
+            }
+        };
+    }
+
+    /**
+     * 트랜잭션 커밋 후 기존 파일 정리 처리
+     *
+     * @param oldFileName 삭제할 기존 파일명
+     */
+    private void handleOldFileCleanupOnCommit(String oldFileName) {
+        try {
+            deletePhysicalProfileImageFile(oldFileName);
+            FileOperationLogger.logOperationSuccess(
+                    FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
+                    "기존 파일 삭제 (커밋 후): " + oldFileName);
+        } catch (Exception e) {
+            FileOperationLogger.logOperationFailure(
+                    FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
+                    "기존 파일 삭제 실패 (커밋 후): " + oldFileName, e);
+        }
+    }
+
+    /**
+     * 트랜잭션 롤백 후 새 파일 정리 처리
+     *
+     * @param newFileName 정리할 새 파일명
+     */
+    private void handleNewFileCleanupOnRollback(String newFileName) {
+        try {
+            deletePhysicalProfileImageFile(newFileName);
+            FileOperationLogger.logOperationWarning(
+                    FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
+                    "트랜잭션 롤백으로 새 파일 삭제: " + newFileName);
+        } catch (Exception e) {
+            FileOperationLogger.logOperationFailure(
+                    FileOperationType.PROFILE_IMAGE_PHYSICAL_DELETE,
+                    "새 파일 정리 실패 (롤백 후): " + newFileName, e);
         }
     }
 }

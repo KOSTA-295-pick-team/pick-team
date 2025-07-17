@@ -29,4 +29,8 @@ public class ChatMember extends BaseSoftDeleteSupportEntity {
 
     @ManyToOne(optional = false)
     private Account account;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    private ChatMessage lastReadMessage;
+
 }

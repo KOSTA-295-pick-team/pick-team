@@ -5,6 +5,7 @@ import com.pickteam.domain.team.TeamMember;
 import com.pickteam.domain.user.Account;
 import com.pickteam.domain.workspace.Workspace;
 import com.pickteam.domain.workspace.WorkspaceMember;
+import com.pickteam.dto.kanban.KanbanCreateRequest;
 import com.pickteam.dto.team.*;
 import com.pickteam.dto.user.UserSummaryResponse;
 import com.pickteam.repository.team.TeamMemberRepository;
@@ -12,16 +13,21 @@ import com.pickteam.repository.team.TeamRepository;
 import com.pickteam.repository.user.AccountRepository;
 import com.pickteam.repository.workspace.WorkspaceMemberRepository;
 import com.pickteam.repository.workspace.WorkspaceRepository;
+import com.pickteam.service.board.BoardService;
+import com.pickteam.service.kanban.KanbanService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class TeamService {
     
     private final TeamRepository teamRepository;
@@ -29,6 +35,8 @@ public class TeamService {
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final AccountRepository accountRepository;
+    private final KanbanService kanbanService;
+    private final BoardService boardService;
     
     /**
      * 팀 생성 (워크스페이스의 모든 멤버가 가능)
@@ -66,6 +74,25 @@ public class TeamService {
                 .build();
         
         teamMemberRepository.save(teamLeader);
+        
+        // 팀 생성 시 자동으로 게시판 생성
+        try {
+            boardService.createDefaultBoardForTeam(team.getId());
+        } catch (Exception e) {
+            // 게시판 생성 실패 시 로그만 출력하고 팀 생성은 계속 진행
+            log.error("게시판 자동 생성 실패 - 팀 ID: {}", team.getId(), e);
+        }
+        
+        // 팀 생성 시 자동으로 칸반 보드 생성
+        try {
+            KanbanCreateRequest kanbanRequest = new KanbanCreateRequest();
+            kanbanRequest.setTeamId(team.getId());
+            kanbanRequest.setWorkspaceId(workspace.getId());
+            kanbanService.createKanban(kanbanRequest);
+        } catch (Exception e) {
+            // 칸반 보드 생성 실패 시 로그만 출력하고 팀 생성은 계속 진행
+            log.error("칸반 보드 자동 생성 실패 - 팀 ID: {}", team.getId(), e);
+        }
         
         return convertToResponse(team);
     }
@@ -164,20 +191,31 @@ public class TeamService {
             throw new RuntimeException("워크스페이스 멤버만 팀에 참여할 수 있습니다.");
         }
         
-        // 이미 팀 멤버인지 확인
+        // 이미 활성 팀 멤버인지 확인
         if (teamMemberRepository.existsByTeamIdAndAccountId(teamId, accountId)) {
             throw new RuntimeException("이미 팀의 멤버입니다.");
         }
         
-        // 팀 멤버로 추가
-        TeamMember teamMember = TeamMember.builder()
-                .team(team)
-                .account(account)
-                .teamRole(TeamMember.TeamRole.MEMBER)
-                .teamStatus(TeamMember.TeamStatus.ACTIVE)
-                .build();
+        // 기존 팀 멤버 레코드가 있는지 확인 (탈퇴한 멤버 포함)
+        Optional<TeamMember> existingMember = teamMemberRepository.findByTeamIdAndAccountId(teamId, accountId);
         
-        teamMemberRepository.save(teamMember);
+        if (existingMember.isPresent()) {
+            // 기존 레코드가 있다면 재활성화
+            TeamMember teamMember = existingMember.get();
+            teamMember.setTeamStatus(TeamMember.TeamStatus.ACTIVE);
+            teamMember.setTeamRole(TeamMember.TeamRole.MEMBER); // 역할 초기화
+            teamMemberRepository.save(teamMember);
+        } else {
+            // 기존 레코드가 없다면 새로 생성
+            TeamMember teamMember = TeamMember.builder()
+                    .team(team)
+                    .account(account)
+                    .teamRole(TeamMember.TeamRole.MEMBER)
+                    .teamStatus(TeamMember.TeamStatus.ACTIVE)
+                    .build();
+            
+            teamMemberRepository.save(teamMember);
+        }
     }
     
     /**
@@ -243,6 +281,14 @@ public class TeamService {
                 .teamRole(member.getTeamRole())
                 .teamStatus(member.getTeamStatus())
                 .joinedAt(member.getCreatedAt())
+                // 사용자 상세 정보 추가
+                .age(account.getAge())
+                .mbti(account.getMbti())
+                .disposition(account.getDisposition())
+                .introduction(account.getIntroduction())
+                .portfolio(account.getPortfolio())
+                .preferWorkstyle(account.getPreferWorkstyle())
+                .dislikeWorkstyle(account.getDislikeWorkstyle())
                 .build();
     }
     
@@ -262,4 +308,4 @@ public class TeamService {
                 .role(account.getRole().toString())
                 .build();
     }
-} 
+}

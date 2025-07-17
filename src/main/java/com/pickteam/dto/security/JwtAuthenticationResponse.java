@@ -18,6 +18,7 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class JwtAuthenticationResponse {
     /** JWT Access Token - API 요청 시 인증에 사용 */
+    @com.fasterxml.jackson.annotation.JsonProperty("token")
     private String accessToken;
 
     /** JWT Refresh Token - Access Token 갱신 시 사용 */
@@ -32,6 +33,15 @@ public class JwtAuthenticationResponse {
 
     /** 로그인한 사용자 정보 */
     private UserProfileResponse user;
+
+    /**
+     * OAuth 및 내부 로직용 토큰 접근자
+     * JSON 직렬화에서는 제외되고, accessToken 필드가 "token"으로 직렬화됨
+     */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public String getToken() {
+        return this.accessToken;
+    }
 
     /**
      * JWT 응답 생성자

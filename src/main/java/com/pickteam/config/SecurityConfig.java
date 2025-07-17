@@ -21,6 +21,7 @@ import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.http.HttpMethod;
 
 import java.util.Arrays;
 
@@ -60,18 +61,46 @@ public class SecurityConfig {
 
                 // URL 접근 권한 설정
                 .authorizeHttpRequests(auth -> auth
-                        // 인증 없이 접근 가능한 URL
-                        .requestMatchers("/api/users/register", "/api/users/login", "/api/users/login/",
-                                "/api/users/login/enhanced")
+                        // 정적 리소스 (인증 없이 접근 가능)
+                        .requestMatchers("/favicon.ico", "/error", "/actuator/health",
+                                "/.well-known/**", "/robots.txt", "/sitemap.xml")
                         .permitAll()
-                        .requestMatchers("/api/users/logout", "/api/users/logout/", "/api/users/logout/enhanced")
+
+                        // SSE 관련 엔드포인트 허용
+                        .requestMatchers("/api/sse/subscribe").permitAll()
+
+                        // 회원가입 관련 API (인증 불필요)
+                        .requestMatchers("/api/users/register", "/api/users/check-id", "/api/users/validate-password")
                         .permitAll()
-                        .requestMatchers("/api/users/check-id", "/api/users/validate-password").permitAll()
+
+                        // 인증 관련 API - AuthController (인증 불필요)
+                        .requestMatchers("/api/auth/**").permitAll()
+
+                        // 프로필 이미지는 공개 접근 허용
+                        .requestMatchers("/profile-images/**").permitAll()
+
+                        // 워크스페이스 아이콘은 공개 접근 허용
+                        .requestMatchers("/uploads/workspace-icons/**").permitAll()
+
+                        // 기타 업로드 파일 직접 접근 차단 (보안 강화)
+                        .requestMatchers("/uploads/**").denyAll()
+
+                        // 파일 다운로드는 컨트롤러를 통해서만 허용 (인증 필요)
+                        .requestMatchers("/api/files/*/download").authenticated()
+
+                        // 전체 사용자 프로필 조회는 공개 (팀 매칭용)
+                        .requestMatchers("/api/users").permitAll()
+
+                        // 특정 사용자 프로필 조회는 공개 (팀 매칭용)
+                        .requestMatchers(HttpMethod.GET, "/api/users/{userId}").permitAll()
+
                         .requestMatchers("/api/users/email/request", "/api/users/email/verify").permitAll()
                         //웹소켓 서버 접속 요청에 대해 permitall설정
                         .requestMatchers("/ws").permitAll()
+                        
                         //livekit 서버에서 전송하는 hook 메시지에 대해 permitall설정
                         .requestMatchers(new RegexRequestMatcher("/api/workspaces/\\d+/video-channels/livekit/webhooks",null)).permitAll()
+                        
                         // ADMIN 권한 필요
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 

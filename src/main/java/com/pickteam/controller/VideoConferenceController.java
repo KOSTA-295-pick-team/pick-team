@@ -40,21 +40,32 @@ public class VideoConferenceController {
     @GetMapping
     public ResponseEntity<?> getChannels(@PathVariable Long workspaceId, @AuthenticationPrincipal UserPrincipal userDetails) throws VideoConferenceException {
 
-        List<VideoChannelDTO> videoChannels = videoConferenceService.selectVideoChannels(workspaceId, userDetails.getId());
+        List<VideoChannelDTO> videoChannels = videoConferenceService.selectVideoChannels(workspaceId);
 
         return ResponseEntity.ok(videoChannels);
     }
 
+    @PreAuthorize("hasRole('ADMIN')  or @videoConferenceAuthService.canViewChannels(#userDetails.id,#workspaceId)")
+    @GetMapping("/{channelId:\\d+}")
+    public ResponseEntity<?> getChannel(@PathVariable Long workspaceId,@PathVariable Long channelId, @AuthenticationPrincipal UserPrincipal userDetails) throws VideoConferenceException {
+
+        VideoChannelDTO videoChannels = videoConferenceService.selectVideoChannel(channelId);
+
+        return ResponseEntity.ok(videoChannels);
+    }
+
+
+
     @PreAuthorize("hasRole('ADMIN') or @videoConferenceAuthService.canCreateChannel(#userDetails.id,#workspaceId)")
     @PostMapping
     public ResponseEntity<?> createChannel(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable Long workspaceId, @Valid @RequestBody VideoChannelDTO videoChannelDTO) throws VideoConferenceException {
-        videoConferenceService.insertVideoChannel(workspaceId, videoChannelDTO.getName());
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        VideoChannelDTO videoChannel = videoConferenceService.insertVideoChannel(workspaceId, videoChannelDTO.getName());
+        return ResponseEntity.status(HttpStatus.CREATED).body(videoChannel);
     }
 
     @PreAuthorize("hasRole('ADMIN') or  @videoConferenceAuthService.canJoinChannel(#userDetails.id,#workspaceId)")
     @PostMapping("/{channelId}")
-    public ResponseEntity<?> joinChannel(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable("channelId") Long channelId) {
+    public ResponseEntity<?> joinChannel(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable("channelId") Long channelId, @PathVariable Long workspaceId) throws VideoConferenceException {
 
 
         videoConferenceService.joinVideoChannel(userDetails.getId(), channelId);
@@ -64,7 +75,7 @@ public class VideoConferenceController {
 
     @PreAuthorize("hasRole('ADMIN') or @videoConferenceAuthService.isWorkspaceAdmin(#userDetails.id,#workspaceId)")
     @DeleteMapping("/{channelId:\\d+}")
-    public ResponseEntity<?> deleteChannel(@AuthenticationPrincipal UserPrincipal userDetails,@PathVariable("channelId") Long channelId) throws VideoConferenceException {
+    public ResponseEntity<?> deleteChannel(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable("channelId") Long channelId, @PathVariable Long workspaceId) throws VideoConferenceException {
 
         videoConferenceService.deleteVideoChannel(channelId);
 
@@ -82,7 +93,7 @@ public class VideoConferenceController {
 
     @PreAuthorize("hasRole('ADMIN') or @videoConferenceAuthService.isWorkspaceAdmin(#userDetails.id,#workspaceId) or @videoConferenceAuthService.canLeaveChannel(#userDetails.id,#channelId,#memberId)")
     @DeleteMapping("/{channelId:\\d+}/video-members/{memberId}")
-    public ResponseEntity<?> leaveChannel(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable Long memberId, @PathVariable Long channelId) throws VideoConferenceException {
+    public ResponseEntity<?> leaveChannel(@AuthenticationPrincipal UserPrincipal userDetails, @PathVariable Long memberId, @PathVariable Long channelId, @PathVariable Long workspaceId) throws VideoConferenceException {
 
         videoConferenceService.deleteVideoChannelParticipant(memberId, channelId);
 
@@ -102,7 +113,7 @@ public class VideoConferenceController {
 
     @PreAuthorize("@videoConferenceAuthService.canCallLiveKitWebhook(#request)")
     @PostMapping(value = "/livekit/webhooks", consumes = "application/webhook+json")
-    public ResponseEntity<String> receiveWebhook(HttpServletRequest request, @RequestHeader("Authorization") String authHeader, @RequestBody String body) throws Exception{
+    public ResponseEntity<String> receiveWebhook(HttpServletRequest request, @RequestHeader("Authorization") String authHeader, @RequestBody String body) throws Exception {
 
         videoConferenceService.handleLiveKitHookEvent(authHeader, body);
 

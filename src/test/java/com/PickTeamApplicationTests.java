@@ -1,5 +1,23 @@
 package com;
 
+import com.pickteam.domain.enums.UserRole;
+import com.pickteam.domain.user.Account;
+import com.pickteam.domain.workspace.Workspace;
+import com.pickteam.dto.VideoChannelDTO;
+import com.pickteam.exception.VideoConferenceException;
+import com.pickteam.repository.VideoChannelRepository;
+import com.pickteam.repository.VideoMemberRepository;
+import com.pickteam.repository.user.AccountRepository;
+import com.pickteam.repository.workspace.WorkspaceRepository;
+import com.pickteam.service.VideoConferenceService;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.List;
+
 /**
 @SpringBootTest
 class PickTeamApplicationTests {
@@ -90,8 +108,8 @@ class PickTeamApplicationTests {
 
     @Test
     @DisplayName("화상회의채널 추가 test")
-    void insertVideoChannel() {
-        videoConferenceService.insertVideoChannel(1L, "ㅅㅅ채널");
+    void insertVideoChannel() throws VideoConferenceException {
+        videoConferenceService.insertVideoChannel(1L, "ㅇㅇ채널");
     }
 
     @Test
@@ -99,7 +117,7 @@ class PickTeamApplicationTests {
     void selectVideoChannel() throws VideoConferenceException {
 //        List<VideoChannelDTO> list = videoConferenceService.selectVideoChannels(1L, null);
 //        list.forEach(System.out::println);
-        List<VideoChannelDTO> list = videoConferenceService.selectVideoChannels(1L, 1L);
+        List<VideoChannelDTO> list = videoConferenceService.selectVideoChannels(1L);
         list.forEach(System.out::println);
     }
 

@@ -29,7 +29,7 @@ public class VideoChannel extends BaseSoftDeleteSupportEntity {
     @ManyToOne(optional = false,fetch = FetchType.LAZY)
     private Workspace workspace;
 
-    @OneToMany(mappedBy = "videoChannel")
+    @OneToMany(mappedBy = "videoChannel",cascade = CascadeType.REMOVE)//채널에 속한 멤버가 존재해도 채널을 삭제할수 있게끔 함
     private List<VideoMember> members = new ArrayList<>();
 
 }

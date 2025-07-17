@@ -17,4 +17,6 @@ public interface VideoMemberRepository extends JpaRepository<VideoMember, Long> 
     @Query("select vm from VideoMember vm where vm.account.id=:accountId and vm.videoChannel.id=:channelId")
     VideoMember findByAccountIdAndVideoChannelId(@Param("accountId") Long accountId, @Param("channelId") Long channelId);
 
+    @Query("select vm from VideoMember vm where vm.videoChannel.id=?1")
+    List<VideoMember> selectByVideoChannelId(Long videoChannelId);
 }

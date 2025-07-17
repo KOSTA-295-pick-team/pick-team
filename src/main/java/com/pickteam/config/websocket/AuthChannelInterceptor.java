@@ -1,14 +1,20 @@
 package com.pickteam.config.websocket;
 
 import com.pickteam.domain.videochat.VideoMember;
+import com.pickteam.exception.VideoConferenceException;
 import com.pickteam.exception.WebSocketChatErrorCode;
 import com.pickteam.exception.WebSocketChatException;
 import com.pickteam.repository.VideoMemberRepository;
 import com.pickteam.security.UserPrincipal;
+import com.pickteam.service.VideoConferenceService;
+import com.pickteam.service.VideoConferenceServiceImpl;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
@@ -22,15 +28,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-
+@RequiredArgsConstructor
 @Component
 public class AuthChannelInterceptor implements ChannelInterceptor {
 
 
-    private Map<String,Long> sessionChannelAccessCache = new ConcurrentHashMap<>();
+    private Map<String, Long> sessionChannelAccessCache = new ConcurrentHashMap<>();
 
-    @Autowired
-    private VideoMemberRepository videoMemberRepository;
+
+    private final VideoConferenceService videoConferenceService;
+    private final VideoMemberRepository videoMemberRepository;
+
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -48,7 +56,7 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
             }
             if (sessionChannelAccessCache.containsKey(sessionId)) {
                 Long authorizedChannelId = sessionChannelAccessCache.get(sessionId);
-                if(authorizedChannelId.equals(Long.parseLong(destChannelId))) {
+                if (authorizedChannelId.equals(Long.parseLong(destChannelId))) {
                     return message;
                 }
             }
@@ -59,19 +67,35 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
             if (vm == null) {
                 throw new WebSocketChatException(WebSocketChatErrorCode.CANNOT_ACCESS_CHANNEL);
             }
+            Map<String, Object> attrs = accessor.getSessionAttributes();
+            if (attrs != null) {
 
-            sessionChannelAccessCache.put(sessionId,Long.parseLong(destChannelId));
-
+                attrs.put("videoMemberId", vm.getId());
+                attrs.put("videoChannelId", Long.parseLong(destChannelId));
+            }
+            sessionChannelAccessCache.put(sessionId, Long.parseLong(destChannelId));
         }
         return message;
     }
 
     @EventListener
-    public void handleSessionDisconnect(SessionDisconnectEvent event) {
-        String sessionId = MessageHeaderAccessor.getAccessor(
-                event.getMessage(), StompHeaderAccessor.class).getSessionId();
-        sessionChannelAccessCache.remove(sessionId);
+    public void handleSessionDisconnect(SessionDisconnectEvent event) throws VideoConferenceException {
+        StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(
+                event.getMessage(), StompHeaderAccessor.class);
+        sessionChannelAccessCache.remove(accessor.getSessionId());
+        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+        Long vmId = (Long)sessionAttributes.get("videoMemberId");
+        Long vcId = (Long)sessionAttributes.get("videoChannelId");
+        System.out.println("videoMemberId: " + vmId + ", videoChannelId: " + vcId);
+        if(vmId != null && vcId != null) {
+            try {
+                videoConferenceService.deleteVideoChannelParticipant(vmId, vcId);
+            }catch (VideoConferenceException e) {
+                e.printStackTrace();
+            }
+        }
+
+
     }
 
 }
-

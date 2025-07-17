@@ -101,10 +101,8 @@ services:
       - "7880:7880"  # HTTP API + WebSocket signaling
       - "7881:7881"  # WebRTC TCP 연결 (UDP 대체)
     environment:
-      - LIVEKIT_KEYS=${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}
-      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
-      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
-      - LIVEKIT_WEB=true  # dashboard UI 활성화
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}"
+      LIVEKIT_WEB: "true"
     restart: always
     networks:
       - pickteam

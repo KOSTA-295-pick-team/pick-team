@@ -93,3 +93,5 @@ jobs:
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}  # 최신 이미지 가져오기
             sudo docker-compose down  # 기존 컨테이너 종료
             sudo docker-compose up -d  # 백그라운드로 새 컨테이너 실행
+            cd ~/nginx-docker
+            sudo docker-compose restart  # Nginx 컨테이너 재시작 (Nginx 설정 변경 반영)

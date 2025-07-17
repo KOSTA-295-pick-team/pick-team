@@ -7,7 +7,6 @@ services:
     ports:
       - "6379:6379"
     restart: always
-
     networks:
       - pickteam
 
@@ -94,6 +93,21 @@ services:
 
     networks:
       - pickteam  # 동일한 네트워크에 연결된 다른 컨테이너들과 통신 가능
+
+  livekit:
+    image: livekit/livekit-server
+    container_name: pickteam-livekit
+    ports:
+      - "7880:7880"  # HTTP API + WebSocket signaling
+      - "7881:7881"  # WebRTC TCP 연결 (UDP 대체)
+    environment:
+      - LIVEKIT_KEYS=${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - LIVEKIT_WEB=true  # dashboard UI 활성화
+    restart: always
+    networks:
+      - pickteam
 
 networks:
   pickteam:

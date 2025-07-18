@@ -1,8 +1,6 @@
 # 📌 Pick Team: 팀 프로젝트 관리 올인원 협업 허브
 
-![Pick Team 메인 이미지](https://via.placeholder.com/800x400/1A74E8/FFFFFF?text=Pick+Team)
-
-</br>
+![시연 화면](https://github.com/user-attachments/assets/816b5e41-489e-4227-86d9-2cd116ee99c1)
 
 ## 🔥 프로젝트 개요
 
@@ -120,41 +118,11 @@
 
 <details>
 <summary><b>시스템 아키텍처</b></summary>
-
 </br>
 
-````mermaid
-graph TB
-    User[서비스 사용자] --> Browser[Browser]
-    Browser --> Nginx[Nginx]
-    Nginx --> React[React Frontend]
-    Nginx --> Spring[Spring Boot Backend]
-    Spring --> Redis[Redis Cache]
-    Spring --> RDS[MySQL RDS]
-    
-    GitHub[GitHub Repository] --> Actions[GitHub Actions]
-    Actions --> EC2[AWS EC2]
-    EC2 --> Docker[Docker Compose]
-    Docker --> Nginx
-    Docker --> Spring
-    Docker --> Redis
-````
-</details>
-
-
-<details>
-<summary><b>CI/CD 파이프라인</b></summary>
+![시스템 아키텍처](https://github.com/user-attachments/assets/f43f3c8d-7d92-4c6e-a2d4-3c898a448cd2)
 
 </br>
-
-````mermaid
-graph LR
-    A[GitHub Push] --> B[GitHub Actions]
-    B --> C[Build & Test]
-    C --> D[Docker Image Build]
-    D --> E[Deploy to EC2]
-    E --> F[Health Check]
-````
 
 **배포 프로세스**
 1. GitHub에 코드 푸시
@@ -163,27 +131,19 @@ graph LR
 4. AWS EC2에 자동 배포
 5. 서비스 상태 확인 및 헬스체크
 
-</br>
-
 </details>
 
 
+<details>
+<summary><b>서비스 flow</b></summary>
 
+</br>
 
+![서비스 흐름](https://github.com/user-attachments/assets/1945e67b-7cd3-433d-af30-676a17540a07)
 
+</br>
 
-
-
-
-
-
-
-
-
-
-
-
-
+</details>
 
 
 
@@ -194,19 +154,19 @@ graph LR
 
 </br>
 
-![ERD](https://via.placeholder.com/800x600/607D8B/FFFFFF?text=Entity+Relationship+Diagram)
+![ERD](https://github.com/user-attachments/assets/af2cfa88-4efd-4c44-92f8-cd99ff615d36)
 
 **주요 엔티티**
-- **Account**: 사용자 계정 정보
-- **Workspace**: 과정별 워크스페이스  
-- **TeamSpace**: 팀 프로젝트 정보
-- **KanbanBoard**: 칸반 보드 관리
-- **Schedule**: 일정 관리
-- **Message**: 메신저 기능
-- **VideoCall**: 화상회의 관리
+
+* **Account**: 사용자 계정 정보
+* **Workspace**: 과정별 워크스페이스
+* **TeamSpace**: 팀 프로젝트 정보
+* **KanbanBoard**: 칸반 보드 관리
+* **Schedule**: 일정 관리
+* **Message**: 메신저 기능
+* **VideoCall**: 화상회의 관리
 
 </br>
-
 </details>
 
 </br>

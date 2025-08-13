@@ -39,7 +39,8 @@ jobs:
           else
             echo "지원되지 않는 브랜치입니다. 종료합니다." #예외처리
             exit 1
-          fi
+            fi
+          echo "SSH_PORT=${{ secrets.SSH_PORT }}" >> $GITHUB_ENV
 
       - name: 자동 이미지 태그 설정 (브랜치명 + 날짜 + SHA)
         run: |
@@ -78,17 +79,24 @@ jobs:
         uses: appleboy/scp-action@v0.1.7  # 배포서버로 파일 전송하는 액션(SCP-Secure Copy- 방식)
         with:
           host: ${{ env.EC2_HOST }}  # 배포서버 호스트 주소
-          port: ${{ secrets.SSH_PORT }} # SSH 포트번호 (온프레미스는 커스텀 포트번호 사용하므로 추가)
+          port: ${{ env.SSH_PORT }} # SSH 포트번호 (온프레미스는 커스텀 포트번호 사용하므로 추가)
           username: ${{ secrets.EC2_USERNAME }}  # 배포서버 사용자명
           key: ${{ secrets.EC2_PRIVATE_KEY }}  # 배포서버 개인 키 (.pem 내용)
           source: "docker-compose.yml,.env"  # 전송할 파일 목록 (쉼표로 구분)
           target: "~/cicd-docker"  # 배포서버 내 대상 경로
+ 
+      - name: 디버그용 EC2_HOST & SSH_PORT 확인
+        if: env.ACTIONS_STEP_DEBUG == 'true'
+        run: |
+          echo "디버그 모드에서만 출력"
+          echo "::debug::🧩 EC2_HOST = ${{ env.EC2_HOST }}"
+          echo "::debug::🧩 SSH_PORT = ${{ env.SSH_PORT }}" 
 
       - name: EC2에서 docker-compose 실행
         uses: appleboy/ssh-action@v1.0.0  # 배포서버에 SSH 접속하여 명령 실행
         with:
           host: ${{ env.EC2_HOST }} # 배포서버 호스트 주소
-          port: ${{ secrets.SSH_PORT }}  # SSH 포트번호 (온프레미스는 커스텀 포트번호 사용하므로 추가)
+          port: ${{ env.SSH_PORT }} # SSH 포트번호 (온프레미스는 커스텀 포트번호 사용하므로 추가)
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |

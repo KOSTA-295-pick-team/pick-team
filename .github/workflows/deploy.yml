@@ -72,12 +72,9 @@ jobs:
 
       - name: Docker 이미지 푸시
         run: docker push ${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}   # 빌드한 이미지를 Docker Hub에 업로드
-
-
+        
       - name: 디버그용 EC2_HOST & SSH_PORT 확인
-        if: env.ACTIONS_STEP_DEBUG == 'true'
         run: |
-          echo "디버그 모드에서만 출력"
           echo "::debug::🧩 EC2_HOST = ${{ env.EC2_HOST }}"
           echo "::debug::🧩 SSH_PORT = ${{ env.SSH_PORT }}" 
 

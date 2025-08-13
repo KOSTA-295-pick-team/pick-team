@@ -39,7 +39,7 @@ jobs:
           else
             echo "지원되지 않는 브랜치입니다. 종료합니다." #예외처리
             exit 1
-            fi
+          fi
           echo "SSH_PORT=${{ secrets.SSH_PORT }}" >> $GITHUB_ENV
 
       - name: 자동 이미지 태그 설정 (브랜치명 + 날짜 + SHA)
@@ -74,6 +74,13 @@ jobs:
         run: docker push ${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}   # 빌드한 이미지를 Docker Hub에 업로드
 
 
+      - name: 디버그용 EC2_HOST & SSH_PORT 확인
+        if: env.ACTIONS_STEP_DEBUG == 'true'
+        run: |
+          echo "디버그 모드에서만 출력"
+          echo "::debug::🧩 EC2_HOST = ${{ env.EC2_HOST }}"
+          echo "::debug::🧩 SSH_PORT = ${{ env.SSH_PORT }}" 
+
         #EC2 -> 온프레미스로 변경 (기본적인 세팅 동일하므로 환경변수명에 사용하는 접두어 EC2 유지, 실제로는 온프레미스 서버로 연결)
       - name: 배포서버에 docker-compose.yml + .env 전송 #배포서버로 전송
         uses: appleboy/scp-action@v0.1.7  # 배포서버로 파일 전송하는 액션(SCP-Secure Copy- 방식)
@@ -85,13 +92,6 @@ jobs:
           source: "docker-compose.yml,.env"  # 전송할 파일 목록 (쉼표로 구분)
           target: "~/cicd-docker"  # 배포서버 내 대상 경로
  
-      - name: 디버그용 EC2_HOST & SSH_PORT 확인
-        if: env.ACTIONS_STEP_DEBUG == 'true'
-        run: |
-          echo "디버그 모드에서만 출력"
-          echo "::debug::🧩 EC2_HOST = ${{ env.EC2_HOST }}"
-          echo "::debug::🧩 SSH_PORT = ${{ env.SSH_PORT }}" 
-
       - name: EC2에서 docker-compose 실행
         uses: appleboy/ssh-action@v1.0.0  # 배포서버에 SSH 접속하여 명령 실행
         with:

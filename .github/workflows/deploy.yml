@@ -87,7 +87,7 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}  # 배포서버 사용자명
           key: ${{ secrets.EC2_PRIVATE_KEY }}  # 배포서버 개인 키 (.pem 내용)
           source: "docker-compose.yml,.env"  # 전송할 파일 목록 (쉼표로 구분)
-          target: "~/cicd-docker"  # 배포서버 내 대상 경로
+          target: ${{ secrets.DOCKER_DEPLOY_DIRECTORY }}  # 배포서버 내 대상 경로
  
       - name: EC2에서 docker-compose 실행
         uses: appleboy/ssh-action@v1.0.0  # 배포서버에 SSH 접속하여 명령 실행
@@ -97,9 +97,9 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
-            cd ~/cicd-docker  # 도커 파일이 위치한 경로로 이동
-            sudo docker pull ${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}  # 최신 이미지 가져오기
-            sudo docker-compose down  # 기존 컨테이너 종료
-            sudo docker-compose up -d  # 백그라운드로 새 컨테이너 실행
-            cd ~/nginx-docker
-            sudo docker-compose restart  # Nginx 컨테이너 재시작 (Nginx 설정 변경 반영)
+            cd ${{ secrets.DOCKER_DEPLOY_DIRECTORY }}  # 도커 파일이 위치한 경로로 이동
+            docker pull ${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}  # 최신 이미지 가져오기
+            docker-compose down  # 기존 컨테이너 종료
+            docker-compose up -d  # 백그라운드로 새 컨테이너 실행
+            cd ${{ secrets.DOCKER_NGINX_DIRECTORY }}
+            docker-compose restart  # Nginx 컨테이너 재시작 (Nginx 설정 변경 반영)

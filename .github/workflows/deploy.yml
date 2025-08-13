@@ -3,7 +3,7 @@ name: pick-team github CI-CD
 on:
   push:
     branches:
-      - main  # main 브랜치에 push 이벤트가 발생했을 때 워크플로우 실행
+      - main       # main 브랜치에 push 이벤트가 발생했을 때 워크플로우 실행
       - production # production 브랜치에 push 이벤트가 발생했을 때 워크플로우 실행
 
 jobs:
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest  # 최신 Ubuntu 환경에서 작업 실행
 
     env:
-      GITHUB_REF_NAME: ${{ github.ref_name }} #이벤트가 일어난 브랜치 이름 읽어오기
+      GITHUB_REF_NAME: ${{ github.ref_name }} # 이벤트가 일어난 브랜치 이름 읽어오기
 
     steps:
       - name: Checkout source
@@ -20,24 +20,24 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v3  # JDK 설정 액션
         with:
-          java-version: '17'  # Java 17 버전 사용
-          distribution: 'temurin'  # AdoptOpenJDK의 Temurin 배포판 사용
+          java-version: '17'        # Java 17 버전 사용
+          distribution: 'temurin'   # AdoptOpenJDK의 Temurin 배포판 사용
 
       - name: 브랜치 환경 로그 확인
         run: |
           echo "현재 브랜치"
           echo "${GITHUB_REF_NAME}"
 
-      - name: Spring 환경변수 주입 (.env 대체) # .env 파일의 내용을 secret으로부터 읽어다 통째로 주입 (dev)
+      - name: Spring 환경변수 주입 (.env 생성) # .env 파일의 내용을 secret으로부터 읽어다 통째로 주입
         run: |
           if [ "${GITHUB_REF_NAME}" == "main" ]; then
-            echo "${{ secrets.ENV_DEV }}" > .env # main 브랜치일 경우 DEV 환경변수 적용
+            echo "${{ secrets.ENV_DEV }}" > .env  # main 브랜치일 경우 DEV 환경변수 적용
             echo "EC2_HOST=${{ secrets.EC2_HOST_DEV }}" >> $GITHUB_ENV
           elif [ "${GITHUB_REF_NAME}" == "production" ]; then
-            echo "${{ secrets.ENV_PROD }}" > .env #production 브랜치일 경우 PROD 환경변수 적용
-            echo "EC2_HOST=${{ secrets.EC2_HOST_PROD }}" >> $GITHUB_ENV
+            echo "${{ secrets.ENV_PROD }}" > .env # production 브랜치일 경우 PROD 환경변수 적용
+            echo "EC2_HOST=${{ secrets.ES2_HOST_PROD }}" >> $GITHUB_ENV
           else
-            echo "지원되지 않는 브랜치입니다. 종료합니다." #예외처리
+            echo "지원되지 않는 브랜치입니다. 종료합니다." # 예외처리
             exit 1
           fi
           echo "SSH_PORT=${{ secrets.SSH_PORT }}" >> $GITHUB_ENV
@@ -49,8 +49,6 @@ jobs:
           IMAGE_TAG="${GITHUB_REF_NAME}-$TODAY-$SHORT_SHA"
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
           echo "IMAGE_TAG=$IMAGE_TAG" >> .env
-          echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >>.env
-          echo "DOCKER_ACCESS_TOKEN=${{ secrets.DOCKER_ACCESS_TOKEN }}" >>.env
           echo "GITHUB_REF_NAME=$GITHUB_REF_NAME" >> .env
           echo "BUILD_TIME=$TODAY" >> .env
 
@@ -72,35 +70,90 @@ jobs:
 
       - name: Docker 이미지 푸시
         run: docker push ${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}   # 빌드한 이미지를 Docker Hub에 업로드
-        
-      - name: 디버그용 EC2_HOST & SSH_PORT 확인
-        run: |
-          echo "::debug::🧩 EC2_HOST = ${{ env.EC2_HOST }}"
-          echo "::debug::🧩 SSH_PORT = ${{ env.SSH_PORT }}" 
 
-        #EC2 -> 온프레미스로 변경 (기본적인 세팅 동일하므로 환경변수명에 사용하는 접두어 EC2 유지, 실제로는 온프레미스 서버로 연결)
-      - name: 배포서버에 docker-compose.yml + .env 전송 #배포서버로 전송
-        uses: appleboy/scp-action@v0.1.7  # 배포서버로 파일 전송하는 액션(SCP-Secure Copy- 방식)
+      # EC2 -> 온프레미스로 변경 (기본적인 세팅 동일하므로 환경변수명에 사용하는 접두어 EC2 유지)
+      - name: 배포서버에 docker-compose.yml + .env 전송
+        uses: appleboy/scp-action@v0.1.7  # 배포서버로 파일 전송하는 액션(SCP)
         with:
-          host: ${{ env.EC2_HOST }}  # 배포서버 호스트 주소
-          port: ${{ env.SSH_PORT }} # SSH 포트번호 (온프레미스는 커스텀 포트번호 사용하므로 추가)
-          username: ${{ secrets.EC2_USERNAME }}  # 배포서버 사용자명
-          key: ${{ secrets.EC2_PRIVATE_KEY }}  # 배포서버 개인 키 (.pem 내용)
-          source: "docker-compose.yml,.env"  # 전송할 파일 목록 (쉼표로 구분)
+          host: ${{ env.EC2_HOST }}            # 배포서버 호스트 주소
+          port: ${{ env.SSH_PORT }}             # SSH 포트번호 (온프레미스는 커스텀 포트번호 사용)
+          username: ${{ secrets.EC2_USERNAME }} # 배포서버 사용자명
+          key: ${{ secrets.EC2_PRIVATE_KEY }}   # 배포서버 개인 키
+          source: "docker-compose.yml,.env"     # 전송할 파일 목록
           target: ${{ secrets.DOCKER_DEPLOY_DIRECTORY }}  # 배포서버 내 대상 경로
- 
-      - name: EC2에서 docker-compose 실행
+
+      - name: EC2에서 docker-compose 실행 (경로 자동탐지 & Stop→Recreate + Nginx 재기동)
         uses: appleboy/ssh-action@v1.0.0  # 배포서버에 SSH 접속하여 명령 실행
         with:
           host: ${{ env.EC2_HOST }} # 배포서버 호스트 주소
-          port: ${{ env.SSH_PORT }} # SSH 포트번호 (온프레미스는 커스텀 포트번호 사용하므로 추가)
+          port: ${{ env.SSH_PORT }} # SSH 포트번호 (온프레미스는 커스텀 포트번호 사용)
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
-            export PATH=$PATH:/usr/bin
-            cd ${{ secrets.DOCKER_DEPLOY_DIRECTORY }}  # 도커 파일이 위치한 경로로 이동
-            docker pull ${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}  # 최신 이미지 가져오기
-            docker-compose down  # 기존 컨테이너 종료
-            docker-compose up -d  # 백그라운드로 새 컨테이너 실행
-            cd ${{ secrets.DOCKER_NGINX_DIRECTORY }}
-            docker-compose restart  # Nginx 컨테이너 재시작 (Nginx 설정 변경 반영)
+            set -eu
+            # Synology 자주 쓰는 경로까지 PATH 확장
+            export PATH="/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin:/opt/bin:/opt/sbin:/var/packages/Docker/target/usr/bin:$PATH"
+
+            DEPLOY_DIR="${{ secrets.DOCKER_DEPLOY_DIRECTORY }}"  # 도커 파일이 위치한 경로
+            NGINX_DIR="${{ secrets.DOCKER_NGINX_DIRECTORY }}"    # 외부 Nginx compose 디렉토리 (있으면 재기동)
+            IMAGE="${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}"  # 최신 이미지 태그
+            SERVICE="kosta-pick-team-backend"  # 백엔드 서비스 이름 (compose의 서비스 키와 일치)
+
+            # docker-compose v1 경로 탐지 (없으면 v2 fallback)
+            COMPOSE_IS_V2=0
+            if command -v docker-compose >/dev/null 2>&1; then
+              COMPOSE_V1="$(command -v docker-compose)"
+            else
+              for p in /var/packages/Docker/target/usr/bin/docker-compose /usr/local/bin/docker-compose /usr/bin/docker-compose /bin/docker-compose; do
+                [ -x "$p" ] && COMPOSE_V1="$p" && break
+              done
+            fi
+            if [ -z "${COMPOSE_V1:-}" ]; then
+              if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+                COMPOSE_IS_V2=1
+              else
+                echo "❌ docker-compose(v1)/docker compose(v2) 없음"
+                exit 1
+              fi
+            fi
+            compose() { if [ "$COMPOSE_IS_V2" -eq 1 ]; then docker compose "$@"; else "$COMPOSE_V1" "$@"; fi; }
+            echo "✅ compose 사용: $([ "$COMPOSE_IS_V2" -eq 1 ] && echo 'v2(docker compose)' || echo "v1($COMPOSE_V1)")"
+
+            cd "$DEPLOY_DIR"  # 도커 파일이 위치한 경로로 이동
+
+            # 0) 새 이미지 미리 당겨놓기 (실패해도 계속)
+            docker pull "$IMAGE" || true
+
+            # 1) 서비스만 안전하게 중지 (실행 중 아니어도 에러 없이 통과)
+            compose -f docker-compose.yml stop "$SERVICE" || true
+
+            # 2) 컨테이너 제거 (볼륨은 건드리지 않음)
+            compose -f docker-compose.yml rm -f "$SERVICE" || true
+
+            # 3) 신규 컨테이너 기동 (연관 서비스 건드리지 않음)
+            compose -f docker-compose.yml up -d --no-deps --force-recreate "$SERVICE"
+
+            # 4) (옵션) 헬스체크가 정의돼 있으면 'healthy' 될 때까지 대기
+            if docker inspect "$SERVICE" >/dev/null 2>&1; then
+              echo "⏳ waiting for $SERVICE to be healthy..."
+              for i in $(seq 1 60); do
+                STATUS="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}' "$SERVICE")" || true
+                if [ "$STATUS" = "healthy" ]; then
+                  echo "✅ $SERVICE healthy"
+                  break
+                fi
+                sleep 2
+              done
+            fi
+
+            # 5) 이미지 정리 (디스크 압박 방지)
+            docker image prune -f || true
+
+            # 6) 외부 Nginx 컨테이너 재시작 (Upstream 리프레시/라우팅 새로고침)
+            if [ -n "$NGINX_DIR" ] && [ -d "$NGINX_DIR" ]; then
+              cd "$NGINX_DIR"
+              # compose 바이너리 동일 로직으로 실행
+              compose -f docker-compose.yml restart || true
+            fi
+
+            echo "🎉 Deploy done (Stop→Recreate + nginx restart)."

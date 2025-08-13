@@ -6,19 +6,19 @@ services:
     container_name: pickteam-redis
     ports:
       - "6379:6379"
-    restart: always
+    restart: unless-stopped #컨테이너가 죽으면 재시작하되 수동으로 stop한 컨테이너는 재시작하지 않는다
     networks:
       - pickteam
 
   kosta-pick-team-backend:  # 서비스 이름 (컨테이너 역할 명시)
-    image: ${DOCKER_USERNAME}/kosta-pick-team:${IMAGE_TAG}  # docker 이미지 경로. CI에서 전달된 태그 사용
+    image: ${DOCKER_USERNAME}/kosta-pick-team:${IMAGE_TAG}  # docker 이미지 경로. CI에서 전달된 태그 사용 (⚠️ .env에 DOCKER_USERNAME 필요)
     container_name: kosta-pick-team-backend  # 실제 생성될 컨테이너의 이름 지정
 
     ports:
       - ${PORT_NO}:${PORT_NO}  # 호스트의 8081 포트를 컨테이너의 8081 포트에 매핑 (환경변수 따라 세팅)
 
     volumes:
-      - ${UPLOAD_DOCKER_VOLUME_PATH}  # Spring 내에서 /app/uploads로 접근
+      - ${UPLOAD_DOCKER_VOLUME_PATH}  # Spring 내에서 /app/uploads로 접근 (예: /volume1/pickteam/uploads:/app/uploads 형태)
 
     environment:  # 컨테이너에 전달할 환경변수 설정
       PORT_NO: ${PORT_NO}  # Port no
@@ -86,11 +86,15 @@ services:
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}  # Livekit api key
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}  # Livekit api secret
       LIVEKIT_SERVER_IP: ${LIVEKIT_SERVER_IP}  # Livekit server ip
-      DOCKER_USERNAME : ${DOCKER_USERNAME}
-      DOCKER_ACCESS_TOKEN : ${DOCKER_ACCESS_TOKEN}
+      # ⛔ 아래 두 줄은 컨테이너에서 필요 없음. (이미지 빌드/푸시에만 사용)
+      # DOCKER_USERNAME : ${DOCKER_USERNAME}
+      # DOCKER_ACCESS_TOKEN : ${DOCKER_ACCESS_TOKEN}
 
       JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Seoul -Dfile.encoding=UTF-8"  # JVM 시간대/인코딩 설정
 
+    restart: unless-stopped #컨테이너가 죽으면 재시작하되 수동으로 stop한 컨테이너는 재시작하지 않는다
+    depends_on:
+      - redis #redis를 먼저 띄운다
     networks:
       - pickteam  # 동일한 네트워크에 연결된 다른 컨테이너들과 통신 가능
 
@@ -100,10 +104,11 @@ services:
     ports:
       - "7880:7880"  # HTTP API + WebSocket signaling
       - "7881:7881"  # WebRTC TCP 연결 (UDP 대체)
+      # - "7882-7980:7882-7980/udp"  # 실제 WebRTC UDP 필요 시 주석 해제
     environment:
       - LIVEKIT_KEYS=${LIVEKIT_KEYS}
-      - LIVEKIT_WEB="true"
-    restart: always
+      - LIVEKIT_WEB=true
+    restart: unless-stopped
     networks:
       - pickteam
 

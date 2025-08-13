@@ -97,6 +97,7 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
+            export PATH=$PATH:/usr/bin
             cd ${{ secrets.DOCKER_DEPLOY_DIRECTORY }}  # 도커 파일이 위치한 경로로 이동
             docker pull ${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}  # 최신 이미지 가져오기
             docker-compose down  # 기존 컨테이너 종료

@@ -25,22 +25,20 @@ jobs:
 
       - name: 브랜치 환경 로그 확인
         run: |
-          echo "현재 브랜치"
-          echo "${GITHUB_REF_NAME}"
+          echo "현재 브랜치: ${GITHUB_REF_NAME}"
 
       - name: Spring 환경변수 주입 (.env 생성) # .env 파일의 내용을 secret으로부터 읽어다 통째로 주입
         run: |
           if [ "${GITHUB_REF_NAME}" == "main" ]; then
             echo "${{ secrets.ENV_DEV }}" > .env  # main 브랜치일 경우 DEV 환경변수 적용
-            echo "EC2_HOST=${{ secrets.EC2_HOST_DEV }}" >> $GITHUB_ENV
+            echo "EC2_HOST=${{ secrets.EC2_HOST_DEV }}" >> $GITHUB_ENV # 개발 서버 도메인
           elif [ "${GITHUB_REF_NAME}" == "production" ]; then
             echo "${{ secrets.ENV_PROD }}" > .env # production 브랜치일 경우 PROD 환경변수 적용
-            echo "EC2_HOST=${{ secrets.ES2_HOST_PROD }}" >> $GITHUB_ENV
+            echo "EC2_HOST=${{ secrets.EC2_HOST_PROD }}" >> $GITHUB_ENV # 운영 서버 도메인 (오타 수정됨)
           else
             echo "지원되지 않는 브랜치입니다. 종료합니다." # 예외처리
             exit 1
           fi
-          echo "SSH_PORT=${{ secrets.SSH_PORT }}" >> $GITHUB_ENV
 
       - name: 자동 이미지 태그 설정 (브랜치명 + 날짜 + SHA)
         run: |
@@ -57,7 +55,6 @@ jobs:
 
       - name: Maven 빌드 실행
         run: ./mvnw clean package -DskipTests  # Maven 빌드 실행 (테스트 생략)
-      # run: ./mvnw clean verify  # 테스트 포함 빌드 시 이 명령어 사용
 
       - name: Docker Hub 로그인
         uses: docker/login-action@v3  # Docker Hub에 로그인하는 액션
@@ -71,25 +68,53 @@ jobs:
       - name: Docker 이미지 푸시
         run: docker push ${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}   # 빌드한 이미지를 Docker Hub에 업로드
 
-      # EC2 -> 온프레미스로 변경 (기본적인 세팅 동일하므로 환경변수명에 사용하는 접두어 EC2 유지)
-      - name: 배포서버에 docker-compose.yml + .env 전송
-        uses: appleboy/scp-action@v0.1.7  # 배포서버로 파일 전송하는 액션(SCP)
-        with:
-          host: ${{ env.EC2_HOST }}            # 배포서버 호스트 주소
-          port: ${{ env.SSH_PORT }}             # SSH 포트번호 (온프레미스는 커스텀 포트번호 사용)
-          username: ${{ secrets.EC2_USERNAME }} # 배포서버 사용자명
-          key: ${{ secrets.EC2_PRIVATE_KEY }}   # 배포서버 개인 키
-          source: "docker-compose.yml,.env"     # 전송할 파일 목록
-          target: ${{ secrets.DOCKER_DEPLOY_DIRECTORY }}  # 배포서버 내 대상 경로
+      # ---------------------------------------------------------
+      # 여기서부터 Cloudflare Tunnel을 통한 SSH 접속 및 배포 로직 시작
+      # ---------------------------------------------------------
 
-      - name: EC2에서 docker-compose 실행 (경로 자동탐지 & Stop→Recreate + Nginx 재기동)
-        uses: appleboy/ssh-action@v1.0.0  # 배포서버에 SSH 접속하여 명령 실행
-        with:
-          host: ${{ env.EC2_HOST }} # 배포서버 호스트 주소
-          port: ${{ env.SSH_PORT }} # SSH 포트번호 (온프레미스는 커스텀 포트번호 사용)
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_PRIVATE_KEY }}
-          script: |
+      - name: Install cloudflared
+        # GitHub 가상 머신에 cloudflared 데몬을 설치하여 터널 통신 준비
+        run: |
+          curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared.deb
+
+      - name: Configure SSH for Cloudflare Tunnel
+        run: |
+          mkdir -p ~/.ssh
+          
+          # 1. SSH Private Key 세팅
+          echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          
+          # 2. SSH Config 세팅 (cloudflared 프록시 연결 설정)
+          cat <<EOF > ~/.ssh/config
+          Host synology-nas
+            HostName ${{ env.EC2_HOST }}
+            ProxyCommand cloudflared access ssh --hostname %h
+            StrictHostKeyChecking no
+            User ${{ secrets.EC2_USERNAME }}
+            IdentityFile ~/.ssh/id_rsa
+          EOF
+          chmod 600 ~/.ssh/config
+
+          # 3. Cloudflare Auth 환경변수 등록 (명령어 실행 시 자동 인식되어 인증 통과)
+          echo "CLOUDFLARE_ACCESS_CLIENT_ID=${{ secrets.CF_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "CLOUDFLARE_ACCESS_CLIENT_SECRET=${{ secrets.CF_CLIENT_SECRET }}" >> $GITHUB_ENV
+
+      - name: Test tunnel connection
+        # 배포 스크립트 실행 전, 터널 및 인증이 정상인지 가장 가벼운 명령어로 Fail-fast 테스트
+        run: |
+          ssh -F ~/.ssh/config synology-nas "echo SSH OK"
+
+      - name: 배포서버에 docker-compose.yml + .env 전송
+        # appleboy/scp-action 대신 네이티브 scp 사용 (-F 옵션으로 위에서 만든 config 파일 강제 지정)
+        run: |
+          scp -F ~/.ssh/config docker-compose.yml .env synology-nas:${{ secrets.DOCKER_DEPLOY_DIRECTORY }}/
+
+      - name: EC2(NAS)에서 docker-compose 실행 (Stop→Recreate + Nginx 재기동)
+        # appleboy/ssh-action 대신 네이티브 ssh 사용. 'EOF' 쿼우팅으로 변수 평가를 NAS 내부로 위임
+        run: |
+          ssh -F ~/.ssh/config synology-nas << 'EOF'
             set -eu
             # Synology 자주 쓰는 경로까지 PATH 확장
             export PATH="/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin:/opt/bin:/opt/sbin:/var/packages/Docker/target/usr/bin:$PATH"
@@ -99,7 +124,7 @@ jobs:
             IMAGE="${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}"  # 최신 이미지 태그
             SERVICE="kosta-pick-team-backend"  # 백엔드 서비스 이름 (compose의 서비스 키와 일치)
 
-            # docker-compose v1 경로 탐지 (없으면 v2 fallback)
+            # docker-compose v1 경로 자동 탐지 (없으면 v2 fallback)
             COMPOSE_IS_V2=0
             if command -v docker-compose >/dev/null 2>&1; then
               COMPOSE_V1="$(command -v docker-compose)"
@@ -157,3 +182,4 @@ jobs:
             fi
 
             echo "🎉 Deploy done (Stop→Recreate + nginx restart)."
+          EOF

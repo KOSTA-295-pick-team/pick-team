@@ -103,9 +103,19 @@ jobs:
 
       - name: Test tunnel connection
         # 배포 스크립트 실행 전, 터널 및 인증이 정상인지 가장 가벼운 명령어로 Fail-fast 테스트
+        env:
+          # 환경변수가 안 넘어오는 변수를 차단하기 위해 여기서 직접 한 번 더 매핑해줌
+          CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CF_CLIENT_ID }}
+          CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CF_CLIENT_SECRET }}
         run: |
-          ssh -F ~/.ssh/config synology-nas "echo SSH OK"
+          # 1. 변수가 존재하는지 확인 (값이 있으면 ***로 찍힘)
+          echo "Checking Env Vars..."
+          if [ -z "$CLOUDFLARE_ACCESS_CLIENT_ID" ]; then echo "ID is Empty!"; fi
+          
+          # 2. 상세 로그(-v)와 함께 접속 시도
+          ssh -v -F ~/.ssh/config synology-nas "echo SSH OK"
 
+ 
       - name: 배포서버에 docker-compose.yml + .env 전송
         # appleboy/scp-action 대신 네이티브 scp 사용 (-F 옵션으로 위에서 만든 config 파일 강제 지정)
         run: |

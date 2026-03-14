@@ -87,11 +87,11 @@ jobs:
           echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           
-          # 2. SSH Config 세팅 (ProxyCommand에 env로 시크릿 직접 주입!)
+          # 2. SSH Config 세팅
           cat <<EOF > ~/.ssh/config
           Host synology-nas
             HostName ${{ env.EC2_HOST }}
-            ProxyCommand env CLOUDFLARE_ACCESS_CLIENT_ID=${{ secrets.CF_CLIENT_ID }} CLOUDFLARE_ACCESS_CLIENT_SECRET=${{ secrets.CF_CLIENT_SECRET }} cloudflared access ssh --hostname %h
+            ProxyCommand cloudflared access ssh --hostname %h --id ${{ secrets.CF_CLIENT_ID }} --secret ${{ secrets.CF_CLIENT_SECRET }}
             StrictHostKeyChecking no
             User ${{ secrets.EC2_USERNAME }}
             IdentityFile ~/.ssh/id_rsa

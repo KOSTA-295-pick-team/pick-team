@@ -1,5 +1,7 @@
-# 1. OpenJDK 17 기반의 슬림 이미지 사용 (필수 최소 구성만 포함)
-FROM openjdk:17-jdk-slim
+# OpenJdk 17 Deprecated에 따른 베이스 이미지 교체
+# 기존: FROM openjdk:17-jdk-slim
+# 변경: Eclipse Temurin JDK 17 
+FROM eclipse-temurin:17-jdk-alpine
 
 # 2. 컨테이너 내에서 앱이 실행될 디렉토리 지정
 WORKDIR /app

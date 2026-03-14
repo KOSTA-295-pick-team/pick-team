@@ -86,7 +86,7 @@ jobs:
           echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           
-          # 2. SSH Config 세팅 (cloudflared 프록시 연결 설정)
+          # 2. SSH Config 세팅
           cat <<EOF > ~/.ssh/config
           Host synology-nas
             HostName ${{ env.EC2_HOST }}
@@ -98,8 +98,8 @@ jobs:
           chmod 600 ~/.ssh/config
 
           # 3. Cloudflare Auth 환경변수 등록 (명령어 실행 시 자동 인식되어 인증 통과)
-          echo "CLOUDFLARE_ACCESS_CLIENT_ID=${{ secrets.CF_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "CLOUDFLARE_ACCESS_CLIENT_SECRET=${{ secrets.CF_CLIENT_SECRET }}" >> $GITHUB_ENV
+          echo "TUNNEL_SERVICE_TOKEN_ID=${{ secrets.CF_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "TUNNEL_SERVICE_TOKEN_SECRET=${{ secrets.CF_CLIENT_SECRET }}" >> $GITHUB_ENV
 
       - name: Test tunnel connection
         # 배포 스크립트 실행 전, 터널 및 인증이 정상인지 가장 가벼운 명령어로 Fail-fast 테스트

@@ -112,6 +112,9 @@ jobs:
           echo "Checking Env Vars..."
           if [ -z "$CLOUDFLARE_ACCESS_CLIENT_ID" ]; then echo "ID is Empty!"; fi
           
+          # (SSH를 거치지 않고 cloudflared 단독으로 통신 시도)
+          cloudflared access curl https://${{ env.EC2_HOST }} --id $CLOUDFLARE_ACCESS_CLIENT_ID --secret $CLOUDFLARE_ACCESS_CLIENT_SECRET -v || true
+          
           # 2. 상세 로그(-v)와 함께 접속 시도
           ssh -v -F ~/.ssh/config synology-nas "echo SSH OK"
 

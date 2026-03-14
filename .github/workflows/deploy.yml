@@ -34,7 +34,7 @@ jobs:
             echo "EC2_HOST=${{ secrets.EC2_HOST_DEV }}" >> $GITHUB_ENV # 개발 서버 도메인
           elif [ "${GITHUB_REF_NAME}" == "production" ]; then
             echo "${{ secrets.ENV_PROD }}" > .env # production 브랜치일 경우 PROD 환경변수 적용
-            echo "EC2_HOST=${{ secrets.EC2_HOST_PROD }}" >> $GITHUB_ENV # 운영 서버 도메인 (오타 수정됨)
+            echo "EC2_HOST=${{ secrets.EC2_HOST_PROD }}" >> $GITHUB_ENV # 운영 서버 도메인
           else
             echo "지원되지 않는 브랜치입니다. 종료합니다." # 예외처리
             exit 1
@@ -45,6 +45,7 @@ jobs:
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
           TODAY=$(date +%Y%m%d)
           IMAGE_TAG="${GITHUB_REF_NAME}-$TODAY-$SHORT_SHA"
+          
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
           echo "IMAGE_TAG=$IMAGE_TAG" >> .env
           echo "GITHUB_REF_NAME=$GITHUB_REF_NAME" >> .env
@@ -86,46 +87,30 @@ jobs:
           echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           
-          # 2. SSH Config 세팅
+          # 2. SSH Config 세팅 (ProxyCommand에 env로 시크릿 직접 주입!)
           cat <<EOF > ~/.ssh/config
           Host synology-nas
             HostName ${{ env.EC2_HOST }}
-            ProxyCommand cloudflared access ssh --hostname %h
+            ProxyCommand env CLOUDFLARE_ACCESS_CLIENT_ID=${{ secrets.CF_CLIENT_ID }} CLOUDFLARE_ACCESS_CLIENT_SECRET=${{ secrets.CF_CLIENT_SECRET }} cloudflared access ssh --hostname %h
             StrictHostKeyChecking no
             User ${{ secrets.EC2_USERNAME }}
             IdentityFile ~/.ssh/id_rsa
           EOF
           chmod 600 ~/.ssh/config
 
-          # 3. Cloudflare Auth 환경변수 등록 (명령어 실행 시 자동 인식되어 인증 통과)
-          echo "TUNNEL_SERVICE_TOKEN_ID=${{ secrets.CF_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "TUNNEL_SERVICE_TOKEN_SECRET=${{ secrets.CF_CLIENT_SECRET }}" >> $GITHUB_ENV
-
       - name: Test tunnel connection
-        # 배포 스크립트 실행 전, 터널 및 인증이 정상인지 가장 가벼운 명령어로 Fail-fast 테스트
-        env:
-          # 환경변수가 안 넘어오는 변수를 차단하기 위해 여기서 직접 한 번 더 매핑해줌
-          CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CF_CLIENT_ID }}
-          CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CF_CLIENT_SECRET }}
+        # 터널 및 인증이 정상인지 Fail-fast 테스트 (지저분한 curl 테스트 생략하고 바로 SSH 찌르기)
         run: |
-          # 1. 변수가 존재하는지 확인 (값이 있으면 ***로 찍힘)
-          echo "Checking Env Vars..."
-          if [ -z "$CLOUDFLARE_ACCESS_CLIENT_ID" ]; then echo "ID is Empty!"; fi
-          
-          # (SSH를 거치지 않고 cloudflared 단독으로 통신 시도)
-          cloudflared access curl https://${{ env.EC2_HOST }} --id $CLOUDFLARE_ACCESS_CLIENT_ID --secret $CLOUDFLARE_ACCESS_CLIENT_SECRET -v || true
-          
-          # 2. 상세 로그(-v)와 함께 접속 시도
+          echo "Connecting to: ${{ env.EC2_HOST }} ..."
           ssh -v -F ~/.ssh/config synology-nas "echo SSH OK"
 
- 
       - name: 배포서버에 docker-compose.yml + .env 전송
         # appleboy/scp-action 대신 네이티브 scp 사용 (-F 옵션으로 위에서 만든 config 파일 강제 지정)
         run: |
           scp -F ~/.ssh/config docker-compose.yml .env synology-nas:${{ secrets.DOCKER_DEPLOY_DIRECTORY }}/
 
       - name: EC2(NAS)에서 docker-compose 실행 (Stop→Recreate + Nginx 재기동)
-        # appleboy/ssh-action 대신 네이티브 ssh 사용. 'EOF' 쿼우팅으로 변수 평가를 NAS 내부로 위임
+        # appleboy/ssh-action 대신 네이티브 ssh 사용. 'EOF' 쿼우팅으로 NAS 내부 쉘 변수 치환 방지 (GitHub 변수는 쿼우팅 전 치환됨)
         run: |
           ssh -F ~/.ssh/config synology-nas << 'EOF'
             set -eu

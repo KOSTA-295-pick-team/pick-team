@@ -105,11 +105,12 @@ jobs:
           ssh -v -F ~/.ssh/config synology-nas "echo SSH OK"
 
       - name: 배포 디렉토리 확인 및 생성
-        # native scp는 대상 디렉토리가 미리 존재해야 하므로 원격 서버에서 먼저 보장
+        # Synology는 SFTP에서 보는 경로와 SSH 셸에서 보는 실제 경로가 다를 수 있다.
+        # 이 단계는 ssh로 원격 셸 명령을 실행하므로 DOCKER_DEPLOY_DIRECTORY_SSH(/volume1/...)를 사용한다.
         run: |
           ssh -F ~/.ssh/config synology-nas "
             set -eu
-            DEPLOY_DIR='${{ secrets.DOCKER_DEPLOY_DIRECTORY }}'
+            DEPLOY_DIR='${{ secrets.DOCKER_DEPLOY_DIRECTORY_SSH }}'
             printf 'DEPLOY_DIR=[%s]\n' \"\$DEPLOY_DIR\"
             mkdir -p \"\$DEPLOY_DIR\"
             ls -ld \"\$DEPLOY_DIR\"
@@ -117,6 +118,7 @@ jobs:
 
       - name: 배포서버에 docker-compose.yml + .env 전송
         # appleboy/scp-action 대신 네이티브 scp 사용 (-F 옵션으로 위에서 만든 config 파일 강제 지정)
+        # 이 단계는 scp의 기본 SFTP 경로 해석을 따르므로 DOCKER_DEPLOY_DIRECTORY(/docker/...)를 사용한다.
         run: |
           scp -F ~/.ssh/config docker-compose.yml .env "synology-nas:${{ secrets.DOCKER_DEPLOY_DIRECTORY }}/"
 
@@ -128,7 +130,7 @@ jobs:
             # Synology 자주 쓰는 경로까지 PATH 확장
             export PATH="/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin:/opt/bin:/opt/sbin:/var/packages/Docker/target/usr/bin:$PATH"
 
-            DEPLOY_DIR="${{ secrets.DOCKER_DEPLOY_DIRECTORY }}"  # 도커 파일이 위치한 경로
+            DEPLOY_DIR="${{ secrets.DOCKER_DEPLOY_DIRECTORY_SSH }}"  # SSH 셸 기준 배포 경로 (/volume1/...)
             NGINX_DIR="${{ secrets.DOCKER_NGINX_DIRECTORY }}"    # 외부 Nginx compose 디렉토리 (있으면 재기동)
             IMAGE="${{ secrets.DOCKER_USERNAME }}/kosta-pick-team:${{ env.IMAGE_TAG }}"  # 최신 이미지 태그
             SERVICE="kosta-pick-team-backend"  # 백엔드 서비스 이름 (compose의 서비스 키와 일치)

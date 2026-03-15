@@ -104,6 +104,11 @@ jobs:
           echo "Connecting to: ${{ env.EC2_HOST }} ..."
           ssh -v -F ~/.ssh/config synology-nas "echo SSH OK"
 
+      - name: 배포 디렉토리 생성
+        # native scp는 대상 디렉토리가 미리 존재해야 하므로 원격 서버에서 먼저 보장
+        run: |
+          ssh -F ~/.ssh/config synology-nas "mkdir -p '${{ secrets.DOCKER_DEPLOY_DIRECTORY }}'"
+
       - name: 배포서버에 docker-compose.yml + .env 전송
         # appleboy/scp-action 대신 네이티브 scp 사용 (-F 옵션으로 위에서 만든 config 파일 강제 지정)
         run: |
